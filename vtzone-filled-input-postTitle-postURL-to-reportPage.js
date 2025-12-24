@@ -27,12 +27,13 @@ document.addEventListener(&#39;DOMContentLoaded&#39;, function() {
                 // console.log(&quot;Dữ liệu bài viết đã được lưu vào localStorage:&quot;, postData);
                 
                 // 4. Chuyển hướng người dùng đến trang báo lỗi
-                window.location.href = &quot;/p/report.html&quot;;
+                window.location.href = &quot;https://blog.vutruong.vn/p/report.html&quot;;
                 
             } catch (e) {
                 console.error(&quot;Lỗi khi lưu dữ liệu vào localStorage:&quot;, e);
-                window.location.href = &quot;/p/report.html&quot;;
+                window.location.href = &quot;https://blog.vutruong.vn/p/report.html&quot;;
             }
         });
     }
 });
+
