@@ -154,7 +154,7 @@ function initCommentLogic() {
         // ----------------------------------------------------
         $('.toplevel-thread>ol>li>.comment-replies').each(function() {
             if ($(this).find('.comment-thread>ol>li').length > 0) {
-                $(this).before('<div class="view-replies"><span class="has-hover"><i class="fa-regular fa-angle-down"/> ' + $(this).find('.comment-thread>ol>li').length + ' phản hồi</span></div>')
+                $(this).before('<div class="view-replies"><span class="has-hover"><i class="fa-regular fa-angle-down"></i> ' + $(this).find('.comment-thread>ol>li').length + ' phản hồi</span></div>')
             }
         })
 
@@ -225,4 +225,5 @@ function initCommentLogic() {
 // ====================================================================
 window.addEventListener('load', function() {
     initCommentLogic();
+
 });
