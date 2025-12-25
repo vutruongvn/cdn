@@ -1,0 +1,104 @@
+/* --- CSS Live Search --- */
+.vt-live-search-wrapper {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 670px;
+    max-width: 95%;
+    z-index: 3;
+  	display:none
+}
+
+.vt-search-form {
+    border-radius: 12px;
+    background: #f0f4f9;
+}
+
+.vt-search-form input {
+    border: none;
+    padding: 12px 12px 12px 3.3em;
+    outline: none;
+    font-weight: 400;
+    background: 0;
+    color: #333;
+    width: 100%
+}
+
+.vt-search-form button {
+background: 0;
+    color: #555;
+    border: 0;
+    outline: 0;
+    padding: 0 1em;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%)
+}
+
+/* Khung kết quả thả xuống */
+.vt-live-results {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: rgba(255, 255, 255, .8);
+    backdrop-filter: blur(10px);
+    border-top: none;
+    box-shadow: rgba(149, 157, 165, .1) 0 8px 24px;
+    z-index: 999;
+    max-height: 100vh;
+    overflow-y: auto;
+    border-radius: 0 0 12px 12px
+}
+
+/* Item kết quả */
+.vt-search-item {
+    display: flex;
+    padding: 1em;
+    border-bottom: 1px solid #eee;
+    text-decoration: none;
+    color: #333;
+    transition: background 0.2s;
+    align-items: center;
+}
+
+.vt-search-item:last-child {
+    border-bottom: none;
+}
+
+.vt-search-item:hover {
+    background: rgba(255,255,255,.5);
+    text-decoration: none
+}
+
+.vt-search-thumb {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-right: 10px;
+    background: #eee;
+}
+
+.vt-search-info {
+    flex: 1;
+}
+
+.vt-search-title {
+    display: block;
+}
+
+.vt-search-label {
+    font-size: 12px;
+    color: #888;
+}
+
+/* Loading n Empty State */
+.vt-search-loading, .vt-search-empty {
+    padding: 1em;
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+}
