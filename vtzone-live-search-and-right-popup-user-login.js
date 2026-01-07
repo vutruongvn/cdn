@@ -83,16 +83,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-
-    // 5. Thêm sự kiện: Ẩn Popup khi nhấp vào bất kỳ tùy chọn nào trong menu
-    accountLinks.forEach(link => {
-        link.addEventListener('click', function() {
-            // Gọi hàm fadeOut khi nhấp vào link trong menu
-            fadeOut(popupPanel, FADE_DURATION); 
-            // Lưu ý: Nếu link có href='#' thì bạn có thể cần thêm e.preventDefault()
-            // nếu không muốn trang cuộn về đầu.
-        });
-    });
 });
 
 // Chức năng liveSearch trên topMenu by VTZone
@@ -174,3 +164,4 @@ $(document).ready(function() {
         }
     });
 });
+
