@@ -1,7 +1,7 @@
 /* === Hàm Slide (Chỉ dùng JS thuần) === */
 
 // Hiệu ứng Mở (Slide Down)
-function slideDown(element, duration = 100) {
+function slideDown(element, duration = 500) {
     // 1. Thiết lập trạng thái ban đầu để tính toán chiều cao
     element.style.display = 'block';
     // Đặt overflow: hidden để tránh nội dung bị tràn ra ngoài trong quá trình chuyển động
@@ -36,7 +36,7 @@ function slideDown(element, duration = 100) {
 }
 
 // Hiệu ứng Đóng (Slide Up)
-function slideUp(element, duration = 100) {
+function slideUp(element, duration = 500) {
     // 1. Thiết lập trạng thái ban đầu để trượt xuống
     element.style.height = `${element.offsetHeight}px`;
     element.style.overflow = 'hidden';
@@ -193,5 +193,6 @@ $(document).ready(function() {
         }
     });
 });
+
 
 
