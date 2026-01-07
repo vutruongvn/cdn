@@ -133,7 +133,7 @@ function initCommentLogic() {
             $(elem).appendTo($('#' + li + '>.comment-replybox-single'))
 
             // Chèn nút "Hủy" Trả lời (Cancel Reply)
-            $('#' + li + '>.comment-replybox-single').append('<div class="calcel-reply"><a style="font-size:14px;font-weight:500" class="btn btn-light btn-block mb-3 mt-2" role="button">Hủy trả lời</a></div>')
+            $('#' + li + '>.comment-replybox-single').append('<div class="calcel-reply"><a style="font-size:14px;font-weight:500" class="btn btn-dark w-100 text-decoration-none mb-3 mt-2" role="button">Hủy trả lời</a></div>')
 
             // Xử lý sự kiện click Hủy (ĐÃ SỬA ĐỔI)
             $('.calcel-reply').click(function() {
@@ -226,4 +226,5 @@ function initCommentLogic() {
 // ====================================================================
 window.addEventListener('load', function() {
     initCommentLogic();
+
 });
