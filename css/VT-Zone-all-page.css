@@ -856,7 +856,7 @@ img.f-panzoom__content {
 }
 
 .VT_adminProfile:after {
-    content: '
+    content: '';
     position: absolute;
     top: 100%;
     left: 5%;
@@ -1394,3 +1394,4 @@ html.VT_darkMode .VT_sidebar .content i {
 /* VT Zone
    vutruong.vn
                */
+
