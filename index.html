@@ -10,14 +10,15 @@
     <style>
         body { font-family: 'Roboto', sans-serif; background-color: #f8f9fa; }
         .cdn-header { background: #1a1d20; color: white; padding: 50px 0; margin-bottom: 30px; }
-        .section-title { border-left: 5px solid #0d6efd; padding-left: 15px; margin-bottom: 25px; font-weight: 700; }
         .file-card { border: none; border-radius: 12px; transition: all 0.3s ease; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .file-card:hover { transform: translateY(-5px); box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
         .js-icon { color: #f7df1e; }
         .css-icon { color: #264de4; }
         code { background: #f1f3f5; padding: 10px; border-radius: 6px; color: #d63384; display: block; word-break: break-all; font-size: 0.85em; margin: 10px 0; border: 1px solid #e9ecef; }
-        .nav-tabs .nav-link { color: #495057; font-weight: 500; }
-        .nav-tabs .nav-link.active { font-weight: 700; }
+        .nav-tabs .nav-link { color: #495057; font-weight: 500; border: none; border-bottom: 3px solid transparent; }
+        .nav-tabs .nav-link.active { font-weight: 700; color: #0d6efd; border-bottom: 3px solid #0d6efd; }
+        /* Toast Custom */
+        .toast-container { z-index: 1060; }
     </style>
 </head>
 <body>
@@ -30,12 +31,12 @@
 </div>
 
 <div class="container mb-5">
-    <ul class="nav nav-tabs mb-4" id="cdnTabs" role="tablist">
+    <ul class="nav nav-tabs mb-4 border-0" id="cdnTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="js-tab" data-bs-toggle="tab" data-bs-target="#js-section" type="button" role="tab"><i class="fa-brands fa-js me-2 js-icon"></i>Javascript Files</button>
+            <button class="nav-link active" id="js-tab" data-bs-toggle="tab" data-bs-target="#js-section" type="button" role="tab"><i class="fa-brands fa-js me-2 js-icon"></i>Javascript</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="css-tab" data-bs-toggle="tab" data-bs-target="#css-section" type="button" role="tab"><i class="fa-brands fa-css3-alt me-2 css-icon"></i>CSS Stylesheets</button>
+            <button class="nav-link" id="css-tab" data-bs-toggle="tab" data-bs-target="#css-section" type="button" role="tab"><i class="fa-brands fa-css3-alt me-2 css-icon"></i>CSS Styles</button>
         </li>
     </ul>
 
@@ -58,13 +59,28 @@
     </div>
 </div>
 
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="copyToast" class="toast align-items-center text-white bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fa-solid fa-check-circle me-2 text-success"></i> Copy thành công!
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const config = {
         username: 'vutruongvn',
         repo: 'cdn',
+        branch: 'main',
         cdnDomain: 'cdn.vutruong.vn'
     };
+
+    const toastEl = document.getElementById('copyToast');
+    const toast = new bootstrap.Toast(toastEl);
 
     async function fetchFiles(folder) {
         const listEl = document.getElementById(`${folder}-list`);
@@ -80,8 +96,12 @@
             data.forEach(file => {
                 if (file.type === 'file') {
                     const isJs = file.name.endsWith('.js');
+                    const isCss = file.name.endsWith('.css');
+                    if (!isJs && !isCss) return;
+
                     const fileUrl = `https://${config.cdnDomain}/${folder}/${file.name}`;
-                    const editUrl = `https://github.com/${config.username}/${config.repo}/edit/main/${folder}/${file.name}`;
+                    // Sửa lại URL chỉnh sửa đúng định dạng: /edit/{branch}/{folder}/{name}
+                    const editUrl = `https://github.com/${config.username}/${config.repo}/edit/${config.branch}/${folder}/${file.name}`;
                     
                     const col = document.createElement('div');
                     col.className = 'col-md-6 col-lg-4 mb-4';
@@ -90,15 +110,15 @@
                             <div class="card-body d-flex flex-column">
                                 <div class="d-flex align-items-center mb-3">
                                     <i class="fa-brands ${isJs ? 'fa-js js-icon' : 'fa-css3-alt css-icon'} fs-3 me-3"></i>
-                                    <h6 class="card-title mb-0 text-truncate">${file.name}</h6>
+                                    <h6 class="card-title mb-0 text-truncate" title="${file.name}">${file.name}</h6>
                                 </div>
                                 <code id="url-${file.sha}">${fileUrl}</code>
                                 <div class="d-flex gap-2 mt-auto pt-3">
-                                    <button class="btn btn-primary btn-sm flex-grow-1" onclick="copyToClipboard('url-${file.sha}', this)">
+                                    <button class="btn btn-primary btn-sm flex-grow-1" onclick="copyToClipboard('url-${file.sha}')">
                                         <i class="fa-regular fa-copy me-1"></i> Copy Link
                                     </button>
                                     <a href="${editUrl}" target="_blank" class="btn btn-outline-dark btn-sm">
-                                        <i class="fa-regular fa-pen-to-square"></i>
+                                        <i class="fa-regular fa-pen-to-square"></i> Sửa
                                     </a>
                                 </div>
                             </div>
@@ -108,24 +128,18 @@
                 }
             });
         } catch (error) {
-            loaderEl.innerHTML = `<p class="text-danger">Không thể tải tệp từ /${folder}</p>`;
+            loaderEl.innerHTML = `<p class="text-danger">Lỗi kết nối API GitHub!</p>`;
         }
     }
 
-    function copyToClipboard(id, btn) {
+    function copyToClipboard(id) {
         const text = document.getElementById(id).innerText;
         navigator.clipboard.writeText(text).then(() => {
-            const originalHTML = btn.innerHTML;
-            btn.classList.replace('btn-primary', 'btn-success');
-            btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> OK!';
-            setTimeout(() => {
-                btn.classList.replace('btn-success', 'btn-primary');
-                btn.innerHTML = originalHTML;
-            }, 1500);
+            toast.show();
         });
     }
 
-    // Khởi chạy lấy dữ liệu cho cả 2 thư mục
+    // Tự động load dữ liệu
     fetchFiles('js');
     fetchFiles('css');
 </script>
