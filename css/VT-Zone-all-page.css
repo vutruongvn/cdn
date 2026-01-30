@@ -1381,4 +1381,16 @@ html.VT_darkMode .VT_sidebar .content i {
         flex-basis: 100%;
         margin: 1em 0
     }
+
 }
+
+.items_footer_postBody.like_cmt_share_container{padding:0;margin:12px 0 0;display:flex;justify-content:start;user-select:none}
+.items_footer_postBody.like_cmt_share_container a{margin:0 1em 0 0;text-decoration:none}
+.items_footer_postBody.like_cmt_share_container a.likePost.active-like{color:#fc4a6b}
+.items_footer_postBody.like_cmt_share_container a:hover{}
+.items_footer_postBody.like_cmt_share_container a.likePost.active{font-weight:600}
+.items_footer_postBody.like_cmt_share_container a i{margin:0 2px 0 0}
+
+/* VT Zone
+   vutruong.vn
+               */
