@@ -1,4 +1,4 @@
-// JS cho các tính năng: Firebase, Auth, Like, View, History
+// JS cho các tính năng: Firebase, Auth, Like, View, History.
 // VT Zone
 // vutruong.vn
 
@@ -384,3 +384,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 });
+
