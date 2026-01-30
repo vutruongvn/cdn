@@ -1,0 +1,41 @@
+name: Minify JS và CSS cho VT Zone
+
+on:
+  push:
+    branches:
+      - main  # Chạy khi bạn push code vào nhánh main
+    paths:
+      - 'js/*.js'
+      - 'css/*.css'
+
+jobs:
+  minify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Cài đặt công cụ nén
+        run: |
+          sudo apt-get install -y yui-compressor
+
+      - name: Tiến hành nén file
+        run: |
+          # Tạo thư mục temp nếu chưa có
+          mkdir -p dist/js dist/css
+          
+          # Nén toàn bộ file JS
+          for f in js/*.js; do
+            yui-compressor "$f" -o "${f%.js}.min.js"
+          done
+          
+          # Nén toàn bộ file CSS
+          for f in css/*.css; do
+            yui-compressor "$f" -o "${f%.css}.min.css"
+          done
+
+      - name: Commit và Push file đã nén
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Auto Minify: Nén file JS/CSS để tối ưu tốc độ [skip ci]"
+          file_pattern: 'js/*.min.js css/*.min.css'
