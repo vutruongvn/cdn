@@ -17,8 +17,6 @@
         code { background: #f1f3f5; padding: 10px; border-radius: 6px; color: #d63384; display: block; word-break: break-all; font-size: 0.85em; margin: 10px 0; border: 1px solid #e9ecef; }
         .nav-tabs .nav-link { color: #495057; font-weight: 500; border: none; border-bottom: 3px solid transparent; }
         .nav-tabs .nav-link.active { font-weight: 700; color: #0d6efd; border-bottom: 3px solid #0d6efd; }
-        /* Toast Custom */
-        .toast-container { z-index: 1060; }
     </style>
 </head>
 <body>
@@ -59,17 +57,6 @@
     </div>
 </div>
 
-<div class="toast-container position-fixed bottom-0 end-0 p-3">
-    <div id="copyToast" class="toast align-items-center text-white bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="d-flex">
-            <div class="toast-body">
-                <i class="fa-solid fa-check-circle me-2 text-success"></i> Copy thành công!
-            </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-    </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const config = {
@@ -78,9 +65,6 @@
         branch: 'main',
         cdnDomain: 'cdn.vutruong.vn'
     };
-
-    const toastEl = document.getElementById('copyToast');
-    const toast = new bootstrap.Toast(toastEl);
 
     async function fetchFiles(folder) {
         const listEl = document.getElementById(`${folder}-list`);
@@ -100,7 +84,6 @@
                     if (!isJs && !isCss) return;
 
                     const fileUrl = `https://${config.cdnDomain}/${folder}/${file.name}`;
-                    // Sửa lại URL chỉnh sửa đúng định dạng: /edit/{branch}/{folder}/{name}
                     const editUrl = `https://github.com/${config.username}/${config.repo}/edit/${config.branch}/${folder}/${file.name}`;
                     
                     const col = document.createElement('div');
@@ -114,8 +97,8 @@
                                 </div>
                                 <code id="url-${file.sha}">${fileUrl}</code>
                                 <div class="d-flex gap-2 mt-auto pt-3">
-                                    <button class="btn btn-primary btn-sm flex-grow-1" onclick="copyToClipboard('url-${file.sha}')">
-                                        <i class="fa-regular fa-copy me-1"></i> Copy Link
+                                    <button class="btn btn-primary btn-sm flex-grow-1 btn-copy" onclick="copyToClipboard('url-${file.sha}', this)">
+                                        <i class="fa-regular fa-copy me-1"></i> Copy link
                                     </button>
                                     <a href="${editUrl}" target="_blank" class="btn btn-outline-dark btn-sm">
                                         <i class="fa-regular fa-pen-to-square"></i> Sửa
@@ -132,14 +115,22 @@
         }
     }
 
-    function copyToClipboard(id) {
+    function copyToClipboard(id, btn) {
         const text = document.getElementById(id).innerText;
         navigator.clipboard.writeText(text).then(() => {
-            toast.show();
+            const originalHTML = btn.innerHTML;
+            // Thay đổi sang trạng thái "Đã copy"
+            btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Đã copy';
+            btn.classList.replace('btn-primary', 'btn-success');
+            
+            // Trả về trạng thái ban đầu sau 2 giây
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.replace('btn-success', 'btn-primary');
+            }, 2000);
         });
     }
 
-    // Tự động load dữ liệu
     fetchFiles('js');
     fetchFiles('css');
 </script>
