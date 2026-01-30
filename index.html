@@ -8,104 +8,126 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: 'Roboto', sans-serif; background-color: #f4f7f6; }
-        .cdn-header { background: #1a1d20; color: white; padding: 60px 0; margin-bottom: 40px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .file-card { border: none; border-radius: 12px; transition: all 0.3s ease; box-shadow: 0 2px 15px rgba(0,0,0,0.05); background: white; }
-        .file-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
-        .file-icon { font-size: 2rem; margin-bottom: 15px; }
+        body { font-family: 'Roboto', sans-serif; background-color: #f8f9fa; }
+        .cdn-header { background: #1a1d20; color: white; padding: 50px 0; margin-bottom: 30px; }
+        .section-title { border-left: 5px solid #0d6efd; padding-left: 15px; margin-bottom: 25px; font-weight: 700; }
+        .file-card { border: none; border-radius: 12px; transition: all 0.3s ease; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .file-card:hover { transform: translateY(-5px); box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
         .js-icon { color: #f7df1e; }
         .css-icon { color: #264de4; }
-        code { background: #f8f9fa; padding: 8px 12px; border-radius: 6px; color: #d63384; display: block; word-break: break-all; font-size: 0.85em; border: 1px solid #eee; }
-        .btn-copy { margin-top: 10px; font-size: 0.8rem; }
-        #loading { font-style: italic; color: #666; }
+        code { background: #f1f3f5; padding: 10px; border-radius: 6px; color: #d63384; display: block; word-break: break-all; font-size: 0.85em; margin: 10px 0; border: 1px solid #e9ecef; }
+        .nav-tabs .nav-link { color: #495057; font-weight: 500; }
+        .nav-tabs .nav-link.active { font-weight: 700; }
     </style>
 </head>
 <body>
 
 <div class="cdn-header text-center">
     <div class="container">
-        <h1 class="display-5 fw-bold">VT Zone CDN | cdn.vutruong.vn</h1>
-        <p class="lead opacity-75">Hệ thống tự động liệt kê tài nguyên từ GitHub Repo</p>
+        <h1 class="display-6 fw-bold">VT Zone CDN | cdn.vutruong.vn</h1>
+        <p class="lead opacity-75">Hệ thống liệt kê tài nguyên từ GitHub vutruongvn/cdn</p>
     </div>
 </div>
 
 <div class="container mb-5">
-    <div id="loading" class="text-center">
-        <div class="spinner-border text-primary" role="status"></div>
-        <p class="mt-2">Đang tải danh sách file...</p>
-    </div>
-    <div class="row" id="file-list">
+    <ul class="nav nav-tabs mb-4" id="cdnTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="js-tab" data-bs-toggle="tab" data-bs-target="#js-section" type="button" role="tab"><i class="fa-brands fa-js me-2 js-icon"></i>Javascript Files</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="css-tab" data-bs-toggle="tab" data-bs-target="#css-section" type="button" role="tab"><i class="fa-brands fa-css3-alt me-2 css-icon"></i>CSS Stylesheets</button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="js-section" role="tabpanel">
+            <div id="js-loading" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2">Đang tải Script...</p>
+            </div>
+            <div class="row" id="js-list"></div>
         </div>
+
+        <div class="tab-pane fade" id="css-section" role="tabpanel">
+            <div id="css-loading" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2">Đang tải Styles...</p>
+            </div>
+            <div class="row" id="css-list"></div>
+        </div>
+    </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// Cấu hình thông tin Repo của bạn
-    const username = 'vutruongvn';
-    const repo = 'cdn';
-    const branch = 'main'; // Hoặc 'master' tùy vào nhánh chính của bạn
-    const cdnDomain = 'cdn.vutruong.vn';
+    const config = {
+        username: 'vutruongvn',
+        repo: 'cdn',
+        cdnDomain: 'cdn.vutruong.vn'
+    };
 
-    async function fetchFiles() {
+    async function fetchFiles(folder) {
+        const listEl = document.getElementById(`${folder}-list`);
+        const loaderEl = document.getElementById(`${folder}-loading`);
+        
         try {
-            const response = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/js`);
+            const response = await fetch(`https://api.github.com/repos/${config.username}/${config.repo}/contents/${folder}`);
             const data = await response.json();
             
-            const fileList = document.getElementById('file-list');
-            const loader = document.getElementById('loading');
-            loader.style.display = 'none';
+            loaderEl.style.display = 'none';
+            if (!Array.isArray(data)) return;
 
             data.forEach(file => {
-                if (file.type === 'file' && (file.name.endsWith('.js') || file.name.endsWith('.css'))) {
+                if (file.type === 'file') {
                     const isJs = file.name.endsWith('.js');
-                    const fileUrl = `https://${cdnDomain}/${file.name}`;
-                    // Tạo link dẫn thẳng đến trình edit của GitHub
-                    const editUrl = `https://github.com/vutruongvn/cdn/edit/main/${file.name}`;
+                    const fileUrl = `https://${config.cdnDomain}/${folder}/${file.name}`;
+                    const editUrl = `https://github.com/${config.username}/${config.repo}/edit/main/${folder}/${file.name}`;
                     
-                    const card = document.createElement('div');
-                    card.className = 'col-md-6 col-lg-4 mb-4';
-                    card.innerHTML = `
+                    const col = document.createElement('div');
+                    col.className = 'col-md-6 col-lg-4 mb-4';
+                    col.innerHTML = `
                         <div class="card file-card h-100">
-                            <div class="card-body">
-                                <div class="file-icon ${isJs ? 'js-icon' : 'css-icon'}">
-                                    <i class="fa-brands ${isJs ? 'fa-js' : 'fa-css3-alt'}"></i>
+                            <div class="card-body d-flex flex-column">
+                                <div class="d-flex align-items-center mb-3">
+                                    <i class="fa-brands ${isJs ? 'fa-js js-icon' : 'fa-css3-alt css-icon'} fs-3 me-3"></i>
+                                    <h6 class="card-title mb-0 text-truncate">${file.name}</h6>
                                 </div>
-                                <h5 class="card-title text-truncate">${file.name}</h5>
-                                <p class="text-muted small">Định dạng: ${isJs ? 'Javascript' : 'CSS'}</p>
                                 <code id="url-${file.sha}">${fileUrl}</code>
-                                
-                                <div class="d-flex gap-2 mt-3">
-                                    <button class="btn btn-primary btn-sm flex-grow-1" onclick="copyToClipboard('url-${file.sha}')">
-                                        <i class="fa-regular fa-copy"></i> Copy Link
+                                <div class="d-flex gap-2 mt-auto pt-3">
+                                    <button class="btn btn-primary btn-sm flex-grow-1" onclick="copyToClipboard('url-${file.sha}', this)">
+                                        <i class="fa-regular fa-copy me-1"></i> Copy Link
                                     </button>
-                                    <a href="${editUrl}" target="_blank" class="btn btn-outline-secondary btn-sm">
-                                        <i class="fa-regular fa-pen-to-square"></i> Sửa File
+                                    <a href="${editUrl}" target="_blank" class="btn btn-outline-dark btn-sm">
+                                        <i class="fa-regular fa-pen-to-square"></i>
                                     </a>
                                 </div>
                             </div>
                         </div>
                     `;
-                    fileList.appendChild(card);
+                    listEl.appendChild(col);
                 }
             });
         } catch (error) {
-            console.error('Lỗi khi tải file:', error);
-            document.getElementById('loading').innerHTML = '<p class="text-danger">Lỗi kết nối API GitHub!</p>';
+            loaderEl.innerHTML = `<p class="text-danger">Không thể tải tệp từ /${folder}</p>`;
         }
     }
 
-    function copyToClipboard(elementId) {
-        const text = document.getElementById(elementId).innerText;
+    function copyToClipboard(id, btn) {
+        const text = document.getElementById(id).innerText;
         navigator.clipboard.writeText(text).then(() => {
-            // Hiển thị thông báo nhỏ thay vì alert cho đỡ phiền
-            const btn = event.target.closest('button');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-check"></i> Đã chép';
-            setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+            const originalHTML = btn.innerHTML;
+            btn.classList.replace('btn-primary', 'btn-success');
+            btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> OK!';
+            setTimeout(() => {
+                btn.classList.replace('btn-success', 'btn-primary');
+                btn.innerHTML = originalHTML;
+            }, 1500);
         });
     }
 
-    fetchFiles();
+    // Khởi chạy lấy dữ liệu cho cả 2 thư mục
+    fetchFiles('js');
+    fetchFiles('css');
 </script>
-
 </body>
 </html>
