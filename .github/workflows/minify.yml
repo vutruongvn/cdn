@@ -2,11 +2,12 @@ name: Minify JS và CSS cho VT Zone
 
 on:
   push:
-    branches:
-      - main  # Chạy khi bạn push code vào nhánh main
-    paths:
-      - 'js/*.js'
-      - 'css/*.css'
+    branches: [ main ]
+    paths: ['js/*.js', 'css/*.css']
+  workflow_dispatch: # Cho phép bạn bấm nút chạy thủ công
+
+permissions:
+  contents: write # Cấp quyền ghi để Action tự commit file .min
 
 jobs:
   minify:
@@ -15,27 +16,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Cài đặt công cụ nén
+      - name: Cài đặt công cụ nén hiện đại (Terser & Clean-CSS)
         run: |
-          sudo apt-get install -y yui-compressor
+          npm install -g terser clean-css-cli
 
       - name: Tiến hành nén file
         run: |
-          # Tạo thư mục temp nếu chưa có
-          mkdir -p dist/js dist/css
-          
-          # Nén toàn bộ file JS
+          # Nén JS: Bỏ qua các file đã có đuôi .min.js
           for f in js/*.js; do
-            yui-compressor "$f" -o "${f%.js}.min.js"
+            if [[ ! $f == *.min.js ]]; then
+              terser "$f" --compress --mangle -o "${f%.js}.min.js"
+            fi
           done
           
-          # Nén toàn bộ file CSS
+          # Nén CSS: Bỏ qua các file đã có đuôi .min.css
           for f in css/*.css; do
-            yui-compressor "$f" -o "${f%.css}.min.css"
+            if [[ ! $f == *.min.css ]]; then
+              cleancss "$f" -o "${f%.css}.min.css"
+            fi
           done
 
-      - name: Commit và Push file đã nén
+      - name: Commit và đẩy file nén lên Repo
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "Auto Minify: Nén file JS/CSS để tối ưu tốc độ [skip ci]"
+          commit_message: "⚡ Tối ưu: Tự động nén file JS/CSS [skip ci]"
           file_pattern: 'js/*.min.js css/*.min.css'
