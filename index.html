@@ -39,14 +39,14 @@
 </div>
 
 <script>
-    // Cấu hình thông tin Repo của bạn
+// Cấu hình thông tin Repo của bạn
     const username = 'vutruongvn';
     const repo = 'cdn';
+    const branch = 'main'; // Hoặc 'master' tùy vào nhánh chính của bạn
     const cdnDomain = 'cdn.vutruong.vn';
 
     async function fetchFiles() {
         try {
-            // Gọi GitHub API để lấy danh sách file ở thư mục gốc
             const response = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/`);
             const data = await response.json();
             
@@ -55,10 +55,11 @@
             loader.style.display = 'none';
 
             data.forEach(file => {
-                // Chỉ lấy file .js, .css và bỏ qua các file hệ thống
                 if (file.type === 'file' && (file.name.endsWith('.js') || file.name.endsWith('.css'))) {
                     const isJs = file.name.endsWith('.js');
                     const fileUrl = `https://${cdnDomain}/${file.name}`;
+                    // Tạo link dẫn thẳng đến trình edit của GitHub
+                    const editUrl = `https://github.com/vutruongvn/cdn/edit/main/${file.name}`;
                     
                     const card = document.createElement('div');
                     card.className = 'col-md-6 col-lg-4 mb-4';
@@ -71,9 +72,15 @@
                                 <h5 class="card-title text-truncate">${file.name}</h5>
                                 <p class="text-muted small">Định dạng: ${isJs ? 'Javascript' : 'CSS'}</p>
                                 <code id="url-${file.sha}">${fileUrl}</code>
-                                <button class="btn btn-outline-primary btn-sm btn-copy" onclick="copyToClipboard('url-${file.sha}')">
-                                    <i class="fa-regular fa-copy"></i> Sao chép link
-                                </button>
+                                
+                                <div class="d-flex gap-2 mt-3">
+                                    <button class="btn btn-primary btn-sm flex-grow-1" onclick="copyToClipboard('url-${file.sha}')">
+                                        <i class="fa-regular fa-copy"></i> Copy Link
+                                    </button>
+                                    <a href="${editUrl}" target="_blank" class="btn btn-outline-secondary btn-sm">
+                                        <i class="fa-regular fa-pen-to-square"></i> Sửa File
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -82,18 +89,21 @@
             });
         } catch (error) {
             console.error('Lỗi khi tải file:', error);
-            document.getElementById('loading').innerHTML = '<p class="text-danger">Không thể tải danh sách file. Hãy kiểm tra lại kết nối!</p>';
+            document.getElementById('loading').innerHTML = '<p class="text-danger">Lỗi kết nối API GitHub!</p>';
         }
     }
 
     function copyToClipboard(elementId) {
         const text = document.getElementById(elementId).innerText;
         navigator.clipboard.writeText(text).then(() => {
-            alert('Đã sao chép link thành công!');
+            // Hiển thị thông báo nhỏ thay vì alert cho đỡ phiền
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Đã chép';
+            setTimeout(() => { btn.innerHTML = originalText; }, 2000);
         });
     }
 
-    // Chạy hàm khi trang web tải xong
     fetchFiles();
 </script>
 
