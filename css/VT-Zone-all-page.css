@@ -260,7 +260,7 @@ body {
 
 html.VT_darkMode {
 	--darkbg: #252728;
-	--darktext: #cecece;
+	--darktext: #ddd;
 	--darklink: #efefef;
 	--darkbd: #333;
 }
@@ -1657,6 +1657,7 @@ html.VT_darkMode .dropdown-menu {
 /* VT Zone
    vutruong.vn
                */
+
 
 
 
