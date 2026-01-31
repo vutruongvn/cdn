@@ -210,7 +210,7 @@ function applyPostLogic() {
             btnContainer.className = 'VT_ajaxLoadMorePosts';
             
             loadMoreBtn = document.createElement('a');
-            loadMoreBtn.className = 'VT_loadMorePost ripple ripple-radius';
+            loadMoreBtn.className = 'VT_loadMorePost ripple';
             loadMoreBtn.href = 'javascript:;';
             loadMoreBtn.innerHTML = `
                 <span class="loadMore_text">Xem thêm <i class="fad fa-angle-down"></i></span>
@@ -238,3 +238,4 @@ function applyPostLogic() {
         }
     });
 })();
+
