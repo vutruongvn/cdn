@@ -1,47 +1,66 @@
-name: VT Zone CDN Security Pro
+name: VT Zone Assets Optimizer
 
 on:
   push:
     branches: [ main ]
-    paths: ['js/*.js']
+    paths:
+      - 'js/*.js'
+      - 'css/*.css'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  secure-js:
+  build-assets:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Install Obfuscator
-        run: npm install -g javascript-obfuscator
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
 
-      - name: Obfuscate & Domain Lock
+      # Cài đặt công cụ: Javascript-obfuscator (cho JS) và Clean-CSS (cho CSS)
+      - name: Install Minify Tools
+        run: npm install -g javascript-obfuscator clean-css-cli
+
+      # Xử lý JS: Làm gọn + Khóa tên miền
+      - name: Process JavaScript
         run: |
           for f in js/*.js; do
-            # Bỏ qua các file .min.js để tránh nén lặp
-            if [[ ! $f == *.min.js ]]; then
+            # Chỉ xử lý file gốc, bỏ qua file .min.js
+            if [[ "$f" != *.min.js ]]; then
+              echo "Dang xu ly JS: $f"
               javascript-obfuscator "$f" \
                 --output "${f%.js}.min.js" \
                 --compact true \
-                --control-flow-flattening true \
-                --control-flow-flattening-threshold 1 \
-                --dead-code-injection true \
-                --dead-code-injection-threshold 1 \
-                --string-array true \
-                --string-array-encoding 'rc4' \
-                --string-array-threshold 1 \
-                --domain-lock 'vutruong.vn', 'cdn.vutruong.vn', 'localhost' \
-                --domain-lock-redirect-url 'https://vutruong.vn' \
-                --self-defending true \
-                --split-strings true
+                --simplify true \
+                --control-flow-flattening false \
+                --dead-code-injection false \
+                --string-array false \
+                --rename-globals false \
+                --domain-lock "vutruong.vn,www.vutruong.vn,cdn.vutruong.vn,localhost" \
+                --domain-lock-redirect-url "about:blank"
             fi
           done
 
-      - name: Commit & Push
+      # Xử lý CSS: Chỉ làm gọn (Minify)
+      - name: Process CSS
+        run: |
+          for f in css/*.css; do
+            # Chỉ xử lý file gốc, bỏ qua file .min.css
+            if [[ "$f" != *.min.css ]]; then
+              echo "Dang xu ly CSS: $f"
+              cleancss -o "${f%.css}.min.css" "$f"
+            fi
+          done
+
+      # Commit và Push kết quả lên GitHub
+      - name: Commit & Push changes
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "🛡️ Security: Obfuscation + Domain Lock [skip ci]"
-          file_pattern: 'js/*.min.js'
+          commit_message: "⚡ Optimized: Minify JS/CSS & Domain Lock [skip ci]"
+          file_pattern: 'js/*.min.js css/*.min.css'
