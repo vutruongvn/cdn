@@ -1,43 +1,41 @@
-name: Minify JS và CSS cho VT Zone
+name: VT Zone CDN Obfuscator
 
 on:
   push:
     branches: [ main ]
-    paths: ['js/*.js', 'css/*.css']
-  workflow_dispatch: # Cho phép bạn bấm nút chạy thủ công
+    paths: ['js/*.js']
+  workflow_dispatch:
 
 permissions:
-  contents: write # Cấp quyền ghi để Action tự commit file .min
+  contents: write
 
 jobs:
-  minify:
+  obfuscate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Cài đặt công cụ nén hiện đại (Terser & Clean-CSS)
-        run: |
-          npm install -g terser clean-css-cli
+      - name: Install Obfuscator
+        run: npm install -g javascript-obfuscator
 
-      - name: Tiến hành nén file
+      - name: Obfuscate JS Files
         run: |
-          # Nén JS: Bỏ qua các file đã có đuôi .min.js
           for f in js/*.js; do
+            # Chỉ xử lý file gốc, bỏ qua các file đã có đuôi .min.js
             if [[ ! $f == *.min.js ]]; then
-              terser "$f" --compress --mangle -o "${f%.js}.min.js"
-            fi
-          done
-          
-          # Nén CSS: Bỏ qua các file đã có đuôi .min.css
-          for f in css/*.css; do
-            if [[ ! $f == *.min.css ]]; then
-              cleancss "$f" -o "${f%.css}.min.css"
+              javascript-obfuscator "$f" \
+                --output "${f%.js}.min.js" \
+                --compact true \
+                --control-flow-flattening true \
+                --dead-code-injection true \
+                --string-array true \
+                --rename-globals false \
+                --self-defending true
             fi
           done
 
-      - name: Commit và đẩy file nén lên Repo
+      - name: Commit & Push
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "⚡ Tối ưu: Tự động nén file JS/CSS [skip ci]"
-          file_pattern: 'js/*.min.js css/*.min.css'
+          commit_message: "🔐 Obfuscate: Mã hóa và bảo vệ mã nguồn JS [skip ci]"
+          file_pattern: 'js/*.min.js'
