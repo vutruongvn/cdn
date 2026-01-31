@@ -122,6 +122,19 @@ function applyPostLogic() {
     if (typeof initLikeCountDisplay === 'function') {
         initLikeCountDisplay(document.querySelector('div.blog-posts'));
     }
+  initVTTooltips(); // Khởi tạo Tooltip BS
+}
+
+// Khởi tạo Tooltip Bootstrap 5 (Chỉ khởi tạo những cái chưa có)
+function initVTTooltips() {
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipTriggerList.forEach(el => {
+            if (!bootstrap.Tooltip.getInstance(el)) {
+                new bootstrap.Tooltip(el);
+            }
+        });
+    }
 }
 
 // ============== PHẦN 3: AJAX LOAD MORE (VANILLA JS + FETCH) ==============
@@ -232,21 +245,8 @@ function applyPostLogic() {
             applyPostLogic();
         }
     });
-
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-        if (mutation.addedNodes.length) {
-            initVTTooltips();
-        }
-    });
-});
-
-// Theo dõi sự thay đổi của container chứa bài viết
-const postContainer = document.getElementById('post-container'); 
-if (postContainer) {
-    observer.observe(postContainer, { childList: true, subtree: true });
-}
   
 })();
+
 
 
