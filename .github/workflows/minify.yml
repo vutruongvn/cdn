@@ -1,14 +1,47 @@
-- name: Obfuscate & Domain Lock
+name: VT Zone CDN Security Pro
+
+on:
+  push:
+    branches: [ main ]
+    paths: ['js/*.js']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  secure-js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Obfuscator
+        run: npm install -g javascript-obfuscator
+
+      - name: Obfuscate & Domain Lock
         run: |
           for f in js/*.js; do
+            # Bỏ qua các file .min.js để tránh nén lặp
             if [[ ! $f == *.min.js ]]; then
-              # Thêm --ignore-require true để tránh lỗi với các thư viện bên ngoài
               javascript-obfuscator "$f" \
                 --output "${f%.js}.min.js" \
                 --compact true \
+                --control-flow-flattening true \
+                --control-flow-flattening-threshold 1 \
+                --dead-code-injection true \
+                --dead-code-injection-threshold 1 \
+                --string-array true \
+                --string-array-encoding 'rc4' \
+                --string-array-threshold 1 \
                 --domain-lock 'vutruong.vn', 'cdn.vutruong.vn', 'localhost' \
                 --domain-lock-redirect-url 'https://vutruong.vn' \
-                --self-defending false \
-                --string-array true
+                --self-defending true \
+                --split-strings true
             fi
           done
+
+      - name: Commit & Push
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "🛡️ Security: Obfuscation + Domain Lock [skip ci]"
+          file_pattern: 'js/*.min.js'
