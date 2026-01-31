@@ -150,7 +150,7 @@ function applyPostLogic() {
             const html = await response.text();
             
             // Ép buộc delay 1s hiện loading rồi mới load post
-            await new Promise(resolve => setTimeout(resolve, 0)); // thêm thời gian delay vào đây
+            await new Promise(resolve => setTimeout(resolve, 1000)); // thêm thời gian delay vào đây
 
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, "text/html");
@@ -213,9 +213,9 @@ function applyPostLogic() {
             loadMoreBtn.className = 'VT_loadMorePost ripple';
             loadMoreBtn.href = 'javascript:;';
             loadMoreBtn.innerHTML = `
-                <span class="loadMore_text">Xem thêm <i class="fad fa-angle-down"></i></span>
-                <span class="loadingMore_text" style="display:none">Đang tải <i class="fa-duotone fa-spinner-third fa-spin"></i></span>
-                <span class="allViewed_text" style="display:none">Bạn đã xem hết rồi <i class="fad fa-exclamation fa-shake"></i></span>
+                <span class="loadMore_text">Xem thêm <i class="fad fa-angle-down ms-1"></i></span>
+                <span class="loadingMore_text" style="display:none">Đang tải <i class="fa-duotone fa-spinner-third fa-spin ms-1"></i></span>
+                <span class="allViewed_text" style="display:none">Bạn đã xem hết rồi <i class="fad fa-exclamation fa-shake ms-1"></i></span>
             `;
 
             btnContainer.appendChild(loadMoreBtn);
@@ -238,4 +238,5 @@ function applyPostLogic() {
         }
     });
 })();
+
 
