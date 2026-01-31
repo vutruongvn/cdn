@@ -2,36 +2,33 @@
 // VT Zone === vutruong.vn ===
 // ============== PHẦN 1: CÁC HÀM HỖ TRỢ (TIME, SLUG) ==============
 
-// Định nghĩa đoạn HTML Skeleton
-const SKELETON_TEMPLATE = `
-<div class='VT-timeline-loading-animation vt-temp-ske'>
-  <div class='vt-loading-effect-header-wrap'>
-    <div class='vt-loading-effect-avatar'></div>
-    <div class='vt-loading-effect-info-block'>
-      <div class='vt-loading-effect-username vt-loading-effect-loading'></div>
-      <div class='vt-loading-effect-time vt-loading-effect-loading'></div>
-    </div>
-  </div>
-  <div class='vt-loading-effect-content-wrap'>
-    <div class='vt-loading-effect-text-line-main vt-loading-effect-loading'></div>
-    <div class='vt-loading-effect-text-line vt-loading-effect-loading'></div>
-    <div class='vt-loading-effect-text-line vt-loading-effect-loading'></div>
-    <div class='vt-loading-effect-text-line vt-loading-effect-loading'></div>
-    <div class='vt-loading-effect-text-line-last vt-loading-effect-loading'></div>
-  </div>
-  <div style='display: flex; margin-top: 10px; justify-content: start;'>
-    <div class='vt-loading-effect-small-block vt-loading-effect-loading'></div>
-    <div class='vt-loading-effect-small-block vt-loading-effect-loading'></div>
-  </div>
-</div>`;
-
-// 1. Hiệu ứng loading ban đầu (Delay 500ms)
-// ĐÃ XÓA
+// Định nghĩa đoạn HTML Skeleton (Chuyển sang dạng chuỗi chuẩn để tránh lỗi mã hóa)
+const SKELETON_TEMPLATE = "<div class='VT-timeline-loading-animation vt-temp-ske'>" +
+  "<div class='vt-loading-effect-header-wrap'>" +
+    "<div class='vt-loading-effect-avatar'></div>" +
+    "<div class='vt-loading-effect-info-block'>" +
+      "<div class='vt-loading-effect-username vt-loading-effect-loading'></div>" +
+      "<div class='vt-loading-effect-time vt-loading-effect-loading'></div>" +
+    "</div>" +
+  "</div>" +
+  "<div class='vt-loading-effect-content-wrap'>" +
+    "<div class='vt-loading-effect-text-line-main vt-loading-effect-loading'></div>" +
+    "<div class='vt-loading-effect-text-line vt-loading-effect-loading'></div>" +
+    "<div class='vt-loading-effect-text-line vt-loading-effect-loading'></div>" +
+    "<div class='vt-loading-effect-text-line vt-loading-effect-loading'></div>" +
+    "<div class='vt-loading-effect-text-line-last vt-loading-effect-loading'></div>" +
+  "</div>" +
+  "<div style='display: flex; margin-top: 10px; justify-content: start;'>" +
+    "<div class='vt-loading-effect-small-block vt-loading-effect-loading'></div>" +
+    "<div class='vt-loading-effect-small-block vt-loading-effect-loading'></div>" +
+  "</div>" +
+"</div>";
 
 // 2. Tính toán thời gian tương đối
 const TIME_UNITS = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 };
 
 function timeSince(date) {
+    if (!date || isNaN(date.getTime())) return null; 
     const seconds = Math.floor((new Date() - date) / 1000);
     if (seconds / TIME_UNITS.year > 1) return Math.floor(seconds / TIME_UNITS.year) + " năm trước";
     if (seconds / TIME_UNITS.month > 1) return Math.floor(seconds / TIME_UNITS.month) + " tháng trước";
@@ -108,7 +105,8 @@ function applyPostLogic() {
     document.querySelectorAll('.post-date-iso:not([data-relative-applied])').forEach(el => {
         const isoDate = el.getAttribute('datetime');
         if (isoDate) {
-            const relative = timeSince(new Date(isoDate));
+            const dateObj = new Date(isoDate);
+            const relative = timeSince(dateObj);
             if (relative) { el.innerHTML = relative; el.setAttribute('data-relative-applied', 'true'); }
         }
     });
@@ -116,8 +114,11 @@ function applyPostLogic() {
         link.innerText = toSlug(link.innerText);
         link.setAttribute('data-slug-converted', 'true');
     });
-    initNewLikeButtons();
+    
+    // Kiểm tra biến Global an toàn trước khi gọi
+    if (typeof auth !== 'undefined') initNewLikeButtons();
     initAdminProfilePopup();
+    
     if (typeof initLikeCountDisplay === 'function') {
         initLikeCountDisplay(document.querySelector('div.blog-posts'));
     }
@@ -136,34 +137,29 @@ function applyPostLogic() {
         isLoading = true;
 
         const container = document.querySelector(postContainerSelector);
+        if (!container) return;
         
-        // 1. Hiển thị Skeleton và trạng thái nút
         loadMoreBtn.querySelector('.loadMore_text').style.display = 'none';
         loadMoreBtn.querySelector('.loadingMore_text').style.display = 'inline-block';
         
-        // Chèn Skeleton vào cuối container
         container.insertAdjacentHTML('beforeend', SKELETON_TEMPLATE);
 
         try {
-            // 2. Tải dữ liệu và đồng thời đợi 500ms
             const response = await fetch(nextUrl);
             const html = await response.text();
             
-            // Ép buộc delay 1s hiện loading rồi mới load post
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, "text/html");
             const newPosts = doc.querySelector(postContainerSelector).children;
 
-            // 3. Xóa Skeleton tạm thời
             const tempSke = container.querySelector('.vt-temp-ske');
             if (tempSke) tempSke.remove();
 
-            // 4. Chèn bài viết mới
             Array.from(newPosts).forEach(post => {
                 const clone = post.cloneNode(true);
-                clone.style.display = 'block'; // Đảm bảo hiển thị
+                clone.style.display = 'block'; 
                 clone.style.opacity = '1';
                 container.appendChild(clone);
             });
@@ -200,7 +196,8 @@ function applyPostLogic() {
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        if (window._WidgetManager && _WidgetManager._GetAllData().blog.pageType !== "item") {
+        // Kiểm tra an toàn biến môi trường Blogger
+        if (typeof _WidgetManager !== 'undefined' && _WidgetManager._GetAllData().blog.pageType !== "item") {
             const olderLink = document.querySelector("a.blog-pager-older-link");
             if (!olderLink) return;
 
@@ -212,11 +209,9 @@ function applyPostLogic() {
             loadMoreBtn = document.createElement('a');
             loadMoreBtn.className = 'VT_loadMorePost ripple';
             loadMoreBtn.href = 'javascript:;';
-            loadMoreBtn.innerHTML = `
-                <span class="loadMore_text">Xem thêm <i class="fad fa-angle-down ms-1"></i></span>
-                <span class="loadingMore_text" style="display:none">Đang tải <i class="fa-duotone fa-spinner-third fa-spin ms-1"></i></span>
-                <span class="allViewed_text" style="display:none">Bạn đã xem hết rồi <i class="fad fa-exclamation fa-shake ms-1"></i></span>
-            `;
+            loadMoreBtn.innerHTML = "<span class='loadMore_text'>Xem thêm <i class='fad fa-angle-down ms-1'></i></span>" +
+                "<span class='loadingMore_text' style='display:none'>Đang tải <i class='fa-duotone fa-spinner-third fa-spin ms-1'></i></span>" +
+                "<span class='allViewed_text' style='display:none'>Bạn đã xem hết rồi <i class='fad fa-exclamation fa-shake ms-1'></i></span>";
 
             btnContainer.appendChild(loadMoreBtn);
             const pager = document.getElementById('blog-pager');
@@ -238,6 +233,3 @@ function applyPostLogic() {
         }
     });
 })();
-
-
-
