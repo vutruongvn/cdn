@@ -150,7 +150,7 @@ function applyPostLogic() {
             const html = await response.text();
             
             // Ép buộc delay 1s hiện loading rồi mới load post
-            await new Promise(resolve => setTimeout(resolve, 1000)); // thêm thời gian delay vào đây
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, "text/html");
@@ -238,5 +238,6 @@ function applyPostLogic() {
         }
     });
 })();
+
 
 
