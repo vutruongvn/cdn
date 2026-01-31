@@ -1655,9 +1655,27 @@ html.VT_darkMode .dropdown-menu {
 	}
 }
 
-/* VT Zone
-   vutruong.vn
-               */
+.tooltip{
+    font-family: var(--vt-font);
+    --bs-tooltip-font-size: 14px;
+    font-weight: 400;
+    --bs-tooltip-bg: var(--bs-dark);
+    --bs-tooltip-color: var(--bs-white);
+    --bs-tooltip-opacity: 1;
+    --bs-tooltip-max-width: 300px;
+    --bs-tooltip-padding-x: 1em;
+    --bs-tooltip-padding-y: .5em
+}
+.tooltip-inner{
+	box-shadow: var(--bs-box-shadow-lg);
+	border-radius: 8px
+}
+
+/*
+	VT Zone
+	vutruong.vn
+                 */
+
 
 
 
