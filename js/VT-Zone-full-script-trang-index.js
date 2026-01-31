@@ -101,6 +101,18 @@ function initNewLikeButtons() {
     });
 }
 
+// Khởi tạo Tooltip Bootstrap 5 (Chỉ khởi tạo những cái chưa có)
+function initVTTooltips() {
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipTriggerList.forEach(el => {
+            if (!bootstrap.Tooltip.getInstance(el)) {
+                new bootstrap.Tooltip(el);
+            }
+        });
+    }
+}
+
 function applyPostLogic() {
     document.querySelectorAll('.post-date-iso:not([data-relative-applied])').forEach(el => {
         const isoDate = el.getAttribute('datetime');
@@ -121,19 +133,6 @@ function applyPostLogic() {
     
     if (typeof initLikeCountDisplay === 'function') {
         initLikeCountDisplay(document.querySelector('div.blog-posts'));
-    }
-  initVTTooltips(); // Khởi tạo Tooltip BS
-}
-
-// Khởi tạo Tooltip Bootstrap 5 (Chỉ khởi tạo những cái chưa có)
-function initVTTooltips() {
-    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-        tooltipTriggerList.forEach(el => {
-            if (!bootstrap.Tooltip.getInstance(el)) {
-                new bootstrap.Tooltip(el);
-            }
-        });
     }
 }
 
@@ -243,10 +242,12 @@ function initVTTooltips() {
 
             observer.observe(btnContainer);
             applyPostLogic();
+            initVTTooltips(); // Khởi tạo Tooltip BS
         }
     });
   
 })();
+
 
 
 
