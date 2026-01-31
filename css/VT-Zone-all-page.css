@@ -437,6 +437,18 @@ html.VT_darkMode .tooltipsy2:before {
 	background-size: 400px 100%;
 }
 
+html.VT_darkMode .vt-loading-effect-username,
+html.VT_darkMode .vt-loading-effect-time,
+html.VT_darkMode .vt-loading-effect-text-line-main,
+html.VT_darkMode .vt-loading-effect-text-line,
+html.VT_darkMode .vt-loading-effect-text-line-last,
+html.VT_darkMode .vt-loading-effect-small-block {
+	background-color: rgba(255,255,255,.15);
+	animation: loading-animation 1.2s ease-in-out infinite;
+	background: linear-gradient(to right, rgba(255,255,255,.05) 0%, rgba(255,255,255,.15) 20%, rgba(255,255,255,.05) 40%, rgba(255,255,255,.05) 100%);
+	background-size: 400px 100%;
+}
+
 .VT-timeline-loading-animation {
 	padding: var(--vt-padding);
 	margin: 1em 0;
@@ -1645,3 +1657,4 @@ html.VT_darkMode .dropdown-menu {
 /* VT Zone
    vutruong.vn
                */
+
