@@ -2,21 +2,6 @@
 Các tính năng ngoài lề của VT Films / films.vutruong.vn
 ========================================================= */
 
-// Tính năng tự động add class .light-mode vào body
-document.addEventListener('DOMContentLoaded', () => {
-    const body = document.body;
-    const storageKey = 'vt_theme_mode';
-
-    // 1. Kiểm tra trạng thái đã lưu trong máy người dùng
-    const savedMode = localStorage.getItem(storageKey);
-
-    // 2. Thiết lập mặc định là Light Mode nếu chưa từng chọn
-    // Nếu chưa có dữ liệu hoặc dữ liệu là 'light', thì thêm class .light-mode
-    if (savedMode === 'light' || !savedMode) {
-        body.classList.add('light-mode');
-    }
-});
-
 /**
  * TÍNH NĂNG KÉO CHUỘT ĐỂ CUỘN (DRAG TO SCROLL)
  * Áp dụng cho tất cả các slider có class .movie-slider
@@ -523,4 +508,5 @@ if (uri.indexOf("?m=1", "?m=1") > 0) {
     // Khi các tài nguyên (ảnh, script, api pexels...) tải xong hoàn toàn
     window.addEventListener('load', completeLoading);
 })();
+
 
