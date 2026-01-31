@@ -851,6 +851,7 @@ img.f-panzoom__content {
 .VT_adminProfile_showPopup {
 	position: relative;
 	display: inline-block;
+	line-height: 1.2
 }
 
 .VT_adminProfile {
@@ -1657,4 +1658,5 @@ html.VT_darkMode .dropdown-menu {
 /* VT Zone
    vutruong.vn
                */
+
 
