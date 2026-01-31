@@ -456,4 +456,49 @@
         if (uri.indexOf("?m=1", "?m=1") > 0) {
             var clean_uri = uri.substring(0, uri.indexOf("?m=1"));
             window.history.replaceState({}, document.title, clean_uri);
+
         }
+
+        // Thanh bar Loading Effect
+        (function() {
+            const progressBar = document.getElementById('top-progress-bar');
+            const progressFill = progressBar.querySelector('.progress-fill');
+            let progress = 0;
+            let interval;
+
+            // Hàm bắt đầu chạy thanh loading
+            function startLoading() {
+                progressBar.style.display = 'block';
+                progress = 0;
+                progressFill.style.width = '0%';
+
+                interval = setInterval(() => {
+                    // Tăng dần tiến trình nhưng chậm lại khi gần đến 90%
+                    if (progress < 90) {
+                        progress += Math.random() * 5; // Tăng ngẫu nhiên cho tự nhiên
+                        progressFill.style.width = progress + '%';
+                    }
+                }, 1000);
+            }
+
+            // Hàm kết thúc khi trang tải xong
+            function completeLoading() {
+                clearInterval(interval);
+                progressFill.style.width = '100%';
+
+                setTimeout(() => {
+                    progressBar.style.opacity = '0'; // Hiệu ứng mờ dần khi xong
+                    setTimeout(() => {
+                        progressBar.style.display = 'none';
+                        progressBar.style.opacity = '1';
+                        progressFill.style.width = '0%';
+                    }, 500);
+                }, 1000);
+            }
+
+            // Thực thi ngay khi bắt đầu parse HTML
+            startLoading();
+
+            // Khi các tài nguyên (ảnh, script, api pexels...) tải xong hoàn toàn
+            window.addEventListener('load', completeLoading);
+        })();
