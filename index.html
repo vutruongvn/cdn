@@ -95,7 +95,7 @@
                                     <i class="fa-brands ${isJs ? 'fa-js js-icon' : 'fa-css3-alt css-icon'} fs-3 me-3"></i>
                                     <h6 class="card-title mb-0 text-truncate" title="${file.name}">${file.name}</h6>
                                 </div>
-                                <code id="url-${file.sha}">${fileUrl}</code>
+                                <code id="url-${file.sha}"><a href="${fileUrl}" target="_blank">${fileUrl}</a></code>
                                 <div class="d-flex gap-2 mt-auto pt-3">
                                     <button class="btn btn-primary btn-sm flex-grow-1 btn-copy" onclick="copyToClipboard('url-${file.sha}', this)">
                                         <i class="fa-regular fa-copy me-1"></i> Copy link
