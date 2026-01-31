@@ -830,28 +830,27 @@ img.f-panzoom__content {
 	text-decoration: none;
 	display: flex;
 	align-items: center;
-	transition: .2s ease;
+	transition: .2s ease
 }
 
 .popupShow_accountPanel .accountOption a:hover {
-	background: rgba(0, 0, 0, .05);
+	background: rgba(0, 0, 0, .05)
 }
 
 .popupShow_accountPanel .accountOption a i {
-	margin-right: 12px;
+	margin-right: 12px
 }
 
 .postLiked-by-admin {
 	position: absolute;
 	right: 0;
 	top: 0;
-	margin: 1em;
+	margin: 1em
 }
 
 .VT_adminProfile_showPopup {
 	position: relative;
-	display: inline-block;
-	line-height: 1.2
+	display: inline-block
 }
 
 .VT_adminProfile {
@@ -1658,5 +1657,6 @@ html.VT_darkMode .dropdown-menu {
 /* VT Zone
    vutruong.vn
                */
+
 
 
