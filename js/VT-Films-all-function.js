@@ -2,7 +2,9 @@
 // VT Films
 // films.vutruong.vn
 
-/* Lazy Load */
+/**
+ * 0. LAZY LOAD
+ */
 function initLazyLoading() {
     const images = document.querySelectorAll('.lazy-img');
     const imageObserver = new IntersectionObserver((entries, observer) => {
@@ -982,4 +984,5 @@ function refreshHome() {
 
 // End
 // VT Films
+
 // films.vutruong.vn
