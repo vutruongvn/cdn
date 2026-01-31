@@ -1,66 +1,43 @@
-name: VT Zone Assets Optimizer
+name: Minify JS và CSS cho VT Zone
 
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'js/*.js'
-      - 'css/*.css'
-  workflow_dispatch:
+    paths: ['js/*.js', 'css/*.css']
+  workflow_dispatch: # Cho phép bạn bấm nút chạy thủ công
 
 permissions:
-  contents: write
+  contents: write # Cấp quyền ghi để Action tự commit file .min
 
 jobs:
-  build-assets:
+  minify:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      # Cài đặt công cụ: Javascript-obfuscator (cho JS) và Clean-CSS (cho CSS)
-      - name: Install Minify Tools
-        run: npm install -g javascript-obfuscator clean-css-cli
-
-      # Xử lý JS: Làm gọn + Khóa tên miền
-      - name: Process JavaScript
+      - name: Cài đặt công cụ nén hiện đại (Terser & Clean-CSS)
         run: |
+          npm install -g terser clean-css-cli
+
+      - name: Tiến hành nén file
+        run: |
+          # Nén JS: Bỏ qua các file đã có đuôi .min.js
           for f in js/*.js; do
-            # Chỉ xử lý file gốc, bỏ qua file .min.js
-            if [[ "$f" != *.min.js ]]; then
-              echo "Dang xu ly JS: $f"
-              javascript-obfuscator "$f" \
-                --output "${f%.js}.min.js" \
-                --compact true \
-                --simplify true \
-                --control-flow-flattening false \
-                --dead-code-injection false \
-                --string-array false \
-                --rename-globals false \
-                --domain-lock "vutruong.vn,www.vutruong.vn,cdn.vutruong.vn,localhost" \
-                --domain-lock-redirect-url "about:blank"
+            if [[ ! $f == *.min.js ]]; then
+              terser "$f" --compress --mangle -o "${f%.js}.min.js"
             fi
           done
-
-      # Xử lý CSS: Chỉ làm gọn (Minify)
-      - name: Process CSS
-        run: |
+          
+          # Nén CSS: Bỏ qua các file đã có đuôi .min.css
           for f in css/*.css; do
-            # Chỉ xử lý file gốc, bỏ qua file .min.css
-            if [[ "$f" != *.min.css ]]; then
-              echo "Dang xu ly CSS: $f"
-              cleancss -o "${f%.css}.min.css" "$f"
+            if [[ ! $f == *.min.css ]]; then
+              cleancss "$f" -o "${f%.css}.min.css"
             fi
           done
 
-      # Commit và Push kết quả lên GitHub
-      - name: Commit & Push changes
+      - name: Commit và đẩy file nén lên Repo
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "⚡ Optimized: Minify JS/CSS & Domain Lock [skip ci]"
+          commit_message: "⚡ Tối ưu: Tự động nén file JS/CSS [skip ci]"
           file_pattern: 'js/*.min.js css/*.min.css'
