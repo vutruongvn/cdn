@@ -232,5 +232,21 @@ function applyPostLogic() {
             applyPostLogic();
         }
     });
+
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.addedNodes.length) {
+            initVTTooltips();
+        }
+    });
+});
+
+// Theo dõi sự thay đổi của container chứa bài viết
+const postContainer = document.getElementById('post-container'); 
+if (postContainer) {
+    observer.observe(postContainer, { childList: true, subtree: true });
+}
+  
 })();
+
 
