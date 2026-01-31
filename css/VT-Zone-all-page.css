@@ -256,6 +256,7 @@ body {
 	--vt-radius: 12px;
 	--vt-shadow: rgba(149, 157, 165, .1) 0 8px 24px;
 	--vt-margin-bottom: 1em;
+	--vt-font:'Roboto', sans-serif
 }
 
 html.VT_darkMode {
@@ -1657,6 +1658,7 @@ html.VT_darkMode .dropdown-menu {
 /* VT Zone
    vutruong.vn
                */
+
 
 
 
