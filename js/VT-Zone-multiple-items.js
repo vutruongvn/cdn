@@ -148,7 +148,7 @@ function applyPostLogic() {
             const response = await fetch(nextUrl);
             const html = await response.text();
             
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, "text/html");
@@ -233,3 +233,4 @@ function applyPostLogic() {
         }
     });
 })();
+
