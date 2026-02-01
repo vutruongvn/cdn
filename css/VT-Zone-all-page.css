@@ -303,6 +303,7 @@ html.VT_darkMode .vt-search-form input {
 	color: var(--darktext) !important;
 }
 
+html.VT_darkMode .VT_adminProfile .aP_action a,
 html.VT_darkMode .items_postBody h2,
 html.VT_darkMode #HTML7 .firstVisit_contentBox h2,
 html.VT_darkMode .comment ol,
@@ -889,6 +890,9 @@ img.f-panzoom__content {
 	border-left: 8px solid transparent;
 	border-right: 8px solid transparent;
 	border-top: 10px solid var(--vt-bg);
+}
+html.VT_darkMode .VT_adminProfile:after {
+	border-top-color: var(--darkbd) !important
 }
 
 .VT_adminProfile.is-visible {
@@ -1687,6 +1691,7 @@ blockquote:after{width:30px;height:20px;position:absolute;right:10px;bottom:10px
 	VT Zone
 	vutruong.vn
                  */
+
 
 
 
