@@ -1419,7 +1419,7 @@ html.VT_darkMode .VT_sidebar .content i {
 
 .items_footer_postBody.like_cmt_share_container {
 	padding: 0;
-	margin: 12px 0 0;
+	margin: 1em 0 0;
 	display: flex;
 	justify-content: start;
 	user-select: none;
@@ -1687,6 +1687,7 @@ blockquote:after{width:30px;height:20px;position:absolute;right:10px;bottom:10px
 	VT Zone
 	vutruong.vn
                  */
+
 
 
 
