@@ -1,8 +1,8 @@
 // FULL CODE SCRIPT OPTIMIZED for HOMEPAGE === Trang chủ đã tối ưu ===
 // VT Zone === vutruong.vn ===
-// ============== PHẦN 1: CÁC HÀM HỖ TRỢ (TIME, SLUG) ==============
+// ============== PHẦN 1: CÁC HÀM HỖ TRỢ (TIME, SLUG, TOOLTIP) ==============
 
-// Định nghĩa đoạn HTML Skeleton (Chuyển sang dạng chuỗi chuẩn để tránh lỗi mã hóa)
+// 1. Định nghĩa đoạn HTML Skeleton
 const SKELETON_TEMPLATE = "<div class='VT-timeline-loading-animation vt-temp-ske'>" +
   "<div class='vt-loading-effect-header-wrap'>" +
     "<div class='vt-loading-effect-avatar'></div>" +
@@ -45,6 +45,17 @@ function timeSince(date) {
 // 3. Chuyển đổi slug cho Hashtag
 function toSlug(str) {
     return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/\s+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+// 4. Khởi tạo Bootstrap Tooltips (Tính năng mới thêm vào)
+function initBootstrapTooltips() {
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]:not([data-bs-initialized])');
+        tooltipTriggerList.forEach(el => {
+            new bootstrap.Tooltip(el);
+            el.setAttribute('data-bs-initialized', 'true'); // Đánh dấu để không khởi tạo trùng lặp
+        });
+    }
 }
 
 // ============== PHẦN 2: CÁC CHỨC NĂNG TƯƠNG TÁC ==============
@@ -102,6 +113,7 @@ function initNewLikeButtons() {
 }
 
 function applyPostLogic() {
+    // Xử lý ngày tháng
     document.querySelectorAll('.post-date-iso:not([data-relative-applied])').forEach(el => {
         const isoDate = el.getAttribute('datetime');
         if (isoDate) {
@@ -110,10 +122,15 @@ function applyPostLogic() {
             if (relative) { el.innerHTML = relative; el.setAttribute('data-relative-applied', 'true'); }
         }
     });
+
+    // Xử lý Hashtag
     document.querySelectorAll('.home_hashtagPost a:not([data-slug-converted])').forEach(link => {
         link.innerText = toSlug(link.innerText);
         link.setAttribute('data-slug-converted', 'true');
     });
+    
+    // Kích hoạt Tooltip cho các bài viết (Cả cũ và mới)
+    initBootstrapTooltips();
     
     // Kiểm tra biến Global an toàn trước khi gọi
     if (typeof auth !== 'undefined') initNewLikeButtons();
@@ -167,6 +184,7 @@ function applyPostLogic() {
             const nextLinkEl = doc.querySelector("a.blog-pager-older-link");
             nextUrl = nextLinkEl ? nextLinkEl.getAttribute("href") : "";
 
+            // Sau khi thêm bài mới, gọi hàm này để xử lý logic và Tooltip cho các phần tử mới
             applyPostLogic();
             updateButtonState();
 
@@ -196,7 +214,6 @@ function applyPostLogic() {
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        // Kiểm tra an toàn biến môi trường Blogger
         if (typeof _WidgetManager !== 'undefined' && _WidgetManager._GetAllData().blog.pageType !== "item") {
             const olderLink = document.querySelector("a.blog-pager-older-link");
             if (!olderLink) return;
@@ -229,8 +246,9 @@ function applyPostLogic() {
             }, { rootMargin: '0px' });
 
             observer.observe(btnContainer);
+            
+            // Lần đầu khởi chạy khi load trang
             applyPostLogic();
         }
     });
 })();
-
