@@ -65,31 +65,46 @@ function initNewLikeButtons() {
     if (typeof db === 'undefined' || typeof auth === 'undefined') return;
     const likeBtns = document.querySelectorAll('.likePost:not(.firebase-like-btn)');
     if (likeBtns.length === 0) return;
+
+    // 1. Kiểm tra và tự động tạo HTML cho Toast nếu chưa có
+    let toastEl = document.getElementById('loginToast');
+    if (!toastEl) {
+        const toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        toastContainer.style.zIndex = '1060'; // Đảm bảo nằm trên các layer khác
+        toastContainer.innerHTML = `
+            <div id="loginToast" class="toast align-items-center text-white bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fa-solid fa-circle-info me-2"></i>Đăng nhập để Thích bài viết này!
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>`;
+        document.body.appendChild(toastContainer);
+        toastEl = document.getElementById('loginToast');
+    }
+
+    // 2. Khởi tạo Bootstrap Toast instance
+    const loginToast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3000 });
+
     auth.onAuthStateChanged((user) => {
         likeBtns.forEach(btn => {
             if (user) {
                 if (typeof initSingleLikeButton === 'function') initSingleLikeButton(btn, user);
             } else {
                 if (typeof updateLikeUI === 'function') updateLikeUI(btn, false);
+                
                 btn.onclick = (e) => {
                     e.preventDefault();
-                    const loginPopup = document.querySelector(".VTloginPopup");
-                    if (loginPopup && !isPopupShowing) {
-                        isPopupShowing = true;
-                        loginPopup.style.display = 'block';
-                        loginPopup.style.opacity = '1';
-                        setTimeout(() => {
-                            loginPopup.style.opacity = '0';
-                            setTimeout(() => { loginPopup.style.display = 'none'; isPopupShowing = false; }, 300);
-                        }, 3000);
-                    }
+                    // Hiển thị Toast
+                    loginToast.show();
                 };
             }
             btn.classList.add('firebase-like-btn');
         });
     });
 }
-
 function applyPostLogic() {
     // Xử lý ngày tháng
     document.querySelectorAll('.post-date-iso:not([data-relative-applied])').forEach(el => {
@@ -230,5 +245,6 @@ function applyPostLogic() {
         }
     });
 })();
+
 
 
