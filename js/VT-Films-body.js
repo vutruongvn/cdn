@@ -77,7 +77,7 @@
             const currentUrl = window.location.href;
 
             // Nội dung chia sẻ theo yêu cầu của bạn
-            const shareText = `🎥 Xem phim: "${pageTitle}" miễn phí tại VT Films!\n👉 ${currentUrl}`;
+            const shareText = `🎥 Xem phim: "${pageTitle}" miễn phí tại VT Films!`;
 
             // 2. Kiểm tra hỗ trợ Web Share API
             if (navigator.share) {
@@ -457,3 +457,4 @@
             var clean_uri = uri.substring(0, uri.indexOf("?m=1"));
             window.history.replaceState({}, document.title, clean_uri);
         }
+
