@@ -1731,18 +1731,37 @@ blockquote:after{width:30px;height:20px;position:absolute;right:10px;bottom:10px
 }
 
 /* Lớp phủ số lượng (+X) cho ảnh thứ 4 */
-.photos .more-photos::after {
+/* Container chứa ảnh */
+.photos a.more-photos {
+    position: relative;
+    display: block; /* Ép hiển thị khối */
+    overflow: hidden;
+}
+
+/* Lớp phủ số lượng ảnh */
+.photos a.more-photos::after {
     content: attr(data-more);
     position: absolute;
-    inset: 0;
-  	z-index: 1;
-    background: rgba(0,0,0,.5);
-    color: #fff;
-    display: flex;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Dùng background-color thay vì background để ổn định hơn */
+    color: #ffffff;
+    display: flex !important; /* Ép hiển thị flex */
     align-items: center;
     justify-content: center;
+    font-family: 'Roboto', sans-serif;
     font-size: 24px;
     font-weight: bold;
+    z-index: 10; /* Đảm bảo nằm trên cùng */
+    pointer-events: none; /* Quan trọng: để không ngăn cản việc click mở Fancybox */
+    
+    /* Khử các thuộc tính lạ trên mobile */
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 /* Ẩn các ảnh từ thứ 5 trở đi */
@@ -1750,4 +1769,5 @@ blockquote:after{width:30px;height:20px;position:absolute;right:10px;bottom:10px
     display: none;
 }
 /* Photos End */
+
 
