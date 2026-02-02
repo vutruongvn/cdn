@@ -1485,6 +1485,7 @@ html.VT_darkMode .profile-wrapper {
 .main-cover-img {
 	height: 100%;
 	object-fit: cover;
+	pointer-events: none
 }
 
 .profile-info-section {
@@ -1685,6 +1686,7 @@ blockquote:after{width:30px;height:20px;position:absolute;right:10px;bottom:10px
 	VT Zone
 	vutruong.vn
                  */
+
 
 
 
