@@ -60,28 +60,6 @@ function initBootstrapTooltips() {
 
 // ============== PHẦN 2: CÁC CHỨC NĂNG TƯƠNG TÁC ==============
 
-function initAdminProfilePopup() {
-    const wrappers = document.querySelectorAll('.VT_adminProfile_showPopup:not(.popup-processed)');
-    wrappers.forEach(wrapper => {
-        wrapper.classList.add('popup-processed');
-        const link = wrapper.querySelector('.post_authorName');
-        const popup = wrapper.querySelector('.VT_adminProfile');
-        if (!link || !popup) return;
-        let hideTimer, showTimer;
-        const show = () => {
-            clearTimeout(hideTimer);
-            if (!showTimer) {
-                showTimer = setTimeout(() => { popup.classList.add('is-visible'); showTimer = null; }, 100);
-            }
-        };
-        const hide = () => {
-            clearTimeout(showTimer); showTimer = null;
-            hideTimer = setTimeout(() => { popup.classList.remove('is-visible'); }, 300);
-        };
-        [link, popup].forEach(el => { el.addEventListener('mouseenter', show); el.addEventListener('mouseleave', hide); });
-    });
-}
-
 let isPopupShowing = false;
 function initNewLikeButtons() {
     if (typeof db === 'undefined' || typeof auth === 'undefined') return;
@@ -134,7 +112,6 @@ function applyPostLogic() {
     
     // Kiểm tra biến Global an toàn trước khi gọi
     if (typeof auth !== 'undefined') initNewLikeButtons();
-    initAdminProfilePopup();
     
     if (typeof initLikeCountDisplay === 'function') {
         initLikeCountDisplay(document.querySelector('div.blog-posts'));
@@ -253,4 +230,5 @@ function applyPostLogic() {
         }
     });
 })();
+
 
