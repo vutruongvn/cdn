@@ -1682,20 +1682,70 @@ blockquote{font-family:Google Sans Flex,sans-serif;font-weight:400;margin:0 0 1e
 blockquote:before{width:30px;height:20px;position:absolute;left:10px;top:10px;content:'';background:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEcAAAAWCAYAAACSYoFNAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH3wkIDBIR/EbngQAAAq5JREFUWMPtmD9oFFEQxn93XmGhCVFBQiQiCSYo2AiSxKAgsfAPH4IiFlYp1MYmiMGAhQgRRCSlCrEQIaYQwjQptBJMVLQSYxRBTNSQoBGNgoXhLHwH5/Le3u7hFcJ+cNyyM/vNzLcz7+1ujgqQtBU4DOwA6sxsFwkgCTMrHfcA+4DtwGszO0FKSLoBbAaeAeNmdj8aJwHHA+Ab8AS4a2Yv4vwLoaIkHQOuAE1l5rdJi3Ec54DBiOkr1WE9sNv9+iQBDJjZpRQcG4BNwAHggqQPwBkzu+MTOe8haJA0DYxEhEnULe6/Q1LRI8y/xqCkoqSO8vgp0ASMuHobosZ8pLh2YBFoqyZT1y29wGSMW64GIk1K6k06Xh60AYuu/r/FkYSkemAqhuAH8KhC5+wEhmNcPgIPqyzgubs+hGEXPw5PXR0hTEmqL3Vgrqyw6UDHLANXzexshXFa7RY7H74AvWY2lmYBDayFh4CbvjFwqAOW4mJIugz0ASs85ldm1l7eOUdiRqkF6K80TsBQwLxgZmuAsTLfqkbWYczxLQRchxLE6Hd1eUfM6fGncyS9A5o9jqeA6xXuAsBa4FOgqFqsMaXYxYBpHfA5Qd4ngWse84yZbcxJ2gL49vtlMyskTPIoMBoKUkNxQjd1v5mNJ+T4FRivljzQE7jucYo8TwfO36rxVh7iH0jBEarzYB7oDBhfxj3LRNAd4BitsTgh/u6EeQfrBDpzkiYCAr0BZiLn5szseCRo3C51z9OyE2Z2vooRugh0eXbSvaFdy8yWIhy3gcaIXzPQ6nt2KnicS2j1XOR7fVgVU5Mv8e9Vdsk2YE8K/1XAUuRcl3t9SILGPBmCyMTJxMnEycTJxMnEycT5r1EAZoFiQv/ZwPeeOeBnQo75KnOdJ/k37JUuryT5h/D+N8Px49h3fiJsAAAAAElFTkSuQmCC') no-repeat}
 blockquote:after{width:30px;height:20px;position:absolute;right:10px;bottom:10px;content:'';background:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEcAAAAWCAYAAACSYoFNAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH3wkIDBIR/EbngQAAAq5JREFUWMPtmD9oFFEQxn93XmGhCVFBQiQiCSYo2AiSxKAgsfAPH4IiFlYp1MYmiMGAhQgRRCSlCrEQIaYQwjQptBJMVLQSYxRBTNSQoBGNgoXhLHwH5/Le3u7hFcJ+cNyyM/vNzLcz7+1ujgqQtBU4DOwA6sxsFwkgCTMrHfcA+4DtwGszO0FKSLoBbAaeAeNmdj8aJwHHA+Ab8AS4a2Yv4vwLoaIkHQOuAE1l5rdJi3Ec54DBiOkr1WE9sNv9+iQBDJjZpRQcG4BNwAHggqQPwBkzu+MTOe8haJA0DYxEhEnULe6/Q1LRI8y/xqCkoqSO8vgp0ASMuHobosZ8pLh2YBFoqyZT1y29wGSMW64GIk1K6k06Xh60AYuu/r/FkYSkemAqhuAH8KhC5+wEhmNcPgIPqyzgubs+hGEXPw5PXR0hTEmqL3Vgrqyw6UDHLANXzexshXFa7RY7H74AvWY2lmYBDayFh4CbvjFwqAOW4mJIugz0ASs85ldm1l7eOUdiRqkF6K80TsBQwLxgZmuAsTLfqkbWYczxLQRchxLE6Hd1eUfM6fGncyS9A5o9jqeA6xXuAsBa4FOgqFqsMaXYxYBpHfA5Qd4ngWse84yZbcxJ2gL49vtlMyskTPIoMBoKUkNxQjd1v5mNJ+T4FRivljzQE7jucYo8TwfO36rxVh7iH0jBEarzYB7oDBhfxj3LRNAd4BitsTgh/u6EeQfrBDpzkiYCAr0BZiLn5szseCRo3C51z9OyE2Z2vooRugh0eXbSvaFdy8yWIhy3gcaIXzPQ6nt2KnicS2j1XOR7fVgVU5Mv8e9Vdsk2YE8K/1XAUuRcl3t9SILGPBmCyMTJxMnEycTJxMnEycT5r1EAZoFiQv/ZwPeeOeBnQo75KnOdJ/k37JUuryT5h/D+N8Px49h3fiJsAAAAAElFTkSuQmCC') -40px 0 no-repeat}
 
-/*
-	VT Zone
-	vutruong.vn
-                 */
+/* Lưới cho bài viết có nhiều ảnh */
+.photos {
+    display: grid;
+    gap: 0;
+    grid-template-columns: repeat(2, 1fr);
+    overflow: hidden;
+}
 
+/* 1 Ảnh */
+.photos:has(> :last-child:nth-child(1)) {
+    grid-template-columns: 1fr;
+}
 
+/* 2 Ảnh */
+.photos:has(> :last-child:nth-child(2)) {
+    grid-template-columns: repeat(2, 1fr);
+}
 
+/* 3 Ảnh: Trái 1 to, Phải 2 nhỏ */
+.photos:has(> :last-child:nth-child(3)) {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(2, auto);
+}
+.photos:has(> :last-child:nth-child(3)) a:first-child {
+    grid-row: span 2;
+}
 
+/* 4 Ảnh trở lên: Lưới 2x2 */
+.photos:has(> :last-child:nth-child(n+4)) {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, auto);
+}
 
+/* Style chung cho ảnh */
+.photos a {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+.photos img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  	margin: 0;
+}
 
+/* Lớp phủ số lượng (+X) cho ảnh thứ 4 */
+.photos .more-photos::after {
+    content: attr(data-more);
+    position: absolute;
+    inset: 0;
+  	z-index: 1;
+    background: rgba(0,0,0,.5);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+}
 
-
-
-
-
-
-
+/* Ẩn các ảnh từ thứ 5 trở đi */
+.photos a:nth-child(n+5) {
+    display: none;
+}
+/* Photos End */
