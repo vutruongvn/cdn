@@ -1,0 +1,257 @@
+/* ==========================================================================
+   1. GLOBAL RESETS & IFRAME/IMG
+   ========================================================================== */
+iframe,
+img {
+  border: none;
+}
+iframe {
+  width: 100%;
+}
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ==========================================================================
+   2. COMMENT SYSTEM (Main Layout)
+   ========================================================================== */
+/* Container & Lists */
+#comments {
+  margin: 1em 0 0;
+  padding: 0 1em;
+}
+#comments .comments-content {
+  margin: 0;
+}
+#comments .comments-content ol#top-ra {
+  padding: 0;
+  margin: 0;
+}
+.comment {
+  list-style-type: none;
+  position: relative;
+}
+.comment:not(:last-child) {
+  margin: 0;
+}
+.comment-thread {
+  margin: 0;
+}
+
+/* Threading & Nesting (Cleaned up) */
+.comment .comment-replies {
+  margin: 1em 0 0 5px;
+}
+
+/* Second Level */
+.comment .comment-replies .comment-thread.secondlevel-thread ol {
+  border-left: 1px solid #ddd;
+  padding: 0 0 0 24px;
+  margin: 0 0 0 12px;
+}
+/* Third Level */
+.comment
+  .comment-replies
+  .comment-thread.secondlevel-thread
+  ol
+  .comment-thread.thirdlevel-thread
+  ol {
+  border-left: 1px solid #ddd;
+  padding: 0 0 0 24px;
+  margin: 0 0 0 12px;
+}
+.comment
+  .comment-replies
+  .comment-thread.secondlevel-thread
+  ol
+  .comment-thread.thirdlevel-thread
+  ol
+  li {
+  margin: 0.5em 0;
+}
+
+/* Comment Item Structure */
+.comment .comment-block {
+  margin: 0 0 0 45px;
+}
+
+.comment .comment-block .comment-header_ {
+  background: #f2f3f5;
+  border-radius: 24px;
+  padding: 8px 1em;
+  display: inline-block;
+}
+
+.comment .comment-header .user {
+  font-weight: 600;
+}
+
+/* Avatar */
+.comment .avatar-image-container {
+  position: absolute;
+  height: 35px;
+  width: 35px;
+}
+.comment .avatar-image-container img {
+  border-radius: 50%;
+  height: 100%;
+  width: 100%;
+  background: #ccc
+    url(https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiXzRmO3fGNRhHJmH3Inq7-wAKFaxeKw6ORh6Orz-c9wye2fjAZZ5np-fgSk3EUqNPu7cKQr9CRMbsFhq31OyvJsNMGEWLTuiENcxWgJ8UUifR9PWALPRy08cXXJAYLvd1xSwCXWdAmit6duwwaYh6WvzQYvb6jWg4CPUeDpjlIOjB1jUnwgOaO8finpH8/s35/df-avt.png)
+    no-repeat center;
+}
+/* Admin/Author Badge on Avatar */
+.avatar-image-container span {
+  bottom: 15px;
+  position: absolute;
+  right: -6px;
+  display: inline-block;
+  height: 15px;
+  width: 15px;
+}
+.comment-replies .avatar-image-container span {
+  bottom: 13px;
+}
+.avatar-image-container svg {
+  height: 15px;
+  width: 15px;
+}
+
+/* Actions (Reply, Delete, etc) */
+.comment .comment-actions {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.comment .comment-actions a {
+  font-size: 14px;
+}
+.comment .comment-actions a.comment-reply,
+.comment .comment-actions span.blog-admin {
+  padding-right: 10px;
+}
+.comment .continue {
+  display: none;
+}
+.comment .view-replies {
+  margin: 5px 0 0 45px;
+}
+.comment .view-replies span {
+  font-weight: 400;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Comment Form & Editor */
+#comment-editor {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  width: 100%;
+}
+#comments.threaded .commentForm {
+  margin: 0;
+}
+.comment-replybox-single .commentForm {
+  margin: 0;
+}
+.comment .comment-replybox-single {
+  margin: 1em 0 1em 3em;
+}
+.postAComment {
+  margin: 0;
+  font-weight: 400;
+}
+.calcel-reply {
+  margin: 0;
+}
+.thread-locked-alert {
+  border-top: 1px solid #eee;
+}
+
+/* Load More Buttons */
+#comments .loadmore,
+#comments .showless {
+  margin: 0;
+}
+#comments .loadmore a,
+#comments .showless a {
+  color: #2d2d2d;
+  cursor: pointer;
+}
+.comments .comments-content .loadmore.loaded {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+/* Admin Profile Popup Position Fix */
+.comment
+  .comment-block
+  .comment-header
+  .user
+  .VT_adminProfile_showPopup
+  .VT_adminProfile {
+  bottom: 100%;
+  top: unset;
+  left: unset;
+  margin-bottom: 10px;
+}
+
+/* ==========================================================================
+   3. ANIMATIONS & LOADERS (Fixed Syntax) DELETED
+   ========================================================================== */
+
+/* ==========================================================================
+   4. FANCYBOX / POPUP OVERRIDES
+   ========================================================================== */
+.comments.threaded.embed.f-html {
+  padding: 1em;
+  width: 100%;
+  max-width: 600px;
+}
+.fancybox__dialog :empty .comment .comment-replybox-single {
+  display: block;
+}
+
+/* ==========================================================================
+   5. DARK MODE (New & Separated)
+   ========================================================================== */
+html.VT_darkMode .comment .comment-block .comment-header_ {
+  background: var(--darkbd); /* Màu nền box comment */
+  color: var(--darktext);
+}
+
+html.VT_darkMode
+  .comment
+  .comment-replies
+  .comment-thread.secondlevel-thread
+  ol,
+html.VT_darkMode
+  .comment
+  .comment-replies
+  .comment-thread.secondlevel-thread
+  ol
+  .comment-thread.thirdlevel-thread
+  ol {
+  border-color: var(--darkbd); /* Màu đường kẻ threading */
+}
+
+html.VT_darkMode .thread-locked-alert {
+  border-top-color: var(--darkbd);
+}
+
+html.VT_darkMode #comments .loadmore a,
+html.VT_darkMode #comments .showless a {
+  color: var(--darklink);
+}
+
+html.VT_darkMode .comment .view-replies span {
+  color: #aaa;
+}
+
+html.VT_darkMode .avatar-image-container img {
+  background-color: var(--darkbd); /* Màu nền avatar khi chưa load */
+}
