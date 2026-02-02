@@ -1726,7 +1726,8 @@ blockquote:after{width:30px;height:20px;position:absolute;right:10px;bottom:10px
     height: 100%;
     object-fit: cover;
     display: block;
-  	margin: 0;
+  	margin: 0 !important;
+  	padding: 0 !important
 }
 
 /* Lớp phủ số lượng (+X) cho ảnh thứ 4 */
@@ -1749,3 +1750,4 @@ blockquote:after{width:30px;height:20px;position:absolute;right:10px;bottom:10px
     display: none;
 }
 /* Photos End */
+
