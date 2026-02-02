@@ -867,7 +867,7 @@ img.f-panzoom__content {
 	width: 330px;
 	background: var(--vt-bg);
 	padding: var(--vt-padding);
-	border-radius: var(--vt-radius);
+	border-radius: 12px;
 	box-shadow: rgba(0, 0, 0, .15) 0 0 50px;
 	position: absolute;
 	bottom: 100%;
@@ -1691,6 +1691,7 @@ blockquote:after{width:30px;height:20px;position:absolute;right:10px;bottom:10px
 	VT Zone
 	vutruong.vn
                  */
+
 
 
 
