@@ -11,8 +11,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Lấy URL bài viết hiện tại
             const currentPostUrl = window.location.href;
             
-            // Lấy Tiêu đề bài viết từ thẻ H1 có class .items_postTitle
-            const postTitleElement = document.querySelector('.items_postTitle');
+            // Lấy Tiêu đề bài viết từ thẻ H1 có class .postTitle
+            const postTitleElement = document.querySelector('.postTitle');
             const postTitle = postTitleElement ? postTitleElement.innerText.trim() : 'Không tìm thấy Tiêu đề';
 
             // Tạo đối tượng chứa cả URL và Tiêu đề
@@ -36,5 +36,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
 
 
