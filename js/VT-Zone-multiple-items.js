@@ -187,6 +187,7 @@ function applyPostLogic() {
             // Sau khi thêm bài mới, gọi hàm này để xử lý logic và Tooltip cho các phần tử mới
             applyPostLogic();
             updateButtonState();
+            initPhotoGrid();
 
         } catch (error) {
             console.error("Lỗi khi tải bài viết:", error);
@@ -252,3 +253,4 @@ function applyPostLogic() {
         }
     });
 })();
+
