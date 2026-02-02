@@ -1217,12 +1217,6 @@ html.VT_darkMode .centerMenu a:hover {
 		padding: 0;
 	}
 
-	.row,
-    .row>* {
-		margin: 0;
-		padding: 0;
-	}
-
 	#topMenu .VT_topFixedMenu {
 		padding: 0 .5em;
 	}
@@ -1691,6 +1685,7 @@ blockquote:after{width:30px;height:20px;position:absolute;right:10px;bottom:10px
 	VT Zone
 	vutruong.vn
                  */
+
 
 
 
