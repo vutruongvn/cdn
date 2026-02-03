@@ -177,7 +177,7 @@ function initCommentLogic() {
                 const count = replyArea.querySelectorAll('.comment-thread > ol > li').length;
                 const viewBtn = document.createElement('div');
                 viewBtn.className = 'view-replies small ms-5 pb-2';
-                viewBtn.innerHTML = `<a class="viewRepliesBtn small fw-medium"><i class="fa-regular fa-angle-down"></i> ${count} phản hồi</a>`;
+                viewBtn.innerHTML = `<span class="viewRepliesBtn small fw-medium" style="cursor:pointer"><i class="fa-regular fa-angle-down"></i> ${count} phản hồi</span>`;
                 replyArea.before(viewBtn);
             }
         });
@@ -241,5 +241,6 @@ if (document.readyState === 'loading') {
 } else {
     initCommentLogic();
 }
+
 
 
