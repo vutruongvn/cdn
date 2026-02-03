@@ -1487,10 +1487,6 @@ html.VT_darkMode .vt-loading-effect-small-block {
     width: 150px;
     height: 150px;
   }
-  .text-muted {
-    font-size: 0.9rem;
-    margin-bottom: 15px !important;
-  }
   .nav-links {
     display: flex;
     flex-wrap: nowrap;
@@ -1536,5 +1532,6 @@ html.VT_darkMode .vt-loading-effect-small-block {
     margin: 0 10px 0 0;
   }
 }
+
 
 
