@@ -323,7 +323,7 @@ img {
 }
 .VT-timeline-loading-animation {
   padding: var(--vt-padding);
-  margin: 1em 0;
+  margin: 0;
   background-color: var(--vt-bg);
   border-radius: var(--vt-radius);
   box-shadow: var(--vt-shadow);
@@ -1539,3 +1539,4 @@ html.VT_darkMode .vt-loading-effect-small-block {
     margin: 0 10px 0 0;
   }
 }
+
