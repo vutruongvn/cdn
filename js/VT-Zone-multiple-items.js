@@ -181,7 +181,8 @@ function applyPostLogic() {
             updateButtonState();
             initPhotoGrid();
             VT_PostComments.init();
-            VT_homePostLayout();
+            setTimeout(VT_homePostLayout, 200);
+            setTimeout(VT_checkReadMore, 200);
 
         } catch (error) {
             console.error("Lỗi khi tải bài viết:", error);
@@ -247,6 +248,7 @@ function applyPostLogic() {
         }
     });
 })();
+
 
 
 
