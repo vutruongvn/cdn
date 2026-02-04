@@ -495,7 +495,7 @@ const imageObserver = new IntersectionObserver((entries, observer) => {
             observer.unobserve(img);
         }
     });
-}, { rootMargin: '0px 0px 100px 0px' });
+}, { rootMargin: '0px 0px 300px 0px' });
 
 function VT_LazyLoad() {
     // Chỉ quét ảnh trong #centerMain chưa có data-src
@@ -520,4 +520,5 @@ function VT_LazyLoad() {
     });
 }
 document.addEventListener('DOMContentLoaded', VT_LazyLoad);
+
 
