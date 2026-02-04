@@ -317,6 +317,7 @@ function applyPostLogic() {
             VT_PostComments.init();
             VT_homePostLayout();
             VT_checkReadMore();
+            VT_LazyLoad();
 
         } catch (error) {
             console.error("Lỗi khi tải bài viết:", error);
@@ -473,4 +474,50 @@ document.addEventListener('click', function (e) {
 
     // Chạy hàm kiểm tra ngay khi trang tải xong
     document.addEventListener('DOMContentLoaded', checkFirstVisit);
+
+/* =========================================
+ * VT_LazyLoad v2.0 - Tối ưu cho vutruong.vn
+ * Chỉ xử lý ảnh bên trong #centerMain
+   ========================================= */
+
+const imageObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const img = entry.target;
+            const src = img.getAttribute('data-src');
+
+            if (src) {
+                img.src = src;
+                img.removeAttribute('data-src');
+                img.onload = () => img.style.opacity = '1';
+            }
+            
+            observer.unobserve(img);
+        }
+    });
+}, { rootMargin: '0px 0px 100px 0px' });
+
+function VT_LazyLoad() {
+    // Chỉ quét ảnh trong #centerMain chưa có data-src
+    const images = document.querySelectorAll('#centerMain img:not([data-src])');
+
+    images.forEach(img => {
+        const currentSrc = img.getAttribute('src');
+
+        // Bỏ qua nếu: không có src, là ảnh base64, hoặc ảnh icon/thumb siêu nhỏ
+        if (!currentSrc || currentSrc.startsWith('data:') || img.clientWidth < 10) return;
+
+        // Tiến hành Lazy Load
+        img.setAttribute('data-src', currentSrc);
+        img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+        
+        // Style cơ bản
+        img.style.opacity = '0';
+        img.style.transition = 'opacity 1s ease-in-out';
+        img.style.backgroundColor = '#f2f3f5';
+
+        imageObserver.observe(img);
+    });
+}
+document.addEventListener('DOMContentLoaded', VT_LazyLoad);
 
