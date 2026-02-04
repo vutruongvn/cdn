@@ -1524,3 +1524,72 @@ html.VT_darkMode .vt-loading-effect-small-block {
     margin: 0 10px 0 0;
   }
 }
+
+/* RC cmt bên dưới bài viết multipleItems */
+html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info {background:rgba(255,255,255,.05)}
+html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {background:rgba(255,255,255,.1)}
+.multipleItems-rc ul.post-comment-list li .comment-info {background:#f2f3f5;transition:background .2s ease}
+.multipleItems-rc ul.post-comment-list li .comment-info:hover {background:#ededed}
+
+/* Container Album */
+.VT_homePostGallery {
+    display: grid;
+    gap: 0;
+    overflow: hidden;
+}
+
+.VT_homePostGallery a {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.VT_homePostGallery img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Layout 1 ảnh */
+.layout-1 { grid-template-columns: auto }
+
+/* Layout 2 ảnh: 50/50 */
+.layout-2 { grid-template-columns: auto auto; height: auto; }
+
+/* Layout 3 ảnh: Trái 50% cao, Phải 2 ảnh nhỏ */
+.layout-3 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+}
+.layout-3 a:first-child { grid-row: span 2; }
+
+/* Layout 4 ảnh: 4 ô vuông đều */
+.layout-4 {
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+}
+
+/* Layout 5 ảnh trở lên (Facebook Style) */
+.layout-5 {
+    grid-template-columns: repeat(6, auto);
+    grid-template-rows: auto;
+}
+.layout-5 a:nth-child(1), .layout-5 a:nth-child(2) { grid-column: span 3; }
+.layout-5 a:nth-child(3), .layout-5 a:nth-child(4), .layout-5 a:nth-child(5) { grid-column: span 2; }
+
+/* Overlay +N */
+.vt-gallery-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 2rem;
+    font-weight: 700;
+    pointer-events: none;
+    z-index: 2;
+}
