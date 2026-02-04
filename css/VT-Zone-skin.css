@@ -1177,9 +1177,6 @@ article.post-outer-container .photos a:nth-child(n + 5) {
 .fancybox__slide.has-html {
   padding: 1em;
 }
-.fancybox__dialog .f-button.is-arrow {
-  display: none !important;
-}
 .fancybox__dialog .contact-form-widget input,
 .fancybox__dialog .contact-form-widget textarea,
 .fancybox__dialog
@@ -1593,3 +1590,4 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
     pointer-events: none;
     z-index: 2;
 }
+
