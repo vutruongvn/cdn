@@ -1,4 +1,4 @@
-// FULL CODE SCRIPT OPTIMIZED for HOMEPAGE === Trang chủ đã tối ưu ===
+// FULL CODE SCRIPT OPTIMIZED for HOMEPAGE - MULTIPLE ITEMS
 // VT Zone === vutruong.vn ===
 // ============== PHẦN 1: CÁC HÀM HỖ TRỢ (TIME, SLUG, TOOLTIP) ==============
 
@@ -179,7 +179,6 @@ function applyPostLogic() {
             // Sau khi thêm bài mới, gọi hàm này để xử lý logic và Tooltip cho các phần tử mới
             applyPostLogic();
             updateButtonState();
-            initPhotoGrid();
             VT_PostComments.init();
             VT_homePostLayout();
             VT_checkReadMore();
@@ -239,20 +238,103 @@ function applyPostLogic() {
                 if (entries[0].isIntersecting && !isLoading && nextUrl) {
                     loadMorePosts();
                 }
-            }, { rootMargin: '0px' });
+            }, { rootMargin: '100px' });
 
             observer.observe(btnContainer);
             
             // Lần đầu khởi chạy khi load trang
             applyPostLogic();
+            VT_homePostLayout();
+            VT_checkReadMore();
         }
     });
 })();
 
+// Function bấm nút xem thêm v-fullPost trang index show full bài viết
+document.addEventListener('click', function (e) {
+    // 1. Kiểm tra click vào nút "Xem thêm"
+    if (e.target && e.target.classList.contains('v-fullPost')) {
+        e.preventDefault();
+
+        const btn = e.target;
+        const postBody = btn.previousElementSibling; // Nội dung bài viết
+        const featuredImg = btn.nextElementSibling;  // Ảnh featured bên ngoài
+
+        if (postBody && postBody.classList.contains('postBodyLimited')) {
+            // A. Xóa class giới hạn để bung nội dung
+            postBody.classList.remove('postBodyLimited');
+
+            // ============================================================
+            // B. LOGIC MỚI: TỰ ĐỘNG THÊM DATA-FANCYBOX CHO ẢNH
+            // ============================================================
+            
+            // Tạo một ID ngẫu nhiên cho nhóm ảnh của bài viết này 
+            // (Giúp Fancybox hiểu các ảnh này thuộc cùng 1 album, ko lẫn sang bài khác)
+            const galleryId = 'gallery-' + Math.floor(Math.random() * 1000000);
+
+            // Tìm tất cả các thẻ <a> liên kết đến file ảnh (jpg, png, webp, jpeg, gif)
+            const imageLinks = postBody.querySelectorAll('a[href$=".jpg"], a[href$=".png"], a[href$=".jpeg"], a[href$=".webp"], a[href$=".gif"]');
+
+            imageLinks.forEach(link => {
+                // 1. Thêm data-fancybox với ID nhóm
+                link.setAttribute('data-fancybox', galleryId);
+                
+                // 2. (Tùy chọn) Thêm caption cho Fancybox từ thẻ img bên trong
+                const imgChild = link.querySelector('img');
+                if (imgChild && imgChild.alt) {
+                    link.setAttribute('data-caption', imgChild.alt);
+                }
+            });
+            // ============================================================
+        }
+
+        // 3. Ẩn nút "Xem thêm"
+        btn.classList.add('d-none');
+
+        // 4. Ẩn ảnh Featured bên ngoài (nếu có)
+        if (featuredImg && featuredImg.classList.contains('postFeaturedImage')) {
+            featuredImg.classList.add('d-none');
+        }
+    }
+});
 
 
+// Thông báo lần đầu truy cập Blog và Ghim ra màn hình chính (chỉ xuất hiện lần đầu truy cập)
+// VT Zone
+// vutruong.vn
 
+    // 1. Tên biến dùng để lưu trạng thái trong trình duyệt
+    const storageKey = 'hasVisitedBlog';
+    // 2. Tham chiếu đến phần tử thông báo HTML
+    const welcomeMessage = document.getElementById('first-visit-message');
 
+    /**
+     * Hàm kiểm tra và hiển thị thông báo
+     */
+    function checkFirstVisit() {
+        // Kiểm tra xem đã có biến 'hasVisitedBlog' trong localStorage chưa
+        if (localStorage.getItem(storageKey) === null) {
+            // Nếu chưa có (Đây là lần đầu truy cập)
+            
+            // Hiển thị thông báo
+            if (welcomeMessage) {
+                welcomeMessage.style.display = 'block';
+            }
+            
+            // Đặt biến vào localStorage để những lần sau không hiện nữa
+            localStorage.setItem(storageKey, 'true');
+        }
+        // Nếu đã có, không làm gì cả (Không hiển thị thông báo)
+    }
+    
+    /**
+     * Hàm đóng thông báo khi người dùng nhấn nút
+     */
+    function closeWelcomeMessage() {
+        if (welcomeMessage) {
+            welcomeMessage.style.display = 'none';
+        }
+    }
 
-
-
+    // Chạy hàm kiểm tra ngay khi trang tải xong
+    document.addEventListener('DOMContentLoaded', checkFirstVisit);
