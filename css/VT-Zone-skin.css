@@ -4,7 +4,7 @@ svg{border:0;outline:none}
 
 article.post-outer-container{position:relative;background:var(--vt-bg);border-radius:var(--vt-radius);box-shadow:var(--vt-shadow);padding:0;margin: 0}
 
-.VT_loadMorePost{padding: var(--vt-padding); display: block; text-align: center; margin: 1em 0 0; border-radius: var(--vt-radius); transition: .2s ease; font-weight: 500; font-size: 14px; background: var(--vt-bg); box-shadow: var(--vt-shadow)}
+.VT_loadMorePost{padding: var(--vt-padding); display: block; text-align: center; margin: 0; border-radius: var(--vt-radius); transition: .2s ease; font-weight: 500; font-size: 14px; background: var(--vt-bg); box-shadow: var(--vt-shadow)}
 .VT_loadMorePost:hover{box-shadow:rgba(0,0,0,0.3) 0 25px 20px -20px;color:#000}
 
 article.post-outer-container .postBodyLimited { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis }
@@ -1597,5 +1597,6 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
     pointer-events: none;
     z-index: 2;
 }
+
 
 
