@@ -6,6 +6,7 @@ article.post-outer-container{position:relative;background:var(--vt-bg);border-ra
 
 .VT_loadMorePost{padding: var(--vt-padding); display: block; text-align: center; margin: 0; border-radius: var(--vt-radius); transition: .2s ease; font-weight: 500; font-size: 14px; background: var(--vt-bg); box-shadow: var(--vt-shadow)}
 .VT_loadMorePost:hover{box-shadow:rgba(0,0,0,0.3) 0 25px 20px -20px;color:#000}
+.post-outer-container .no-posts-message {display:none}
 
 article.post-outer-container .postBodyLimited { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis }
 article.post-outer-container .postFeaturedImage img {margin-bottom:0}
@@ -1248,6 +1249,8 @@ article.post-outer-container .photos a:nth-child(n + 5) {
 .f-button {
   border-radius: 100px;
 }
+.is-horizontal .f-button.is-arrow.is-prev, .is-horizontal .f-button.is-arrow.is-next {opacity:0}
+.is-horizontal .f-button.is-arrow.is-prev:hover, .is-horizontal .f-button.is-arrow.is-next:hover {opacity:1}
 
 .contact-form-button.contact-form-button-submit {
   background-color: #f2f3f5;
@@ -1596,6 +1599,21 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
     z-index: 2;
 }
 
+/* Featured Story Widget by vT Zone */
+#vt-carousel-track::-webkit-scrollbar{height:0;background:transparent}
+#vt-carousel-track{-ms-overflow-style:none;scrollbar-width:none}
+.vt-card-item{min-width:calc(100%/3 - 6px);scroll-snap-align:start;cursor:pointer}
+.vt-card-item:hover img{transform:scale(1.1)}
+.carousel-div-img,.vt-card-img{width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:12px;transition:transform .5s ease!important}
+@media (max-width: 600px) {
+#vt-btn-prev,#vt-btn-next{display:none !important}
+}
+@media (min-width: 768px) {
+.vt-card-item{min-width:calc(100%/3 - 4em)}
+}
+@media (min-width: 992px) {
+.vt-card-item{min-width:calc(100%/3 - 5px)}
+}
 
 
 
