@@ -672,7 +672,13 @@ document.addEventListener("DOMContentLoaded", function() {
             type: "video",
             ratio: "9/16"
         },
-
+		{ 
+            img: "#", 
+            title: "Test", 
+            link: "https://ia903206.us.archive.org/25/items/pho-quen-full/pho-quen-full.MP4",
+            type: "video",
+            ratio: "9/16"
+        },
     ];
 
 const track = document.getElementById('vt-carousel-track');
@@ -808,3 +814,4 @@ renderCarousel();
 updateButtons();
 
 });
+
