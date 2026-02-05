@@ -1175,7 +1175,7 @@ article.post-outer-container .photos a:nth-child(n + 5) {
 }
 .fancybox__slide.has-close-btn,
 .fancybox__slide.has-html {
-  padding: 1em;
+  padding: 0;
 }
 .fancybox__dialog .contact-form-widget input,
 .fancybox__dialog .contact-form-widget textarea,
@@ -1226,11 +1226,9 @@ article.post-outer-container .photos a:nth-child(n + 5) {
   background: #fff;
 }
 .f-iframe {
-  border-radius: var(--vt-radius);
   padding: 0;
 }
 .f-html {
-  border-radius: var(--vt-radius);
   padding: 0;
 }
 .f-caption {
@@ -1597,6 +1595,7 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
     pointer-events: none;
     z-index: 2;
 }
+
 
 
 
