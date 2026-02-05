@@ -513,13 +513,14 @@ function VT_LazyLoad() {
         
         // Style cơ bản
         img.style.opacity = '0';
-        img.style.transition = '1s ease-in-out';
+        img.style.transition = 'opacity 1s ease-in-out';
         img.style.backgroundColor = '#f2f3f5';
 
         imageObserver.observe(img);
     });
 }
 document.addEventListener('DOMContentLoaded', VT_LazyLoad);
+
 
 
 
