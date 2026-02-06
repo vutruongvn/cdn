@@ -132,6 +132,40 @@ const VT_PostComments = {
 };
 document.addEventListener('DOMContentLoaded', () => VT_PostComments.init());
 
+// Function đăng bình luận trực tiếp theo từng bài viết tại trang Multiple Items
+// === by VT Zone ===
+document.addEventListener('DOMContentLoaded', function() {
+    const BLOG_ID = '3049740051705190505';
+
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe');
+        if (!btn) return;
+
+        const postId = btn.getAttribute('data-post-id');
+        const container = document.getElementById('comment-box-' + postId);
+
+        if (container) {
+			container.innerHTML = `<div class="loading-status position-absolute w-100 d-flex align-items-center justify-content-center" style="height:210px;font-size:1.2rem"><i class="fa-pro fa-duotone fa-spinner-third fa-spin"></div>`;
+            const iframe = document.createElement('iframe');
+            const src = 'https://www.blogger.com/comment-iframe.g?blogID=' + BLOG_ID + '&postID=' + postId + '&skin=contempo';
+            iframe.src = src;
+            iframe.width = '100%';
+            iframe.height = '210px';
+            iframe.frameBorder = '0';
+            iframe.scrolling = 'auto';
+            iframe.style.display = 'block';
+            iframe.style.border = '1px solid #eee';
+
+            iframe.onload = function() {
+                const loader = container.querySelector('.loading-status');
+                if (loader) loader.remove();
+            };
+
+            container.appendChild(iframe);
+            btn.remove(); 
+        }
+    });
+});
 
 // ============== PHẦN 1: CÁC HÀM HỖ TRỢ (TIME, SLUG, TOOLTIP) ==============
 
@@ -518,6 +552,7 @@ function VT_LazyLoad() {
     });
 }
 document.addEventListener('DOMContentLoaded', VT_LazyLoad);
+
 
 
 
