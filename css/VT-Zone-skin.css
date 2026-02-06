@@ -1603,8 +1603,8 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
 #vt-carousel-track::-webkit-scrollbar{height:0;background:transparent}
 #vt-carousel-track{-ms-overflow-style:none;scrollbar-width:none}
 .vt-card-item{min-width:calc(100%/3 - 6px);scroll-snap-align:start;cursor:pointer}
-.vt-card-item:hover img{transform:scale(1.1)}
-.carousel-div-img,.vt-card-img{width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:12px;transition:transform .5s ease!important}
+.vt-card-item:hover img{transform:scale(1.05)}
+.carousel-div-img,.vt-card-img{width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:12px;transition:transform .345s ease!important}
 @media (max-width: 600px) {
 #vt-btn-prev,#vt-btn-next{display:none !important}
 }
@@ -1614,6 +1614,7 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
 @media (min-width: 992px) {
 .vt-card-item{min-width:calc(100%/3 - 5px)}
 }
+
 
 
 
