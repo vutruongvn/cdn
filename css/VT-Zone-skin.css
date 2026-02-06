@@ -1558,31 +1558,42 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
 }
 
 /* Layout 1 ảnh */
-.layout-1 { grid-template-columns: auto }
+.VT_homePostGallery.layout-1 { grid-template-columns: auto }
 
 /* Layout 2 ảnh: 50/50 */
-.layout-2 { grid-template-columns: auto auto; height: auto; }
+.VT_homePostGallery.layout-2 { grid-template-columns: auto auto; height: auto; }
 
 /* Layout 3 ảnh: Trái 50% cao, Phải 2 ảnh nhỏ */
-.layout-3 {
+.VT_homePostGallery.layout-3 {
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto auto;
 }
-.layout-3 a:first-child { grid-row: span 2; }
+.VT_homePostGallery.layout-3 a:first-child { grid-row: span 2; }
 
 /* Layout 4 ảnh: 4 ô vuông đều */
-.layout-4 {
+.VT_homePostGallery.layout-4 {
     grid-template-columns: auto auto;
     grid-template-rows: auto auto;
 }
 
 /* Layout 5 ảnh trở lên (Facebook Style) */
-.layout-5 {
+.VT_homePostGallery.layout-5 {
     grid-template-columns: repeat(6, auto);
     grid-template-rows: auto;
 }
-.layout-5 a:nth-child(1), .layout-5 a:nth-child(2) { grid-column: span 3; }
-.layout-5 a:nth-child(3), .layout-5 a:nth-child(4), .layout-5 a:nth-child(5) { grid-column: span 2; }
+.VT_homePostGallery.layout-5 a:nth-child(1), .VT_homePostGallery.layout-5 a:nth-child(2) { grid-column: span 3; }
+.VT_homePostGallery.layout-5 a:nth-child(3), .VT_homePostGallery.layout-5 a:nth-child(4), .VT_homePostGallery.layout-5 a:nth-child(5) { grid-column: span 2; }
+
+.VT_homePostGallery.layout-3,
+.VT_homePostGallery.layout-4,
+.VT_homePostGallery.layout-5{gap:.5rem;padding:0 1rem}
+
+.VT_homePostGallery.layout-3 a,
+.VT_homePostGallery.layout-4 a,
+.VT_homePostGallery.layout-5 a,
+.VT_homePostGallery.layout-3 a img,
+.VT_homePostGallery.layout-4 a img,
+.VT_homePostGallery.layout-5 a img {aspect-ratio: 1/1;border-radius:12px}
 
 /* Overlay +N */
 .vt-gallery-overlay {
@@ -1597,6 +1608,7 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
     font-weight: 700;
     pointer-events: none;
     z-index: 2;
+    border-radius: 12px
 }
 
 /* Featured Story Widget by vT Zone */
@@ -1614,6 +1626,7 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
 @media (min-width: 992px) {
 .vt-card-item{min-width:calc(100%/3 - 5px)}
 }
+
 
 
 
