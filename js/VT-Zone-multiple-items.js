@@ -509,11 +509,12 @@ document.addEventListener('click', function (e) {
 
 /* =========================================
  * VT_LazyLoad v2.0 - Tối ưu cho vutruong.vn
- * Chỉ xử lý ảnh bên trong #centerMain
-   ========================================= */
+ * Đã cấu hình tải trước 300px
+ ========================================= */
 
 const imageObserver = new IntersectionObserver((entries, observer) => {
     entries.forEach(entry => {
+        // Khi ảnh chạm vào vùng đệm 300px bên dưới màn hình
         if (entry.isIntersecting) {
             const img = entry.target;
             const src = img.getAttribute('data-src');
@@ -521,37 +522,60 @@ const imageObserver = new IntersectionObserver((entries, observer) => {
             if (src) {
                 img.src = src;
                 img.removeAttribute('data-src');
-                img.onload = () => img.style.opacity = '1';
+                // Khi ảnh thật tải xong thì hiện ra
+                img.onload = () => {
+                    img.style.opacity = '1';
+                };
             }
             
+            // Dừng theo dõi ảnh này vì đã xử lý xong
             observer.unobserve(img);
         }
     });
-}, { rootMargin: '0px 0px 300px 0px' });
+}, { 
+    root: null, // Theo dõi dựa trên khung hình trình duyệt
+    rootMargin: '0px 0px 300px 0px', // Đón đầu 300px từ phía dưới
+    threshold: 0.01 // Chỉ cần chớm xuất hiện 1% là kích hoạt
+});
+
+
 
 function VT_LazyLoad() {
-    // Chỉ quét ảnh trong #centerMain chưa có data-src
-    const images = document.querySelectorAll('#centerMain img:not([data-src])');
+    // Chỉ xử lý ảnh trong #centerMain và chưa được đánh dấu lazy
+    const images = document.querySelectorAll('#centerMain img:not(.lazy-processed)');
 
     images.forEach(img => {
         const currentSrc = img.getAttribute('src');
 
-        // Bỏ qua nếu: không có src, là ảnh base64, hoặc ảnh icon/thumb siêu nhỏ
-        if (!currentSrc || currentSrc.startsWith('data:') || img.clientWidth < 10) return;
+        // Bỏ qua nếu không có src hoặc đã là ảnh base64
+        if (!currentSrc || currentSrc.startsWith('data:') || img.classList.contains('no-lazy')) return;
 
-        // Tiến hành Lazy Load
+        // Đánh dấu để không quét lại ảnh này lần sau
+        img.classList.add('lazy-processed');
+
+        // Chuyển src thật sang data-src
         img.setAttribute('data-src', currentSrc);
+        
+        // Gán placeholder (ảnh trắng siêu nhẹ)
         img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
         
-        // Style cơ bản
+        // Thiết lập hiệu ứng mượt mà
         img.style.opacity = '0';
         img.style.transition = 'transform .3s ease, opacity 1s ease';
         img.style.backgroundColor = '#f2f3f5';
 
+        // Bắt đầu theo dõi
         imageObserver.observe(img);
     });
 }
-document.addEventListener('DOMContentLoaded', VT_LazyLoad);
+
+// Chạy khi DOM sẵn sàng
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', VT_LazyLoad);
+} else {
+    VT_LazyLoad();
+}
+
 
 
 
