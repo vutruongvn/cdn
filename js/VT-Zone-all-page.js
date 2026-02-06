@@ -73,28 +73,60 @@ document.addEventListener('click', async function(event) {
     console.log('User cancelled or error:', err);
   }
 });
-// Function ẩn hiện .centerMenu khi xem trên Mobile
-$(window).on('load', function() {
+
+// Function ẩn hiện .centerMenu khi xem trên Mobile === by VT Zone ===
+document.addEventListener('DOMContentLoaded', () => {
+    const menu = document.querySelector('.centerMenu');
+    
+    // Nếu không có menu thì thoát
+    if (!menu) return;
+
     let lastScrollTop = 0;
-    const $menu = $('.centerMenu');
     const delta = 5;
-    $(window).scroll(function(event) {
-        const currentScroll = $(this).scrollTop();
+    let isTicking = false;
+
+    function handleScrollMenu() {
+        const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+
+        // 1. Nếu cuộn gần sát top, luôn hiện menu
         if (currentScroll < delta) {
-            $menu.removeClass('menu-hidden');
+            menu.classList.remove('menu-hidden');
+            lastScrollTop = currentScroll;
             return;
         }
+
+        // 2. Kiểm tra độ nhạy (delta) để tránh rung lắc menu
         if (Math.abs(lastScrollTop - currentScroll) <= delta) {
             return;
         }
+
+        // 3. Logic ẩn khi cuộn xuống, hiện khi cuộn lên
         if (currentScroll > lastScrollTop) {
-            $menu.addClass('menu-hidden');
+            // Cuộn xuống
+            menu.classList.add('menu-hidden');
         } else {
-            $menu.removeClass('menu-hidden');
+            // Cuộn lên
+            menu.classList.remove('menu-hidden');
         }
+
         lastScrollTop = currentScroll;
-    });
+    }
+
+    // Tối ưu hiệu suất cuộn
+    const requestTick = () => {
+        if (!isTicking) {
+            window.requestAnimationFrame(() => {
+                handleScrollMenu();
+                isTicking = false;
+            });
+            isTicking = true;
+        }
+    };
+
+    // Lắng nghe sự kiện cuộn
+    window.addEventListener('scroll', requestTick, { passive: true });
 });
+
 
 // Function xóa ?m=1 trên URL khi xem bằng Mobile
 var uri = window.location.toString();
@@ -847,5 +879,6 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // === End Function Slide Menu ===
+
 
 
