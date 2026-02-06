@@ -838,4 +838,75 @@ updateButtons();
 
 // End Featured Story
 
+// Function Smart Sticky for Sidebar Widget === by VT Zone ===
+document.addEventListener('DOMContentLoaded', () => {
+    const sidebar = document.querySelector('#sidebar');
+    
+    // Nếu không tìm thấy sidebar trên trang thì thoát để tránh lỗi
+    if (!sidebar) return;
 
+    let lastScrollTop = window.pageYOffset;
+    let currentTop = 0;
+    let isTicking = false; // Biến kiểm soát tần suất xử lý (throttle)
+
+    function handleSidebarSticky() {
+        // Kiểm tra breakpoint: Chỉ chạy cho màn hình từ 992px trở lên
+        if (window.innerWidth < 992) {
+            sidebar.style.top = ''; 
+            return;
+        }
+
+        const scrollTop = window.pageYOffset;
+        const viewportHeight = window.innerHeight;
+        const sidebarHeight = sidebar.offsetHeight;
+        
+        // Tính toán độ chênh lệch khi cuộn
+        const diff = scrollTop - lastScrollTop;
+        currentTop -= diff;
+
+        // Cấu hình Offset (Bạn có thể tùy chỉnh lại ở đây)
+        const marginTop = 80;   // Khoảng cách an toàn phía trên (tránh Header)
+        const marginBottom = 16; // Khoảng cách an toàn phía dưới
+        
+        const minTop = viewportHeight - sidebarHeight - marginBottom;
+        const maxTop = marginTop;
+
+        // Ràng buộc giá trị currentTop trong khoảng cho phép
+        if (currentTop > maxTop) {
+            currentTop = maxTop;
+        } else if (currentTop < minTop) {
+            currentTop = minTop;
+        }
+
+        // Logic xử lý trượt
+        if (sidebarHeight <= viewportHeight) {
+            // Trường hợp sidebar ngắn hơn màn hình: Sticky Top thông thường
+            sidebar.style.top = marginTop + 'px';
+        } else {
+            // Trường hợp sidebar dài hơn màn hình: Trượt theo tốc độ cuộn
+            sidebar.style.top = currentTop + 'px';
+        }
+
+        lastScrollTop = scrollTop;
+    }
+
+    // Tối ưu hiệu suất bằng requestAnimationFrame
+    const requestTick = () => {
+        if (!isTicking) {
+            window.requestAnimationFrame(() => {
+                handleSidebarSticky();
+                isTicking = false;
+            });
+            isTicking = true;
+        }
+    };
+
+    // Lắng nghe sự kiện cuộn
+    window.addEventListener('scroll', requestTick, { passive: true });
+
+    // Lắng nghe sự kiện resize để reset trạng thái khi thu nhỏ trình duyệt
+    window.addEventListener('resize', requestTick, { passive: true });
+
+    // Chạy thử lần đầu để áp dụng đúng vị trí ngay khi load trang
+    handleSidebarSticky();
+});
