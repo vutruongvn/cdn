@@ -1593,7 +1593,7 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
 .VT_homePostGallery.layout-5 a,
 .VT_homePostGallery.layout-3 a img,
 .VT_homePostGallery.layout-4 a img,
-.VT_homePostGallery.layout-5 a img {aspect-ratio: 1/1;border-radius:12px}
+.VT_homePostGallery.layout-5 a img {aspect-ratio: 4/3;border-radius:12px}
 
 /* Overlay +N */
 .vt-gallery-overlay {
@@ -1626,6 +1626,7 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
 @media (min-width: 992px) {
 .vt-card-item{min-width:calc(100%/3 - 5px)}
 }
+
 
 
 
