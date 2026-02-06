@@ -1564,6 +1564,7 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
     height: 100%;
     object-fit: cover;
     display: block;
+    transition: transform .3s ease, opacity 1s ease
 }
 
 .VT_homePostGallery a:hover img {
@@ -1639,6 +1640,7 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 @media (min-width: 992px) {
 .vt-card-item{min-width:calc(100%/3 - 5px)}
 }
+
 
 
 
