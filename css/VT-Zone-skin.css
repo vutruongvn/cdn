@@ -1591,7 +1591,7 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
 
 .VT_homePostGallery.layout-3,
 .VT_homePostGallery.layout-4,
-.VT_homePostGallery.layout-5{gap:.5rem;padding:0 1rem}
+.VT_homePostGallery.layout-5{gap:5px;padding:0 .5rem}
 
 .VT_homePostGallery.layout-3 a,
 .VT_homePostGallery.layout-4 a,
@@ -1631,6 +1631,7 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
 @media (min-width: 992px) {
 .vt-card-item{min-width:calc(100%/3 - 5px)}
 }
+
 
 
 
