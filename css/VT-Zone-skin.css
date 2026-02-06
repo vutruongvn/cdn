@@ -1249,7 +1249,7 @@ article.post-outer-container .photos a:nth-child(n + 5) {
 .f-button {
   border-radius: 100px;
 }
-.is-horizontal .f-button.is-arrow.is-prev, .is-horizontal .f-button.is-arrow.is-next {opacity:0}
+.is-horizontal .f-button.is-arrow.is-prev, .is-horizontal .f-button.is-arrow.is-next {opacity:.2}
 .is-horizontal .f-button.is-arrow.is-prev:hover, .is-horizontal .f-button.is-arrow.is-next:hover {opacity:1}
 
 .contact-form-button.contact-form-button-submit {
@@ -1640,6 +1640,7 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 @media (min-width: 992px) {
 .vt-card-item{min-width:calc(100%/3 - 5px)}
 }
+
 
 
 
