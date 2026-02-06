@@ -406,7 +406,11 @@ function applyPostLogic() {
                 if (entries[0].isIntersecting && !isLoading && nextUrl) {
                     loadMorePosts();
                 }
-            }, { rootMargin: '300px' });
+            }, { 
+    			root: null, // Theo dõi dựa trên khung hình trình duyệt
+    			rootMargin: '0px 0px 300px 0px', // Đón đầu 300px từ phía dưới
+    			threshold: 0.01 // Chỉ cần chớm xuất hiện 1% là kích hoạt
+			});
 
             observer.observe(btnContainer);
             
@@ -575,6 +579,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
