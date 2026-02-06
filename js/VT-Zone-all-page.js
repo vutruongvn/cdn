@@ -650,85 +650,6 @@ $(document).ready(function() {
     applySavedFont();
 
 
-
-// Function Smart Sticky for Sidebar Widget === by VT Zone ===
-document.addEventListener('DOMContentLoaded', () => {
-    const sidebar = document.querySelector('#sidebar');
-    
-    // 1. Thoát nếu không có sidebar hoặc không phải màn hình PC (> 991px)
-    if (!sidebar) return;
-
-    let lastScrollTop = window.pageYOffset;
-    let currentTop = 0;
-    let isTicking = false;
-
-    function handleSidebarSticky() {
-        // 2. ĐIỀU KIỆN MÀN HÌNH: Chỉ chạy từ 992px trở lên (Desktop)
-        // Nếu muốn chỉ chạy trên màn hình cực lớn, hãy thay 992 bằng 1200
-        if (window.innerWidth < 992) {
-            sidebar.style.position = '';
-            sidebar.style.top = '';
-            sidebar.style.width = ''; // Reset width nếu cần
-            return;
-        }
-
-        // 3. Nếu là PC, áp dụng các tính toán sticky
-        const scrollTop = window.pageYOffset;
-        const viewportHeight = window.innerHeight;
-        const sidebarHeight = sidebar.offsetHeight;
-        
-        const diff = scrollTop - lastScrollTop;
-        currentTop -= diff;
-
-        // Cấu hình khoảng cách (Offset)
-        const marginTop = 80;    // Cách top khi cuộn lên (tránh menu)
-        const marginBottom = 20; // Cách bottom khi cuộn xuống
-        
-        const minTop = viewportHeight - sidebarHeight - marginBottom;
-        const maxTop = marginTop;
-
-        // Ràng buộc giá trị currentTop
-        if (currentTop > maxTop) {
-            currentTop = maxTop;
-        } else if (currentTop < minTop) {
-            currentTop = minTop;
-        }
-
-        // Áp dụng CSS
-        sidebar.style.position = 'sticky';
-        
-        if (sidebarHeight <= viewportHeight) {
-            // Sidebar ngắn: Dính cứng ở trên
-            sidebar.style.top = marginTop + 'px';
-        } else {
-            // Sidebar dài: Trượt thông minh theo hướng cuộn
-            sidebar.style.top = currentTop + 'px';
-        }
-
-        lastScrollTop = scrollTop;
-    }
-
-    // Tối ưu hóa hiệu suất bằng requestAnimationFrame
-    const requestTick = () => {
-        if (!isTicking) {
-            window.requestAnimationFrame(() => {
-                handleSidebarSticky();
-                isTicking = false;
-            });
-            isTicking = true;
-        }
-    };
-
-    // 4. Lắng nghe sự kiện
-    window.addEventListener('scroll', requestTick, { passive: true });
-    window.addEventListener('resize', requestTick, { passive: true });
-
-    // Chạy ngay khi load xong trang
-    handleSidebarSticky();
-});
-
-
-
 // === Function Slide Menu ===
 // đã convert qua js by VT Zone
 "use strict";
@@ -879,6 +800,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // === End Function Slide Menu ===
+
 
 
 
