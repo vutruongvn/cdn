@@ -77,24 +77,22 @@ const VT_PostComments = {
         const content = entry.content.$t.replace(/<[^>]*>?/gm, '').substring(0, 80) + '';
 
         return `
-            <li class="m-0 p-0">
-                <a href="${commentLink}" class="text-decoration-none" title="Xem hoặc trả lời bình luận này">
+            <li class="list-comment-post m-0 p-0">
                     <div class="comment-wrapper d-flex align-items-start gap-2">
                         <img loading="lazy" class="comment-avatar rounded-pill m-0" src="${avatar}" alt="${authorName}">
                         <div class="comment-info py-2 px-3 rounded-4">
-                            <span class="comment-author fw-medium">
+                            <span class="comment-author comment-full-name-user fw-medium">
                                 ${authorName} ${isAdmin ? this.config.verifiedIcon : ''}
                             </span>
-                            <span class="comment-text">
+                            <span class="comment-text comment-content-body">
                                 ${content}
                             </span>
                         </div>
                     </div>
                     <div class="comment-meta d-flex align-items-center gap-2 ms-5 mt-1 small" style="font-size:12px">
-                        <span class="comment-time ms-3">${timeDisplay}</span> 
-                        <span class="text-decoration-none fw-medium" title="Trả lời">Trả lời</span>
+                        <a href="${commentLink}" class="comment-time ms-3">${timeDisplay}</a> 
+                        <a href="${commentLink}" class="comment-reply-action text-decoration-none fw-medium" title="Trả lời">Trả lời</a>
                     </div>
-                </a>
             </li>`;
     },
 
@@ -520,6 +518,7 @@ function VT_LazyLoad() {
     });
 }
 document.addEventListener('DOMContentLoaded', VT_LazyLoad);
+
 
 
 
