@@ -1530,11 +1530,19 @@ html.VT_darkMode .vt-loading-effect-small-block {
   }
 }
 
-/* RC cmt bên dưới bài viết multipleItems */
+/* === Bình luận bên dưới mỗi bài viết trang Index === */
 html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info {background:rgba(255,255,255,.05)}
 html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {background:rgba(255,255,255,.1)}
 .multipleItems-rc ul.post-comment-list li .comment-info {background:#f2f3f5;transition:background .2s ease}
 .multipleItems-rc ul.post-comment-list li .comment-info:hover {background:#ededed}
+.VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe i {width: 40px; line-height: 40px; text-align: center; background: #f2f3f5}
+html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe i,
+html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe span {background:rgba(255,255,255,.05)}
+html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe:hover i,
+html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe:hover span {background:rgba(255,255,255,.1)}
+.VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe span {background: #f2f3f5}
+.VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe:hover i,
+.VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe:hover span {background: #eee}
 
 /* Container Album */
 .VT_homePostGallery {
@@ -1631,17 +1639,6 @@ html.VT_darkMode .multipleItems-rc ul.post-comment-list li .comment-info:hover {
 @media (min-width: 992px) {
 .vt-card-item{min-width:calc(100%/3 - 5px)}
 }
-
-/* === Bình luận bên dưới mỗi bài viết trang Index === */
-.VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe i {width: 40px; line-height: 40px; text-align: center; background: #f2f3f5}
-html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe i,
-html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe span {background:rgba(255,255,255,.05)}
-html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe:hover i,
-html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe:hover span {background:rgba(255,255,255,.1)}
-.VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe span {background: #f2f3f5}
-.VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe:hover i,
-.VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe:hover span {background: #eee}
-
 
 
 
