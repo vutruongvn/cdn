@@ -910,3 +910,154 @@ document.addEventListener('DOMContentLoaded', () => {
     // Chạy thử lần đầu để áp dụng đúng vị trí ngay khi load trang
     handleSidebarSticky();
 });
+
+// === Function Slide Menu ===
+// đã convert qua js by VT Zone
+"use strict";
+
+class Sidenav {
+    constructor(element) {
+        this.el = element;
+        this.toggleSelector = this.el.getAttribute("data-sidenav-toggle");
+        this.init();
+    }
+
+    init() {
+        this.initToggle();
+        this.initDropdown();
+    }
+
+    initToggle() {
+        document.addEventListener("click", (e) => {
+            const target = e.target;
+            
+            // Xử lý nút Toggle (Mở menu)
+            // Kiểm tra xem click có trúng vào selector được định nghĩa trong data-sidenav-toggle không
+            const toggleBtn = this.toggleSelector ? target.closest(this.toggleSelector) : null;
+
+            if (toggleBtn) {
+                this.el.classList.toggle("show");
+                document.body.classList.toggle("sidenav-no-scrolls");
+                this.toggleOverlay();
+            } 
+            // Xử lý click ra ngoài (Đóng menu)
+            // Nếu không click vào menu và menu đang mở
+            else if (!target.closest('[data-sidenav]') && this.el.classList.contains("show")) {
+                this.el.classList.remove("show");
+                document.body.classList.remove("sidenav-no-scrolls");
+                this.hideOverlay();
+            }
+        });
+    }
+
+    initDropdown() {
+        // Sử dụng Event Delegation cho dropdown bên trong sidenav
+        this.el.addEventListener("click", (e) => {
+            const toggle = e.target.closest("[data-sidenav-dropdown_toggle]");
+            if (!toggle) return;
+
+            e.preventDefault();
+            
+            const dropdown = toggle.nextElementSibling; // Tương đương .next()
+            const icon = toggle.querySelector("[data-sidenav-dropdown-icon]");
+
+            if (dropdown && dropdown.matches("[data-sidenav-dropdown]")) {
+                // Thay thế slideToggle của jQuery
+                this.slideToggle(dropdown);
+                
+                if (icon) {
+                    icon.classList.toggle("show");
+                }
+            }
+        });
+    }
+
+    toggleOverlay() {
+        let overlay = document.querySelector("[data-sidenav-overlay]");
+        
+        if (!overlay) {
+            overlay = document.createElement("div");
+            overlay.setAttribute("data-sidenav-overlay", "");
+            overlay.className = "sidenav-overlay";
+            document.body.appendChild(overlay);
+        }
+
+        // Thay thế fadeToggle: Logic hiển thị overlay
+        // Chúng ta sẽ dùng class để CSS xử lý transition opacity
+        const isVisible = getComputedStyle(overlay).display !== "none";
+        
+        if (isVisible) {
+            this.fadeOut(overlay);
+        } else {
+            this.fadeIn(overlay);
+        }
+    }
+
+    hideOverlay() {
+        const overlay = document.querySelector("[data-sidenav-overlay]");
+        if (overlay) {
+            this.fadeOut(overlay);
+        }
+    }
+
+    // --- Helper Functions để thay thế Animation của jQuery ---
+
+    slideToggle(element) {
+        if (window.getComputedStyle(element).display === 'none') {
+            return this.slideDown(element);
+        } else {
+            return this.slideUp(element);
+        }
+    }
+
+    slideUp(element) {
+        element.style.height = element.offsetHeight + 'px';
+        element.offsetHeight; // force repaint
+        element.style.height = '0px';
+        // Sau khi animation xong (giả sử 300ms) thì ẩn hẳn
+        setTimeout(() => {
+            element.style.display = 'none';
+            element.style.removeProperty('height');
+        }, 300); 
+    }
+
+    slideDown(element) {
+        element.style.display = 'block';
+        let height = element.scrollHeight;
+        element.style.height = '0px';
+        element.offsetHeight; // force repaint
+        element.style.height = height + 'px';
+        // Sau khi animation xong thì xóa height cứng để nội dung co giãn tự nhiên
+        setTimeout(() => {
+            element.style.removeProperty('height');
+        }, 300);
+    }
+
+    fadeIn(element) {
+        element.style.opacity = 0;
+        element.style.display = "block";
+        
+        // Dùng requestAnimationFrame để đảm bảo transition hoạt động
+        requestAnimationFrame(() => {
+            element.style.transition = "opacity 0.3s";
+            element.style.opacity = 1;
+        });
+    }
+
+    fadeOut(element) {
+        element.style.transition = "opacity 0.3s";
+        element.style.opacity = 0;
+        
+        setTimeout(() => {
+            element.style.display = "none";
+        }, 300); // Khớp với thời gian transition
+    }
+}
+
+// Khởi tạo
+document.addEventListener("DOMContentLoaded", () => {
+    const sidenavs = document.querySelectorAll("[data-sidenav]");
+    sidenavs.forEach(el => new Sidenav(el));
+});
+
+// === End Function Slide Menu ===
