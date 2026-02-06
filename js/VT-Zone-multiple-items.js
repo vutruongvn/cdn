@@ -372,7 +372,7 @@ function applyPostLogic() {
                 if (entries[0].isIntersecting && !isLoading && nextUrl) {
                     loadMorePosts();
                 }
-            }, { rootMargin: '100px' });
+            }, { rootMargin: '300px' });
 
             observer.observe(btnContainer);
             
@@ -518,6 +518,7 @@ function VT_LazyLoad() {
     });
 }
 document.addEventListener('DOMContentLoaded', VT_LazyLoad);
+
 
 
 
