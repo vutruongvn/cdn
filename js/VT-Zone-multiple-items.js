@@ -155,6 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
             iframe.scrolling = 'auto';
             iframe.style.display = 'block';
             iframe.style.border = '1px solid #eee';
+            iframe.style.margin = '1rem 0 .25rem';
 
             iframe.onload = function() {
                 const loader = container.querySelector('.loading-status');
@@ -579,6 +580,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
