@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============== PHẦN 1: CÁC HÀM HỖ TRỢ (TIME, SLUG, TOOLTIP) ==============
 
 // 1. Định nghĩa đoạn HTML Skeleton
-const SKELETON_TEMPLATE = "<div class='VT-timeline-loading-animation vt-temp-ske mb-3'>" +
+const SKELETON_TEMPLATE = "<div class='VT-timeline-loading-animation vt-temp-ske'>" +
   "<div class='vt-loading-effect-header-wrap'>" +
     "<div class='vt-loading-effect-avatar'></div>" +
     "<div class='vt-loading-effect-info-block'>" +
@@ -385,7 +385,7 @@ function applyPostLogic() {
             nextUrl = olderLink.getAttribute("href");
 
             const btnContainer = document.createElement('div');
-            btnContainer.className = 'VT_ajaxLoadMorePosts';
+            btnContainer.className = 'VT_ajaxLoadMorePosts mt-3';
             
             loadMoreBtn = document.createElement('a');
             loadMoreBtn.className = 'VT_loadMorePost ripple';
@@ -580,6 +580,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
