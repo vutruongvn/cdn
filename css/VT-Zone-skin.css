@@ -1112,10 +1112,12 @@ article.post-outer-container .photos a:nth-child(n + 5) {
   height: auto;
   display: flex;
   align-items: center;
+  aspect-ratio: 21/9
 }
 .main-cover-img {
   height: 100%;
   object-fit: cover;
+  object-position: center;
   pointer-events: none;
 }
 .profile-info-section {
@@ -1640,6 +1642,7 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 @media (min-width: 992px) {
 .vt-card-item{min-width:calc(100%/3 - 5px)}
 }
+
 
 
 
