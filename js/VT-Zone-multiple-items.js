@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             container.appendChild(iframe);
-            btn.remove(); 
+            // btn.remove(); 
         }
     });
 });
@@ -579,6 +579,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
