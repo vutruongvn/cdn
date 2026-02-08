@@ -149,13 +149,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const iframe = document.createElement('iframe');
             const src = 'https://www.blogger.com/comment-iframe.g?blogID=' + BLOG_ID + '&postID=' + postId + '&skin=contempo';
             iframe.src = src;
-            // iframe.width = '100%';
-            // iframe.height = '210px';
+            iframe.width = '100%';
+            iframe.height = '210px';
             iframe.frameBorder = '0';
             iframe.scrolling = 'auto';
-            // iframe.style.display = 'block';
-            // iframe.style.border = '1px solid #eee';
-            // iframe.style.margin = '1rem 0 .25rem';
+            iframe.style.display = 'block';
+            iframe.style.border = '1px solid #eee';
+            iframe.style.margin = '1rem 0 .25rem';
 
             iframe.onload = function() {
                 const loader = container.querySelector('.loading-status');
@@ -580,6 +580,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
