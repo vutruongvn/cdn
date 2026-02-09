@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('comment-box-' + postId);
 
         if (container) {
-			container.innerHTML = `<div class="loading-status position-absolute w-100 d-flex align-items-center justify-content-center" style="height:70px;font-size:1.25rem"><i class="fa-pro fa-duotone fa-spinner-third fa-spin"></div>`;
+			container.innerHTML = `<div class="loading-status position-absolute w-100 d-flex align-items-center justify-content-center bg-white" style="height:70px;font-size:1.25rem"><i class="fa-pro fa-duotone fa-spinner-third fa-spin"></div>`;
             const iframe = document.createElement('iframe');
             const src = 'https://www.blogger.com/comment-iframe.g?blogID=' + BLOG_ID + '&postID=' + postId + '&skin=contempo';
             iframe.src = src;
@@ -580,6 +580,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
