@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ============== PHẦN 1: CÁC HÀM HỖ TRỢ (TIME, SLUG, TOOLTIP) ==============
 
-// 1. Định nghĩa đoạn HTML Skeleton
+// 1. Skeleton loading template
 const SKELETON_TEMPLATE = "<div class='VT-timeline-loading-animation vt-temp-ske'>" +
   "<div class='vt-loading-effect-header-wrap'>" +
     "<div class='vt-loading-effect-avatar'></div>" +
@@ -198,11 +198,11 @@ const TIME_UNITS = { year: 31536000, month: 2592000, day: 86400, hour: 3600, min
 function timeSince(date) {
     if (!date || isNaN(date.getTime())) return null; 
     const seconds = Math.floor((new Date() - date) / 1000);
-    if (seconds / TIME_UNITS.year > 1) return Math.floor(seconds / TIME_UNITS.year) + " năm trước";
-    if (seconds / TIME_UNITS.month > 1) return Math.floor(seconds / TIME_UNITS.month) + " tháng trước";
+    if (seconds / TIME_UNITS.year > 1) return Math.floor(seconds / TIME_UNITS.year) + " năm";
+    if (seconds / TIME_UNITS.month > 1) return Math.floor(seconds / TIME_UNITS.month) + " tháng";
     const days = Math.floor(seconds / TIME_UNITS.day);
     if (days >= 1) {
-        if (days < 15) return days === 1 ? "Hôm qua" : days + " ngày trước";
+        if (days < 15) return days === 1 ? "Hôm qua" : days + " ngày";
         return null; 
     }
     if (seconds / TIME_UNITS.hour > 1) return Math.floor(seconds / TIME_UNITS.hour) + " giờ";
@@ -580,6 +580,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
