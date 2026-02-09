@@ -167,7 +167,7 @@ const VT_LoadBloggerComments = () => {
         
         iframe.src = src;
         iframe.width = '100%';
-        iframe.height = '210px';
+        iframe.height = '70px';
         iframe.frameBorder = '0';
         iframe.scrolling = 'auto';
         iframe.style.display = 'block';
@@ -634,6 +634,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
