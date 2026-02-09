@@ -132,41 +132,94 @@ const VT_PostComments = {
 };
 document.addEventListener('DOMContentLoaded', () => VT_PostComments.init());
 
-// Function đăng bình luận trực tiếp theo từng bài viết tại trang Multiple Items
+// =====================================================
+// Function Lazy Load iframe bình luận (Tối ưu cho AJAX)
 // === by VT Zone ===
-document.addEventListener('DOMContentLoaded', function() {
+
+const VT_LoadBloggerComments = () => {
     const BLOG_ID = '3049740051705190505';
+    
+    // Tìm các container chưa được xử lý (tránh nạp chồng iframe khi gọi lại hàm)
+    const commentContainers = document.querySelectorAll('[id^="comment-box-"]:not(.vt-initialized)');
 
-    document.addEventListener('click', function(e) {
-        const btn = e.target.closest('.VTmultipleItems_postCommentWrapper_btnClicktoLoadIframe');
-        if (!btn) return;
+    // Cấu hình Intersection Observer
+    const observerOptions = {
+        root: null,
+        rootMargin: '200px 0px',
+        threshold: 0.01
+    };
 
-        const postId = btn.getAttribute('data-post-id');
-        const container = document.getElementById('comment-box-' + postId);
+    const VT_CreateIframe = (container) => {
+        const postId = container.id.replace('comment-box-', '');
+        if (!postId) return;
 
-        if (container) {
-			container.innerHTML = `<div class="loading-status position-absolute w-100 d-flex align-items-center justify-content-center" style="height:70px;font-size:1.25rem"><i class="fa-pro fa-duotone fa-spinner-third fa-spin"></div>`;
-            const iframe = document.createElement('iframe');
-            const src = 'https://www.blogger.com/comment-iframe.g?blogID=' + BLOG_ID + '&postID=' + postId + '&skin=contempo';
-            iframe.src = src;
-            iframe.width = '100%';
-            iframe.height = '210px';
-            iframe.frameBorder = '0';
-            iframe.scrolling = 'auto';
-            iframe.style.display = 'block';
-            iframe.style.border = '1px solid #eee';
-            iframe.style.margin = '1rem 0 .5rem';
+        // Đánh dấu container đã được xử lý
+        container.classList.add('vt-initialized');
 
-            iframe.onload = function() {
-                const loader = container.querySelector('.loading-status');
-                if (loader) loader.remove();
-            };
+        // Thêm trạng thái loading
+        container.innerHTML = `
+            <div class="loading-status d-flex align-items-center justify-content-center position-absolute w-100 start-50 translate-middle-x" style="height:70px;font-size:1.25rem">
+                <i class="fa-pro fa-duotone fa-spinner-third fa-spin"></i>
+            </div>`;
 
-            container.appendChild(iframe);
-            // btn.remove(); 
-        }
+        const iframe = document.createElement('iframe');
+        const src = `https://www.blogger.com/comment-iframe.g?blogID=${BLOG_ID}&postID=${postId}&skin=contempo`;
+        
+        iframe.src = src;
+        iframe.width = '100%';
+        iframe.height = '210px';
+        iframe.frameBorder = '0';
+        iframe.scrolling = 'auto';
+        iframe.style.display = 'block';
+        iframe.style.border = '1px solid #eee';
+        iframe.style.margin = '1rem 0 .5rem';
+        iframe.style.opacity = '0';
+        iframe.style.transition = 'opacity 0.4s ease-in-out';
+
+        iframe.onload = function() {
+            const loader = container.querySelector('.loading-status');
+            if (loader) loader.remove();
+            iframe.style.opacity = '1';
+        };
+
+        container.appendChild(iframe);
+    };
+
+    const VT_Observer = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                VT_CreateIframe(entry.target);
+                observer.unobserve(entry.target);
+            }
+        });
+    }, observerOptions);
+
+    // Bắt đầu theo dõi các container mới
+    commentContainers.forEach(container => {
+        VT_Observer.observe(container);
     });
+};
+
+// Khởi tạo lần đầu khi trang load xong
+document.addEventListener('DOMContentLoaded', VT_LoadBloggerComments);
+
+
+// ====================================================
+// Function focus => bung height iframe blogger comment
+window.addEventListener('blur', function() {
+    // Đợi một chút để trình duyệt cập nhật activeElement
+    setTimeout(function() {
+        const activeEl = document.activeElement;
+        if (activeEl && activeEl.tagName === 'IFRAME') {
+            // Kiểm tra xem iframe này có nằm trong container của mình không
+            const container = activeEl.closest('.VTmultipleItems_postCommentWrapper_commentContainer');
+            if (container) {
+                container.classList.add('is-expanded');
+            }
+        }
+    }, 100);
 });
+// =====================================================
 
 // ============== PHẦN 1: CÁC HÀM HỖ TRỢ (TIME, SLUG, TOOLTIP) ==============
 
@@ -351,7 +404,8 @@ function applyPostLogic() {
             VT_homePostLayout();
             VT_checkReadMore();
             VT_LazyLoad();
-
+			VT_LoadBloggerComments();
+			
         } catch (error) {
             console.error("Lỗi khi tải bài viết:", error);
             const tempSke = container.querySelector('.vt-temp-ske');
@@ -580,6 +634,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
