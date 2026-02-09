@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('comment-box-' + postId);
 
         if (container) {
-			container.innerHTML = `<div class="loading-status position-absolute w-100 d-flex align-items-center justify-content-center bg-white" style="height:70px;font-size:1.25rem"><i class="fa-pro fa-duotone fa-spinner-third fa-spin"></div>`;
+			container.innerHTML = `<div class="loading-status position-absolute w-100 d-flex align-items-center justify-content-center" style="height:70px;font-size:1.25rem"><i class="fa-pro fa-duotone fa-spinner-third fa-spin"></div>`;
             const iframe = document.createElement('iframe');
             const src = 'https://www.blogger.com/comment-iframe.g?blogID=' + BLOG_ID + '&postID=' + postId + '&skin=contempo';
             iframe.src = src;
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
             iframe.scrolling = 'auto';
             iframe.style.display = 'block';
             iframe.style.border = '1px solid #eee';
-            iframe.style.margin = '1rem 0 .25rem';
+            iframe.style.margin = '1rem 0 .5rem';
 
             iframe.onload = function() {
                 const loader = container.querySelector('.loading-status');
