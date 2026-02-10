@@ -1547,6 +1547,7 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
     display: grid;
     gap: 0;
     overflow: hidden;
+    clear: both
 }
 
 .VT_homePostGallery a {
@@ -1561,6 +1562,7 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
     width: 100%;
     height: 100%;
     object-fit: cover;
+    margin: 0!important;
     display: block;
     transition: transform .3s ease, opacity 1s ease
 }
@@ -1636,6 +1638,7 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 @media (min-width: 992px) {
 .vt-card-item{min-width:calc(100%/3 - 5px)}
 }
+
 
 
 
