@@ -1466,7 +1466,7 @@ html.VT_darkMode .vt-loading-effect-small-block {
     width: 80%;
   }
   #topMenu .VT_topFixedMenu {
-    padding: 0 .r5em;
+    padding: 0 .5rem;
   }
   .profile-info-section {
     text-align: center;
@@ -1636,6 +1636,7 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 @media (min-width: 992px) {
 .vt-card-item{min-width:calc(100%/3 - 5px)}
 }
+
 
 
 
