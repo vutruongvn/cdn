@@ -1598,14 +1598,14 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 
 .VT_homePostGallery.layout-3,
 .VT_homePostGallery.layout-4,
-.VT_homePostGallery.layout-5{gap:5px;padding:0 .5rem}
+.VT_homePostGallery.layout-5{gap:2px}
 
 .VT_homePostGallery.layout-3 a,
 .VT_homePostGallery.layout-4 a,
 .VT_homePostGallery.layout-5 a,
 .VT_homePostGallery.layout-3 a img,
 .VT_homePostGallery.layout-4 a img,
-.VT_homePostGallery.layout-5 a img {aspect-ratio: 4/3;border-radius:12px}
+.VT_homePostGallery.layout-5 a img {aspect-ratio: 4/3}
 
 /* Overlay +N */
 .vt-gallery-overlay {
@@ -1616,11 +1616,9 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
     align-items: center;
     justify-content: center;
     color: #fff;
-    font-size: 2rem;
-    font-weight: 700;
+    font-size: 1.8rem;
     pointer-events: none;
-    z-index: 2;
-    border-radius: 12px
+    z-index: 2
 }
 
 /* Featured Story Widget by vT Zone */
@@ -1638,6 +1636,7 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 @media (min-width: 992px) {
 .vt-card-item{min-width:calc(100%/3 - 5px)}
 }
+
 
 
 
