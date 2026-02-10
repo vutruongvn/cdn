@@ -1566,7 +1566,7 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 }
 
 .VT_homePostGallery a:hover img {
-    transform: scale(1.05)
+    
 }
 
 /* Layout 1 ảnh */
@@ -1636,6 +1636,7 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 @media (min-width: 992px) {
 .vt-card-item{min-width:calc(100%/3 - 5px)}
 }
+
 
 
 
