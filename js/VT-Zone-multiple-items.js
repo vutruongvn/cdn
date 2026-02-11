@@ -108,7 +108,7 @@ const VT_PostComments = {
             const entries = data.feed.entry;
 
             if (entries && entries.length > 0) {
-                let html = '<ul class="post-comment-list list-unstyled p-3 pb-0 m-0 d-flex flex-column gap-2">';
+                let html = '<ul class="post-comment-list list-unstyled p-0 px-3 m-0 d-flex flex-column gap-2">';
                 entries.forEach(entry => html += this.renderItem(entry));
                 html += '</ul>';
                 container.innerHTML = html;
@@ -656,6 +656,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
