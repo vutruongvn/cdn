@@ -131,7 +131,117 @@ const VT_PostComments = {
 };
 document.addEventListener('DOMContentLoaded', () => VT_PostComments.init());
 
-// === HERE ===
+
+/** =====================================================
+ * JS TỔNG HỢP CHO HỆ THỐNG BÌNH LUẬN BLOGGER ở trang MULTIPLE ITEMS - vutruong.vn
+ * Phiên bản: 2.0
+ * ===================================================== */
+
+const VT_CommentManager = (() => {
+    const BLOG_ID = '3049740051705190505';
+
+    /**
+     * 1. HÀM KHỞI TẠO LAZY LOAD IFRAME
+     */
+    const VT_InitLazyLoad = () => {
+        const commentContainers = document.querySelectorAll('[id^="comment-box-"]:not(.vt-initialized)');
+        const observerOptions = { root: null, rootMargin: '10px 0px', threshold: 0.01 };
+
+        const VT_CreateIframe = (container) => {
+            const postId = container.id.replace('comment-box-', '');
+            if (!postId) return;
+
+            container.classList.add('vt-initialized');
+            container.innerHTML = `
+                <div class="loading-status d-flex align-items-center justify-content-center position-absolute w-100 start-50 translate-middle-x" style="height:70px">
+                    <i class="fa-pro fa-duotone fa-spinner-third fa-spin"></i>
+                </div>`;
+
+            const iframe = document.createElement('iframe');
+            const src = `https://www.blogger.com/comment-iframe.g?blogID=${BLOG_ID}&postID=${postId}&skin=contempo`;
+            
+            iframe.src = src;
+            iframe.width = '100%';
+            iframe.height = '70px'; 
+            iframe.frameBorder = '0';
+            iframe.scrolling = 'auto';
+            iframe.style.display = 'block';
+            iframe.style.border = '1px solid #eee';
+            iframe.style.borderRadius = '12px';
+            iframe.style.margin = '1rem 0 0';
+            iframe.style.opacity = '0';
+            iframe.style.transition = 'opacity 0.5s ease, height 0.5s ease';
+
+            iframe.onload = function() {
+                const loader = container.querySelector('.loading-status');
+                if (loader) loader.remove();
+                iframe.style.opacity = '1';
+            };
+
+            container.appendChild(iframe);
+        };
+
+        const VT_Observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    VT_CreateIframe(entry.target);
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        commentContainers.forEach(container => VT_Observer.observe(container));
+    };
+
+    /**
+     * 2. HÀM TỰ ĐỘNG MỞ RỘNG (FIX LỖI CLICK 2 LẦN)
+     */
+    const VT_InitAutoExpand = () => {
+        // Cách 1: Sử dụng PointerDown trên toàn bộ vùng chứa (Nhanh và nhạy nhất)
+        document.addEventListener('pointerdown', (e) => {
+            const container = e.target.closest('.VTmultipleItems_postCommentWrapper_commentContainer');
+            if (container && !container.classList.contains('is-expanded')) {
+                VT_Expand(container);
+            }
+        });
+
+        // Cách 2: Dự phòng cho việc người dùng dùng phím Tab để focus
+        window.addEventListener('blur', () => {
+            setTimeout(() => {
+                const activeEl = document.activeElement;
+                if (activeEl && activeEl.tagName === 'IFRAME') {
+                    const container = activeEl.closest('.VTmultipleItems_postCommentWrapper_commentContainer');
+                    if (container) VT_Expand(container);
+                }
+            }, 150);
+        });
+    };
+
+    /**
+     * Hàm thực thi mở rộng chiều cao
+     * @param {HTMLElement} container 
+     */
+    const VT_Expand = (container) => {
+        const iframe = container.querySelector('iframe');
+        container.classList.add('is-expanded');
+        if (iframe) {
+            iframe.style.height = '200px'; // Chiều cao khi bung
+        }
+    };
+
+    return {
+        init: () => {
+            VT_InitLazyLoad();
+            VT_InitAutoExpand();
+        },
+        reInitLazy: VT_InitLazyLoad
+    };
+})();
+
+// Khởi chạy
+document.addEventListener('DOMContentLoaded', () => {
+    VT_CommentManager.init();
+});
 
 
 
@@ -548,6 +658,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
