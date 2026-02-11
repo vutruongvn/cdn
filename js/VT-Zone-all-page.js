@@ -172,7 +172,7 @@ function VT_homePostLayout() {
             // Tạo container gallery mới
             const gallery = document.createElement('div');
             const displayCount = count > 5 ? 5 : count;
-            gallery.className = `VT_homePostGallery p-0 m-0 mb-3 layout-${displayCount}`;
+            gallery.className = `VT_homePostGallery p-0 m-0 layout-${displayCount}`;
             
             // Lấy ID bài viết để nhóm ảnh cho Fancybox
             const postId = container.closest('.post')?.id || 'album-' + Math.random().toString(36).substr(2, 5);
@@ -214,7 +214,16 @@ function VT_homePostLayout() {
             });
 
             // Chèn gallery vào cuối nội dung bài viết
-            container.appendChild(gallery);
+            // Thay vì container.appendChild(gallery);
+			// Tìm thẻ đích đã có sẵn trong HTML
+			const target = container.querySelector('.postGallery');
+				if (target) {
+    				target.innerHTML = ''; // Xóa nội dung cũ nếu có (tránh trùng lặp khi re-render)
+    				target.appendChild(gallery);
+				} else {
+    			// Nếu không tìm thấy thẻ đích, có thể fallback (dự phòng) chèn vào cuối container
+    			container.appendChild(gallery);
+			}
         }
 
         // Đánh dấu đã xử lý xong
@@ -1098,6 +1107,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
 // === END ===
+
 
 
 
