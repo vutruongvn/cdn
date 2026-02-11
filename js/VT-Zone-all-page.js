@@ -803,34 +803,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // === Function auto scroll ===
-(function() {
-    // 1. Cấu hình
-    const config = {
-        homeOffset: 90,    // Khoảng cách cho trang chủ/trang khác
-        postOffset: 75,    // Khoảng cách cho trang bài viết
-        postSelector: '#mainPost',
-        defaultSelector: '.profile-info-section'
-    };
 
-    // 2. Nhận diện loại trang
-    const path = window.location.pathname;
-    const isPost = /\/\d{4}\/\d{2}\/.*\.html/.test(path);
-
-    // 3. Chọn Selector và Offset tương ứng
-    const targetSelector = isPost ? config.postSelector : config.defaultSelector;
-    const currentOffset = isPost ? config.postOffset : config.homeOffset;
-
-    const element = document.querySelector(targetSelector);
-
-    // 4. Thực thi
-    if (element) {
-        const elementPosition = element.getBoundingClientRect().top + window.scrollY;
-        window.scrollTo({
-            top: elementPosition - currentOffset,
-            behavior: 'smooth'
-        });
-    }
-})();
 
 
 
@@ -1096,3 +1069,4 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
 // === END ===
+
