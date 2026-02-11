@@ -623,7 +623,7 @@ const imageObserver = new IntersectionObserver((entries, observer) => {
 
 function VT_LazyLoad() {
     // Chỉ xử lý ảnh trong #centerMain và chưa được đánh dấu lazy
-    const images = document.querySelectorAll('#centerMain img:not(.lazy-processed)');
+    const images = document.querySelectorAll('.VT_homePostGallery img:not(.lazy-processed)');
 
     images.forEach(img => {
         const currentSrc = img.getAttribute('src');
@@ -656,6 +656,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
