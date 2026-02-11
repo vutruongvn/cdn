@@ -108,7 +108,7 @@ const VT_PostComments = {
             const entries = data.feed.entry;
 
             if (entries && entries.length > 0) {
-                let html = '<ul class="post-comment-list list-unstyled p-0 px-3 m-0 d-flex flex-column gap-2">';
+                let html = '<ul class="post-comment-list list-unstyled p-0 px-3 m-0 mt-3 d-flex flex-column gap-2">';
                 entries.forEach(entry => html += this.renderItem(entry));
                 html += '</ul>';
                 container.innerHTML = html;
@@ -167,7 +167,7 @@ const VT_CommentManager = (() => {
             iframe.style.display = 'block';
             iframe.style.border = '1px solid #eee';
             iframe.style.borderRadius = '12px';
-            iframe.style.margin = '0';
+            iframe.style.margin = '1rem 0 0';
             iframe.style.opacity = '0';
             iframe.style.transition = 'opacity 1s ease, height 0.5s ease';
 
@@ -656,6 +656,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
