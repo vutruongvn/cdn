@@ -240,7 +240,7 @@ function VT_checkReadMore() {
              * So sánh chiều cao thực tế (scrollHeight) và chiều cao hiển thị (clientHeight).
              * Cộng thêm 5px tolerance để xử lý sai số rendering trên các trình duyệt khác nhau.
              */
-            const isOverflowing = box.scrollHeight > (box.clientHeight + 5);
+            const isOverflowing = box.scrollHeight > (box.clientHeight + 0);
 
             if (!isOverflowing) {
                 // Ép kiểu display: none !important để đè class d-inline-block của Bootstrap
@@ -1098,6 +1098,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
 // === END ===
+
 
 
 
