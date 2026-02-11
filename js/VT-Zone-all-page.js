@@ -803,7 +803,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // === Function auto scroll ===
+(function() {
+    const path = window.location.pathname;
+    const search = window.location.search;
 
+    // 1. Phân loại trang
+    const isHomePage = (path === '/' || path === '/index.html');
+    const isSearchPage = path.includes('/search'); // Bao gồm cả /search/label/ và /search?q=
+    
+    // Nếu là trang chủ HOẶC trang tìm kiếm/nhãn -> Dùng offset 90
+    const isListView = isHomePage || isSearchPage;
+
+    // 2. Thiết lập cấu hình
+    const targetSelector = isListView ? '.profile-info-section' : '#mainPost';
+    const offset = isListView ? 90 : 75;
+
+    // 3. Thực thi tìm kiếm phần tử
+    const element = document.querySelector(targetSelector);
+
+    if (element) {
+        // Sử dụng setTimeout để đảm bảo các script rút gọn link/Bootstrap đã chạy xong
+        setTimeout(() => {
+            const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+            
+            window.scrollTo({
+                top: elementPosition - offset,
+                behavior: 'smooth'
+            });
+        }, 150); // Tăng lên 150ms để độ chính xác cao hơn khi load trang
+    }
+})();
 
 
 
@@ -1069,4 +1098,5 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
 // === END ===
+
 
