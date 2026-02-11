@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const now = new Date();
         const diffInSeconds = Math.floor((now - past) / 1000);
 
-        if (diffInSeconds < 60) return 'vừa xong';
+        if (diffInSeconds < 60) return 'Vừa xong';
         
         const minutes = Math.floor(diffInSeconds / 60);
         if (minutes < 60) return minutes + ' phút';
@@ -192,6 +192,7 @@ document.addEventListener('click', function(e) {
     const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastEl);
     toastBootstrap.show();
 });
+
 
 
 
