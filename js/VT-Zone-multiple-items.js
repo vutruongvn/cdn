@@ -426,6 +426,7 @@ function applyPostLogic() {
             VT_checkReadMore();
             VT_LazyLoad();
 			VT_CommentManager.init();
+			window.VT_InitCommentSystem(); // Module Comments Google Firestore Database
 			
         } catch (error) {
             console.error("Lỗi khi tải bài viết:", error);
@@ -655,6 +656,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
