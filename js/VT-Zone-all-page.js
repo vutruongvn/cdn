@@ -172,7 +172,7 @@ function VT_homePostLayout() {
             // Tạo container gallery mới
             const gallery = document.createElement('div');
             const displayCount = count > 5 ? 5 : count;
-            gallery.className = `VT_homePostGallery mb-3 layout-${displayCount}`;
+            gallery.className = `VT_homePostGallery my-3 p-0 layout-${displayCount}`;
             
             // Lấy ID bài viết để nhóm ảnh cho Fancybox
             const postId = container.closest('.post')?.id || 'album-' + Math.random().toString(36).substr(2, 5);
@@ -1098,5 +1098,6 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
 // === END ===
+
 
 
