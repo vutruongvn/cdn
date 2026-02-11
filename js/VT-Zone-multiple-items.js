@@ -167,7 +167,7 @@ const VT_CommentManager = (() => {
             iframe.style.display = 'block';
             iframe.style.border = '1px solid #eee';
             iframe.style.borderRadius = '12px';
-            iframe.style.margin = '1rem 0 .5rem';
+            iframe.style.margin = '0';
             iframe.style.opacity = '0';
             iframe.style.transition = 'opacity 1s ease, height 0.5s ease';
 
@@ -656,6 +656,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
