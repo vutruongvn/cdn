@@ -244,7 +244,7 @@ function applyPostLogic() {
                 }
             }, { 
     			root: null, // Theo dõi dựa trên khung hình trình duyệt
-    			rootMargin: '0px 0px 1000px 0px', // Đón đầu 300px từ phía dưới
+    			rootMargin: '0px 0px 100px 0px', // tải trước
     			threshold: 0.01 // Chỉ cần chớm xuất hiện 1% là kích hoạt
 			});
 
@@ -415,6 +415,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
