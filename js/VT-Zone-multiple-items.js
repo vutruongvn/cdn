@@ -1,6 +1,7 @@
 // FULL CODE SCRIPT OPTIMIZED for INDEX - MULTIPLE ITEMS
 // VT Zone === vutruong.vn ===
 
+/* === DISABLED FUNCTION
 // Function hiển thị comments bên dưới mỗi bài viết trang Index
 const VT_PostComments = {
     // 1. Cấu hình
@@ -240,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
     VT_CommentManager.init();
 });
 
-
+*/
 
 // ============== PHẦN 1: CÁC HÀM HỖ TRỢ (TIME, SLUG, TOOLTIP) ==============
 
@@ -485,7 +486,7 @@ function applyPostLogic() {
                 }
             }, { 
     			root: null, // Theo dõi dựa trên khung hình trình duyệt
-    			rootMargin: '0px 0px 300px 0px', // Đón đầu 300px từ phía dưới
+    			rootMargin: '0px 0px 1000px 0px', // Đón đầu 300px từ phía dưới
     			threshold: 0.01 // Chỉ cần chớm xuất hiện 1% là kích hoạt
 			});
 
@@ -656,6 +657,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
