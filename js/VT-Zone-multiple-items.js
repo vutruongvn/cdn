@@ -497,6 +497,7 @@ function applyPostLogic() {
             applyPostLogic();
             VT_homePostLayout();
             VT_checkReadMore();
+			VT_InitAdminSystem();
         }
     });
 })();
@@ -658,6 +659,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
