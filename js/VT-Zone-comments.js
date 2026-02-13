@@ -1,7 +1,8 @@
 // =========================================================================================
 /**
  * VUTRUONG.VN - HỆ THỐNG BÌNH LUẬN REALTIME
- * Phiên bản: 4.0
+ * Phiên bản: 4.0.1
+ * Cập nhật: 6 36 PM 13 2 2026
  * Tính năng: CRUD, Realtime, Phân trang, Skeleton Loading, Google Auth, Admin Badge.
  * Full base code - backup!!!
  */
@@ -52,13 +53,10 @@ window.VT_InitCommentSystem = function() {
     // Các mốc thời gian của ní
     const intervals = { 'năm': 31536000, 'tháng': 2592000, 'tuần': 604800, 'ngày': 86400, 'giờ': 3600, 'phút': 60 };
     
-    // 1. Dưới 5 giây thì hiện "Vừa xong" cho nó mượt
-    if (seconds < 5) return 'Vừa xong';
+    // 1. Dưới 60 giây thì hiện "Vừa xong"
+    if (seconds < 60) return 'Vừa xong';
     
-    // 2. Dưới 1 phút thì hiện "x giây trước" theo ý ní
-    if (seconds < 60) return seconds + ' giây trước';
-    
-    // 3. Các mốc còn lại giữ nguyên logic cũ của ní
+    // 2. Các mốc còn lại giữ nguyên logic cũ
     for (let key in intervals) {
         const counter = Math.floor(seconds / intervals[key]);
         if (counter > 0) {
@@ -75,14 +73,13 @@ window.VT_InitCommentSystem = function() {
         return `
         <div class="VT-comment-item mt-3">
             <div class="d-flex align-items-start">
-                <div class="vt-ske-avatar vt-ske-loading me-2"></div>
+                <div class="vt-ske-avatar vt-loading-effect-loading me-2" style="width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0"></div>
                 <div class="flex-grow-1">
-                    <div class="vt-ske-bubble vt-ske-loading"></div>
-                    <div class="d-flex align-items-center gap-2 mt-2 ms-2">
-                        <div class="vt-ske-text vt-ske-loading" style="width: 50px;"></div>
-                        <div class="vt-ske-text vt-ske-loading" style="width: 30px;"></div>
-                        <div class="vt-ske-text vt-ske-loading" style="width: 25px;"></div>
-                        <div class="vt-ske-text vt-ske-loading" style="width: 25px; background-color: #ffeef0 !important;"></div>
+                    <div class="vt-ske-bubble vt-loading-effect-loading" style="width: 20rem; height: 2rem; border-radius: 1.2rem"></div>
+                    <div class="d-flex align-items-center gap-2 mt-1 ms-3">
+                        <div class="vt-ske-text vt-loading-effect-loading" style="width: 3rem; height: .8rem; border-radius: 4px"></div>
+                        <div class="vt-ske-text vt-loading-effect-loading" style="width: 3rem; height: .8rem; border-radius: 4px"></div>
+                        <div class="vt-ske-text vt-loading-effect-loading" style="width: 3rem; height: .8rem; border-radius: 4px"></div>
                     </div>
                 </div>
             </div>
@@ -374,10 +371,10 @@ window.VT_SendComment = async function(btn, parentId = null) {
             <img src="${data.userAvatar || DEFAULT_AVATAR}" class="rounded-circle m-0" width="${isChild ? 28 : 32}" height="${isChild ? 28 : 32}" style="object-fit:cover;">
             <div class="flex-grow-1">
                 <div class="VT-comment-bubble py-2 px-3 rounded-4">
-                    <div class="d-inline-block me-1 ${isCmtAdmin ? 'is-admin-name fw-medium' : 'is-not-admin-name fw-medium'}">
+                    <div class="d-inline me-1 ${isCmtAdmin ? 'is-admin-name fw-medium' : 'is-not-admin-name fw-medium'}">
                         ${data.userName}${isCmtAdmin ? '<i class="fa-solid fa-badge-check ms-1 text-primary small" data-bs-toggle="tooltip" title="Tài khoản đã được xác thực"></i>' : ''}
                     </div>
-                    <div class="VT-comment-text d-inline-block border-0" style="outline:none;word-break:break-word">${formatCommentText(data.content, cId)}</div>
+                    <div class="VT-comment-text d-inline border-0" style="outline:none;word-break:break-word">${formatCommentText(data.content, cId)}</div>
                     <div class="VT-edit-btns mt-1" style="display: none;">
                         <small class="text-primary fw-bold cursor-pointer me-2" onclick="VT_SaveEdit(this, '${cId}')">Lưu</small>
                         <small class="text-muted cursor-pointer" onclick="VT_CancelEdit(this, '${cId}')">Hủy</small>
@@ -469,9 +466,15 @@ window.VT_SendComment = async function(btn, parentId = null) {
                             list.insertAdjacentHTML('beforeend', html);
                         }
                     } else {
-                        // CẬP NHẬT: Chỉ sửa mốc thời gian để tránh lỗi "Loading"
-                        const timeEl = existingP.querySelector('.VT-cmt-time');
-                        if (timeEl) timeEl.innerHTML = p.createdAt ? timeAgo(p.createdAt) : "Vừa xong";
+						// CẬP NHẬT: Chỉ sửa mốc thời gian và trạng thái đã chỉnh sửa
+						const timeEl = existingP.querySelector('.VT-cmt-time');
+						if (timeEl) {
+						    const timeStr = p.createdAt ? timeAgo(p.createdAt) : "Vừa xong";
+						    const editedStr = p.lastEdited ? ' (đã chỉnh sửa)' : '';
+    
+						    timeEl.innerHTML = `${timeStr}${editedStr}`;
+						}
+
                     }
                 });
 
@@ -586,7 +589,7 @@ window.VT_SendComment = async function(btn, parentId = null) {
 
     // 1. Nếu đã tải dữ liệu rồi (Đã có nội dung bên trong)
     if (childListContainer.innerHTML.trim() !== '') {
-        $(childListContainer).slideToggle(200, function() {
+        $(childListContainer).slideToggle(function() {
             // Đếm số lượng thực tế các cmt con đang có trong DOM
             const count = childListContainer.querySelectorAll('.VT-comment-item').length;
             const isHidden = childListContainer.style.display === 'none';
@@ -605,7 +608,7 @@ window.VT_SendComment = async function(btn, parentId = null) {
     // 2. Nếu chưa tải, tiến hành gọi Firestore
     // Lưu lại icon gốc hoặc trạng thái đang tải
     const originalHtml = btn.innerHTML;
-    btn.innerHTML = `<i class="fa-solid fa-spinner-third fa-spin me-2"></i>Đang tải...`;
+    btn.innerHTML = `<i class="fa-solid fa-spinner-third fa-spin me-2"></i>đang tải...`;
     btn.style.pointerEvents = 'none'; // Khóa nút tạm thời
     
     try {
@@ -621,7 +624,7 @@ window.VT_SendComment = async function(btn, parentId = null) {
         childListContainer.innerHTML = subHtml;
         const count = querySnapshot.size; // Lấy số lượng từ query result
 
-        $(childListContainer).slideDown(200, function() {
+        $(childListContainer).slideDown(function() {
             // Sau khi tải xong và hiện ra, đổi text thành "Ẩn x phản hồi"
             btn.innerHTML = `<i class="fa-duotone fa-angle-up me-2"></i>Ẩn ${count} phản hồi`;
             btn.style.pointerEvents = 'auto';
