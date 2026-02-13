@@ -1109,6 +1109,55 @@ document.addEventListener("DOMContentLoaded", function() {
 // === END ===
 
 
+// ===============================================================
+// Quyền ADMIN, chỉ hiển thị với VT và chỉ VT mới có thể kiểm soát
+const VT_ADMIN_UID = 'u9U3j9O63jbipOgai3o88X4008q2';
+
+// 1. Tách hàm xử lý UI riêng ra để gọi lại khi load AJAX
+window.VT_ApplyAdminUI = () => {
+    const isAdmin = sessionStorage.getItem('VT_AdminLogged') === 'true';
+    const VT_adminTools = document.querySelectorAll('.VT-admin-tools');
+
+    if (isAdmin) {
+        // NẾU LÀ ADMIN: Chỉ gỡ class ẩn, TUYỆT ĐỐI không dùng .remove()
+        VT_adminTools.forEach(el => el.classList.remove('d-none'));
+    } else {
+        // NẾU KHÔNG PHẢI ADMIN: Xóa sạch dấu vết khỏi DOM
+        VT_adminTools.forEach(el => el.remove());
+    }
+};
+
+const VT_InitAdminSystem = () => {
+    firebase.auth().onAuthStateChanged((user) => {
+        const VT_isAdmin = user && user.uid === VT_ADMIN_UID;
+        const VT_wasAdmin = sessionStorage.getItem('VT_AdminLogged') === 'true';
+
+        // Logic check quyền để reload
+        if (VT_isAdmin && !VT_wasAdmin) {
+            sessionStorage.setItem('VT_AdminLogged', 'true');
+            window.location.reload();
+            return;
+        } 
+        if (!VT_isAdmin && VT_wasAdmin) {
+            sessionStorage.removeItem('VT_AdminLogged');
+            window.location.reload();
+            return;
+        }
+
+        // Chạy lần đầu khi load trang
+        window.VT_ApplyAdminUI();
+    });
+};
+
+// Đảm bảo khởi chạy chuẩn
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', VT_InitAdminSystem);
+} else {
+    VT_InitAdminSystem();
+}
+// End
+// ===============================================================
+
 
 
 
