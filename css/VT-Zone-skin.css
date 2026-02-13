@@ -62,7 +62,10 @@ body {
 
 /* Selection */
 ::selection {
-  background: #f2f3f5;
+  background: #333;color:#fff
+}
+html.VT_darkMode ::selection {
+  background: rgba(255,255,255,.1); color:var(--darktext)
 }
 
 /* Links */
@@ -1639,6 +1642,49 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 .vt-card-item{min-width:calc(100%/3 - 5px)}
 }
 
+/* ========================================================================= */
+/* VT COMMENTs MODULE */
+.VT-comment-app .VT-comment-list .VT-comment-item {margin:.5rem 0}
+.VT-comment-app .VT-comment-list .VT-comment-item:first-child {margin-top:1rem}
+.VT-comment-input,.VT-rep-box { background:#f4f4f4; border-radius:1.5rem}
+.VT-comment-input:focus,.VT-rep-box:focus { background: #eee  }
+html.VT-rep-box,
+html.VT_darkMode .VT-comment-bubble,
+html.VT_darkMode .VT-comment-input {background: var(--darkbd)}
+.VT-comment-bubble { background: #f2f3f5; display: inline-block; max-width: 100%}
+.VT-rep-box {}
+/* Gộp cả ô nhập chính và tất cả các ô trả lời vào cùng một bộ quy tắc */
+.VT-comment-input, 
+[class*="VT-rep-in-"] {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 36px;
+    padding-right: 45px; /* Chừa chỗ cho cái icon máy bay gửi tin */
+    
+    /* "Bùa" trị link dài cho cả 2 khung */
+    word-break: break-all !important; 
+    overflow-wrap: anywhere !important; 
+    white-space: pre-wrap !important;
+    
+    /* Chống tràn tuyệt đối */
+    overflow-x: hidden !important; 
+    box-sizing: border-box !important;
+    outline: none !important; /* Click vào không bị hiện cái viền đen/xanh mặc định */
+}
+
+/* Đảm bảo khung bọc ngoài của Reply không bị bóp nghẹt */
+div[class*="VT-rep-box-"] .d-flex {
+    min-width: 0 !important; /* Mẹo flexbox để con có thể tự co lại */
+}
+.VT-comment-text { outline: none; word-break: break-word; white-space: pre-wrap }
+.VT-comment-text b { font-weight: 600 }
+.VT-action-link { cursor: pointer }
+.VT-action-link:hover { text-decoration: underline; }
+/* Highlight bình luận */
+.VT-comment-item:target .VT-comment-bubble { background: #dcefff; border: 1px solid #0084ff; }
+.cursor-pointer {cursor:pointer}
+/* ========================================================================= */
 
 
 
