@@ -1648,7 +1648,7 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 .VT-comment-app .VT-comment-list .VT-comment-item:first-child {margin-top:1rem}
 .VT-comment-input,.VT-rep-box { background:#f4f4f4; border-radius:1.5rem}
 .VT-comment-input:focus,.VT-rep-box:focus { background: #eee  }
-html.VT-rep-box,
+html.VT_darkMode .VT-dynamic-reply-box .VT-rep-box,
 html.VT_darkMode .VT-comment-bubble,
 html.VT_darkMode .VT-comment-input {background: var(--darkbd)}
 .VT-comment-bubble { background: #f2f3f5; display: inline-block; max-width: 100%}
@@ -1685,6 +1685,7 @@ div[class*="VT-rep-box-"] .d-flex {
 .VT-comment-item:target .VT-comment-bubble { background: #dcefff; border: 1px solid #0084ff; }
 .cursor-pointer {cursor:pointer}
 /* ========================================================================= */
+
 
 
 
