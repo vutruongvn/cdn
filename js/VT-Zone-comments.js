@@ -60,7 +60,7 @@ window.VT_InitCommentSystem = function() {
         return `
         <div class="VT-rep-box-${parentId} VT-dynamic-reply-box p-0 m-0 ms-3 mt-3">
             <div class="d-flex align-items-start gap-2">
-                <img src="${avatar}" class="VT-user-avatar rounded-circle m-0" width="28" height="28" style="object-fit:cover;">
+                <img src="${avatar}" class="VT-user-avatar rounded-circle m-0" loading="lazy" width="28" height="28" style="object-fit:cover;">
                 <div class="flex-grow-1">
                     <div class="VT-rep-box d-flex align-items-center rounded-5 px-3 py-2 position-relative">
                         <div class="VT-rep-in-${parentId} flex-grow-1" contenteditable="${isLogged}" oninput="VT_HandlePlaceholder(this)" style="outline:none; min-height:1rem; z-index:2"></div>
@@ -331,7 +331,7 @@ window.VT_InitCommentSystem = function() {
 
         return `<div class="VT-comment-item ${isChild ? 'ms-3 VT-comment-item-reply' : ''}" id="VT-cmt-${cId}">
             <div class="d-flex align-items-start gap-2">
-                <img src="${data.userAvatar || DEFAULT_AVATAR}" class="rounded-circle m-0" width="${isChild ? 28 : 32}" height="${isChild ? 28 : 32}" style="object-fit:cover;">
+                <img src="${data.userAvatar || DEFAULT_AVATAR}" class="rounded-circle m-0" loading="lazy" width="${isChild ? 28 : 32}" height="${isChild ? 28 : 32}" style="object-fit:cover;">
                 <div class="flex-grow-1">
                     <div class="VT-comment-bubble py-2 px-3 rounded-4">
                         <div class="d-inline me-1 ${isCmtAdmin ? 'is-admin-name fw-medium' : 'is-not-admin-name fw-medium'}">
@@ -636,4 +636,5 @@ if (document.readyState === 'loading') {
     window.VT_InitCommentSystem();
 }
 // =========================================================================================
+
 
