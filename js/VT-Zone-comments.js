@@ -346,7 +346,7 @@ window.VT_InitCommentSystem = function() {
                     <div class="d-flex align-items-center gap-3 opacity-75 mt-1 ms-3 small">
                         <a href="${window.location.href.split('#')[0]}#VT-cmt-${cId}" class="VT-cmt-time opacity-75 text-decoration-none" title="${fullDate}">${timeAgo(data.createdAt?.toDate())}${data.lastEdited ? ' (đã chỉnh sửa)' : ''}</a>
                         ${!isChild ? `<span class="VT-action-link" onclick="VT_ToggleReply(this, '${cId}', '${data.userName}')">Trả lời</span>` : ''}
-                        ${isOwner ? `<span class="VT-action-link" onclick="VT_EditMode(this, '${cId}')">Sửa</span>` : ''}
+                        ${isOwner ? `<span class="VT-action-link" onclick="VT_EditMode(this, '${cId}')">Chỉnh sửa</span>` : ''}
                         ${canDelete ? `<span class="VT-action-link text-danger" onclick="VT_DeleteComment('${cId}')">Xóa</span>` : ''}
                     </div>
 
@@ -636,3 +636,4 @@ if (document.readyState === 'loading') {
     window.VT_InitCommentSystem();
 }
 // =========================================================================================
+
