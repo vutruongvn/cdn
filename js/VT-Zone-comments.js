@@ -55,7 +55,7 @@ window.VT_InitCommentSystem = function() {
         const user = auth.currentUser;
         const isLogged = !!user;
         const avatar = user ? user.photoURL : DEFAULT_AVATAR;
-        const placeholder = isLogged ? (replyToName ? `Trả lời ${replyToName}` : 'Trả lời') : 'Đăng nhập để trả lời `${replyToName}`';
+        const placeholder = isLogged ? (replyToName ? `Trả lời ${replyToName}` : 'Trả lời') : `Đăng nhập để trả lời ${replyToName}`;
 
         return `
         <div class="VT-rep-box-${parentId} VT-dynamic-reply-box p-0 m-0 ms-3 mt-3">
@@ -636,6 +636,7 @@ if (document.readyState === 'loading') {
     window.VT_InitCommentSystem();
 }
 // =========================================================================================
+
 
 
 
