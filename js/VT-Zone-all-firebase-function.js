@@ -133,7 +133,7 @@ function countView() {
     if (!postId) return;
 
     const viewDocRef = db.collection('views').doc(postId);
-    /* --- TẠM ĐÓNG BĂNG TÍNH NĂNG VIEW POST THÌ CMT TỪ ĐÂY, KHI NÀO DÙNG THÌ MỞ CMT RA --- */
+    /* --- TẠM ĐÓNG BĂNG TÍNH NĂNG VIEW POST THÌ CMT TỪ ĐÂY, KHI NÀO DÙNG THÌ MỞ CMT RA
     viewDocRef.set({
             count: firebase.firestore.FieldValue.increment(1)
         }, {
@@ -156,7 +156,8 @@ function countView() {
             console.error("Lỗi khi cập nhật lượt xem (Firestore):", error);
             viewDisplay.innerText = 'Lỗi!';
         });
-    /* --- KẾT THÚC COMMENT --- */
+    --- KẾT THÚC COMMENT --- */
+    viewDisplay.innerText = 'x';
 }
 
 
@@ -385,6 +386,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 });
+
 
 
 
