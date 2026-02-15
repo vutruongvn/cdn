@@ -1,6 +1,97 @@
 // === JS for All Page === JS body
 // === VT Zone === vutruong.vn
-// Js for all page === Chạy trên tất cả trang
+// Js for all page === Chạy trên toàn hệ thống
+
+// =========================================================================================
+// ONE TAP
+// Chức năng Popup đăng nhập bằng Google cho Blogspot by VTZone
+
+// --- 1. HÀM GIẢI MÃ TOKEN (Để lấy tên mới nhất ngay lập tức) ---
+function parseJwt(token) {
+    var base64Url = token.split('.')[1];
+    var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    var jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+};
+
+// --- 2. XỬ LÝ KHI ĐĂNG NHẬP THÀNH CÔNG ---
+window.handleCredentialResponse = function(response) {
+    console.log("Token received. Extracting profile data...");
+    
+    // Bóc tách dữ liệu từ Google Token (Luôn luôn là dữ liệu mới nhất)
+    const payload = parseJwt(response.credential);
+    const googleName = payload.name; // TÊN GOOGLE HIỆN TẠI SẼ ĐỒNG BỘ VỚI FIRESTORE AUTH
+    const googlePicture = payload.picture;
+
+    const credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
+
+    firebase.auth().signInWithCredential(credential)
+        .then(async (result) => {
+            const user = result.user;
+            console.log("Firebase Login Success:", user.email);
+
+            // BƯỚC QUAN TRỌNG: Kiểm tra và ép cập nhật Profile nếu tên bị cũ
+            if (user.displayName !== googleName) {
+                console.log("Detected name change! Updating Profile to:", googleName);
+                await user.updateProfile({
+                    displayName: googleName,
+                    photoURL: googlePicture
+                });
+            }
+
+            // Lưu vào localStorage để hàm Sync trong XML bốc đi đồng bộ Firestore
+            localStorage.setItem('vutruong_sync_name', googleName);
+            localStorage.setItem('vutruong_sync_avatar', googlePicture);
+            
+            // Ẩn popup
+            if (window.google && window.google.accounts) {
+                window.google.accounts.id.cancel();
+            }
+
+            // Sau khi cập nhật Profile xong mới Reload trang để đảm bảo giao diện mới hoàn toàn
+            window.location.reload(); 
+        })
+        .catch((error) => {
+            console.error("Firebase Login Error:", error);
+        });
+}
+
+// --- 3. KHỞI CHẠY LOGIC ---
+var checkAuthInterval = setInterval(function() {
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        clearInterval(checkAuthInterval);
+
+        firebase.auth().onAuthStateChanged(function(user) {
+            if (user) {
+                // Tự động kiểm tra sync nếu thấy có dữ liệu chờ trong localStorage
+                if (localStorage.getItem('vutruong_sync_name') && window.VT_SyncUserMetadata) {
+                    window.VT_SyncUserMetadata();
+                }
+                if (window.google && window.google.accounts) {
+                    window.google.accounts.id.disableAutoSelect();
+                }
+            } else {
+                console.log("Chưa đăng nhập, đang chuẩn bị One Tap...");
+                var checkGSIInterval = setInterval(function() {
+                    if (window.google && window.google.accounts && window.google.accounts.id) {
+                        clearInterval(checkGSIInterval);
+                        window.google.accounts.id.initialize({
+                            client_id: "129635740050-2htdgc0rf6sq0dmmqa9uvkgefumbm3qm.apps.googleusercontent.com",
+                            callback: window.handleCredentialResponse,
+                            auto_select: true,
+                            cancel_on_tap_outside: false
+                        });
+                        window.google.accounts.id.prompt();
+                    }
+                }, 500);
+            }
+        });
+    }
+}, 500);
+// =========================================================================================
+
 // Function bật/tắt VT_darkMode => Ghi nhớ lịch sử
     const toggleButtons = document.querySelectorAll('.theme-toggle');
     const htmlElement = document.documentElement;
@@ -1160,6 +1251,7 @@ document.addEventListener("DOMContentLoaded", function() {
     observer.observe(document.body, { childList: true, subtree: true });
 });
 // ================================================ END ================================================
+
 
 
 
