@@ -2,7 +2,7 @@
 /**
  * VUTRUONG.VN - HỆ THỐNG FIREBASE TỔNG HỢP
  * Các tính năng: Auth, Like, View, History...
- * Phiên bản: 2.0.0 (Nâng cấp Firebase v10)
+ * Phiên bản: 2.1.0 (Firebase v10 + Compatibility Layer)
  * Cập nhật: 15/2/2026
  * VT Zone - vutruong.vn
  */
@@ -48,7 +48,46 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// Export ra window để các file khác có thể sử dụng
+// =========================================================================================
+// 🔧 COMPATIBILITY LAYER - QUAN TRỌNG ĐỂ TƯƠNG THÍCH VỚI CODE CŨ
+// =========================================================================================
+
+// Tạo firebase namespace giả lập để các code v8 cũ vẫn hoạt động
+window.firebase = {
+    // App
+    apps: getApps(),
+    initializeApp: (config) => initializeApp(config),
+    
+    // Auth namespace
+    auth: function() {
+        return auth;
+    },
+    
+    // Firestore namespace
+    firestore: function() {
+        return db;
+    }
+};
+
+// Thêm GoogleAuthProvider vào auth namespace
+window.firebase.auth.GoogleAuthProvider = GoogleAuthProvider;
+
+// Thêm các static methods cho GoogleAuthProvider
+window.firebase.auth.GoogleAuthProvider.credential = function(idToken, accessToken) {
+    return GoogleAuthProvider.credential(idToken, accessToken);
+};
+
+// Thêm FieldValue cho Firestore (để tương thích với code cũ)
+window.firebase.firestore.FieldValue = {
+    serverTimestamp: () => serverTimestamp(),
+    increment: (n) => increment(n)
+};
+
+console.log("✅ Firebase Compatibility Layer đã được tạo (Hỗ trợ code v8 cũ)");
+
+// =========================================================================================
+
+// Export ra window để các file khác sử dụng
 window.db = db;
 window.auth = auth;
 
@@ -295,7 +334,7 @@ async function saveViewHistory(user) {
     }
     
     // CÁCH 2 (Fallback): Lấy ID từ data-post-id trên DOM
-    if (!postId) {
+    if (!postId && typeof $ !== 'undefined') {
          const postContainer = $('.blog-posts article.post, .blog-posts .post-outer').first();
          if (postContainer.length) {
              postId = postContainer.attr('data-post-id');
@@ -376,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (auth && likeButtons.length > 0) {
         onAuthStateChanged(auth, (user) => {
-            const loginPopup = $(".VTloginPopup");
+            const loginPopup = typeof $ !== 'undefined' ? $(".VTloginPopup") : null;
 
             if (user) {
                 // CẬP NHẬT UI AUTH
@@ -397,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     btn.onclick = (e) => {
                         e.preventDefault();
 
-                        if (!isPopupShowing) {
+                        if (loginPopup && !isPopupShowing) {
                             isPopupShowing = true;
 
                             loginPopup.fadeIn(300)
@@ -427,24 +466,29 @@ function parseJwt(token) {
     return JSON.parse(jsonPayload);
 }
 
-// Xử lý khi đăng nhập thành công
+// Xử lý khi đăng nhập thành công với One Tap
 window.handleCredentialResponse = async function(response) {
-    console.log("Token received. Extracting profile data...");
+    console.log("✅ One Tap: Token received. Extracting profile data...");
     
-    const payload = parseJwt(response.credential);
-    const googleName = payload.name;
-    const googlePicture = payload.picture;
-
-    const credential = GoogleAuthProvider.credential(response.credential);
-
     try {
+        const payload = parseJwt(response.credential);
+        const googleName = payload.name;
+        const googlePicture = payload.picture;
+
+        console.log("✅ One Tap: Google Name =", googleName);
+
+        // Tạo credential từ token
+        const credential = GoogleAuthProvider.credential(response.credential);
+
+        // Đăng nhập vào Firebase
         const result = await signInWithCredential(auth, credential);
         const user = result.user;
-        console.log("Firebase Login Success:", user.email);
+        
+        console.log("✅ Firebase Login Success:", user.email);
 
         // Kiểm tra và cập nhật Profile nếu tên bị cũ
         if (user.displayName !== googleName) {
-            console.log("Detected name change! Updating Profile to:", googleName);
+            console.log("🔄 Detected name change! Updating Profile to:", googleName);
             await updateProfile(user, {
                 displayName: googleName,
                 photoURL: googlePicture
@@ -455,15 +499,20 @@ window.handleCredentialResponse = async function(response) {
         localStorage.setItem('vutruong_sync_name', googleName);
         localStorage.setItem('vutruong_sync_avatar', googlePicture);
         
-        // Ẩn popup
+        // Ẩn popup One Tap
         if (window.google && window.google.accounts) {
             window.google.accounts.id.cancel();
         }
 
-        // Reload trang
+        console.log("✅ One Tap: Login completed. Reloading page...");
+        
+        // Reload trang để cập nhật UI
         window.location.reload(); 
+        
     } catch (error) {
-        console.error("Firebase Login Error:", error);
+        console.error("❌ Firebase Login Error:", error);
+        console.error("Error code:", error.code);
+        console.error("Error message:", error.message);
     }
 }
 
@@ -474,25 +523,36 @@ var checkAuthInterval = setInterval(function() {
 
         onAuthStateChanged(auth, function(user) {
             if (user) {
+                console.log("✅ User đã đăng nhập:", user.email);
+                
                 // Tự động sync nếu có dữ liệu trong localStorage
                 if (localStorage.getItem('vutruong_sync_name') && window.VT_SyncUserMetadata) {
+                    console.log("🔄 Auto syncing user metadata...");
                     window.VT_SyncUserMetadata();
                 }
+                
+                // Disable auto select sau khi đã đăng nhập
                 if (window.google && window.google.accounts) {
                     window.google.accounts.id.disableAutoSelect();
                 }
             } else {
-                console.log("Chưa đăng nhập, đang chuẩn bị One Tap...");
+                console.log("⚠️ Chưa đăng nhập, đang chuẩn bị One Tap...");
+                
                 var checkGSIInterval = setInterval(function() {
                     if (window.google && window.google.accounts && window.google.accounts.id) {
                         clearInterval(checkGSIInterval);
+                        
+                        console.log("🚀 Initializing One Tap...");
+                        
                         window.google.accounts.id.initialize({
                             client_id: "129635740050-2htdgc0rf6sq0dmmqa9uvkgefumbm3qm.apps.googleusercontent.com",
                             callback: window.handleCredentialResponse,
                             auto_select: true,
                             cancel_on_tap_outside: false
                         });
+                        
                         window.google.accounts.id.prompt();
+                        console.log("✅ One Tap prompt displayed");
                     }
                 }, 500);
             }
@@ -504,23 +564,25 @@ var checkAuthInterval = setInterval(function() {
 // PHẦN 9: LƯU LỊCH SỬ XEM - JQUERY VERSION
 // =========================================================================================
 
-$(document).ready(function() {
-    // Chỉ chạy trên trang bài viết chi tiết
-    const isItemPage = typeof _WidgetManager !== 'undefined' && 
-                       _WidgetManager._GetAllData().blog.pageType === "item";
-                       
-    if (!isItemPage) {
-        return;
-    }
-    
-    // Chờ đăng nhập
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            saveViewHistory(user);
+if (typeof $ !== 'undefined') {
+    $(document).ready(function() {
+        // Chỉ chạy trên trang bài viết chi tiết
+        const isItemPage = typeof _WidgetManager !== 'undefined' && 
+                           _WidgetManager._GetAllData().blog.pageType === "item";
+                           
+        if (!isItemPage) {
+            return;
         }
+        
+        // Chờ đăng nhập
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                saveViewHistory(user);
+            }
+        });
     });
-});
+}
 
 // =========================================================================================
-console.log("✅ VT-Zone All Firebase Functions đã tải xong (Firebase v10)");
+console.log("✅ VT-Zone All Firebase Functions đã tải xong (Firebase v10 + Compatibility)");
 // =========================================================================================
