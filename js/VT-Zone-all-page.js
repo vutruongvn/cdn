@@ -92,6 +92,74 @@ var checkAuthInterval = setInterval(function() {
 }, 500);
 // =========================================================================================
 
+// =========================================================================================
+// Chức năng Lưu lịch sử xem bài viết vào db firebase by VTZone
+// --- LOGIC GHI LỊCH SỬ XEM BÀI VIẾT (ĐÃ TỐI ƯU CÁCH LẤY POST ID) ---
+$(document).ready(function() {
+    
+    // 1. CHỈ CHẠY TRÊN TRANG BÀI VIẾT CHI TIẾT
+    const isItemPage = typeof _WidgetManager !== 'undefined' && 
+                       _WidgetManager._GetAllData().blog.pageType === "item";
+                       
+    if (!isItemPage) {
+        return; // Không phải trang bài viết, thoát
+    }
+    
+    // 2. CHỜ ĐĂNG NHẬP
+    window.auth.onAuthStateChanged((user) => {
+        if (user) {
+            saveViewHistory(user);
+        }
+    });
+
+    async function saveViewHistory(user) {
+        
+        // CÁCH 1: Lấy ID từ biến Blogger (ổn định nhất)
+        let postId = null;
+        if (typeof _WidgetManager !== 'undefined' && _WidgetManager._GetAllData().blog.postId) {
+            postId = _WidgetManager._GetAllData().blog.postId;
+        }
+        
+        // CÁCH 2 (Fallback): Lấy ID từ data-post-id trên DOM (nếu Cách 1 lỗi)
+        if (!postId) {
+             const postContainer = $('.blog-posts article.post, .blog-posts .post-outer').first();
+             if (postContainer.length) {
+                 postId = postContainer.attr('data-post-id');
+             }
+        }
+        
+        // Lấy Tiêu đề và URL
+        const title = document.title; 
+        const url = window.location.href.split('?')[0]; 
+
+        if (postId && window.db) {
+            
+            // Debug: Kiểm tra xem đã lấy được ID chưa
+            console.log("DEBUG Ghi Lịch Sử: Post ID = " + postId); 
+
+            try {
+                // Lưu vào collection: users/{uid}/viewedHistory/{postId}
+                await window.db.collection('users').doc(user.uid).collection('viewedHistory').doc(postId).set({
+                    postId: postId,
+                    title: title, 
+                    url: url,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp() // Thời gian server
+                }, { merge: true });
+                
+                console.log("Đã lưu lịch sử xem thành công cho ID: " + postId);
+            } catch (error) {
+                console.error("Lỗi lưu lịch sử xem (Kiểm tra Security Rules):", error);
+            }
+        } else {
+             console.log("DEBUG Ghi Lịch Sử: Không tìm thấy Post ID hoặc DB chưa sẵn sàng.");
+        }
+    }
+});
+// --- KẾT THÚC LOGIC GHI LỊCH SỬ XEM BÀI VIẾT ---
+// =========================================================================================
+
+
+// =========================================================================================
 // Function bật/tắt VT_darkMode => Ghi nhớ lịch sử
     const toggleButtons = document.querySelectorAll('.theme-toggle');
     const htmlElement = document.documentElement;
@@ -136,6 +204,7 @@ var checkAuthInterval = setInterval(function() {
     }
 });
 
+// =========================================================================================
 // Function share native gán vào .btn-share-native sử dụng trình chia sẻ của hệ thống
 document.addEventListener('click', async function(event) {
   const btn = event.target.closest('.btn-share-native');
@@ -165,6 +234,7 @@ document.addEventListener('click', async function(event) {
   }
 });
 
+// =========================================================================================
 // Function ẩn hiện .centerMenu khi xem trên Mobile === by VT Zone ===
 document.addEventListener('DOMContentLoaded', () => {
     const menu = document.querySelector('.centerMenu');
@@ -219,6 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
+// =========================================================================================
 // Function xóa ?m=1 trên URL khi xem bằng Mobile
 var uri = window.location.toString();
 if (uri.indexOf("?m=1", "?m=1") > 0) {
@@ -226,6 +297,7 @@ if (uri.indexOf("?m=1", "?m=1") > 0) {
     window.history.replaceState({}, document.title, clean_uri);
 }
 
+// =========================================================================================
 // Function lấy dữ liệu từ .reportPost => điền vào input trang /report
 document.addEventListener('click', function(e) {
     // Kiểm tra nếu click vào đúng thẻ reportPost
@@ -249,6 +321,7 @@ document.addEventListener('click', function(e) {
     }
 });
 
+// =========================================================================================
 // ===== Function Post Gallery Layout Auto for Blog Post by VT Zone =====
 function VT_homePostLayout() {
     // 1. Quét các container bài viết chưa được xử lý layout
@@ -358,6 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(VT_checkReadMore, 200); // Đợi layout ổn định rồi mới đo
 });
 
+// =========================================================================================
 /* === Hàm Fade (Chỉ dùng JS thuần) === */
 
 // Hiệu ứng Hiện dần (Fade In)
@@ -465,6 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// =========================================================================================
 // Tính năng Live Search --- xây dung bằng Javascript thuần --- tối ưu tốc độ
 // VT Zone - vutruong.vn
 
@@ -564,6 +639,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// =========================================================================================
 // Function Live Search by Jquery
 // VT Zone --- vutruong.vn
 
@@ -700,6 +776,7 @@ $(document).ready(function() {
 });
 
 
+// =========================================================================================
 // Function thay đổi Font chữ trên toàn BODY
     const FONT_STORAGE_KEY = 'blogFontPreference';
     const GOOGLE_SANS_CLASS = 'font-google-sans';
@@ -750,6 +827,7 @@ $(document).ready(function() {
     applySavedFont();
 
 
+// =========================================================================================
 // === Function Slide Menu ===
 // đã convert qua js by VT Zone
 "use strict";
@@ -902,6 +980,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // === End Function Slide Menu ===
 
 
+// =========================================================================================
 // === Function auto scroll ===
 (function() {
     const path = window.location.pathname;
@@ -935,6 +1014,7 @@ document.addEventListener("DOMContentLoaded", () => {
 })();
 
 
+// =========================================================================================
 // ========= Function for Featured Story
 // ========= by VT Zone
 // ========= vutruong.vn
@@ -1253,6 +1333,10 @@ document.addEventListener("DOMContentLoaded", function() {
 // ================================================ END ================================================
 
 
+// =========================================================================================
+// VT ZONE
+// VUTRUONG.VN
+// =========================================================================================
 
 
 
