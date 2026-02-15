@@ -1,7 +1,8 @@
 // =========================================================================================
 /**
  * VUTRUONG.VN - HỆ THỐNG BÌNH LUẬN REALTIME
- * Phiên bản: 4.1.0
+ * Phiên bản: 4.3.0
+ * Cập nhật lần cuối: 15/2/2026
  */
 
 import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -12,9 +13,6 @@ import {
     collection, addDoc, doc, getDoc, deleteDoc, updateDoc, query, where, orderBy, onSnapshot, serverTimestamp, getDocs, writeBatch, getCountFromServer, increment 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, updateProfile, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-
-// Đóng gói module
-window.VT_InitCommentSystem = function() {
 
     // --- 1. CẤU HÌNH ---
     const firebaseConfig = {
@@ -39,6 +37,9 @@ window.VT_InitCommentSystem = function() {
 
     const ADMIN_UIDS = ["u9U3j9O63jbipOgai3o88X4008q2"];
     const DEFAULT_AVATAR = 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhS34MMIbvh9P6obSup4qu4xfE2LrXkhY8rAXLJGX3PzwvolCMWTeXSU0hgm3fETQnfGbcEd0jklsAzNV9NIA-v3XQblgT6DTLHsC9zVuTrEuifK3h9P1Fq7PIAha8Z9TER64RIcfAzSgtq7uHbZL4iLJuR5XGhqn3ju4ZXoTHYjXCclA/s35/vtzone-default-avatar.jpg';
+
+// Đóng gói module
+window.VT_InitCommentSystem = function() {
 
     // --- 2. QUẢN LÝ TRẠNG THÁI ---
     let unsubscribeMap = {};     
@@ -76,7 +77,6 @@ window.VT_InitCommentSystem = function() {
     window.VT_SyncUserMetadata = async function() {
         if (!auth || !auth.currentUser) return;
         try {
-            console.log("--- Sync User Data ---");
             const savedName = localStorage.getItem('vutruong_temp_name') || auth.currentUser.displayName;
             const savedAvatar = localStorage.getItem('vutruong_temp_avatar') || auth.currentUser.photoURL;
             const q = query(collection(db, "comments"), where("uid", "==", auth.currentUser.uid));
@@ -178,9 +178,9 @@ window.VT_InitCommentSystem = function() {
         VT_HandlePlaceholder(input);
 
         // NẾU LÀ REPLY: Xóa luôn khung reply khỏi DOM ngay khi bấm gửi (để giao diện sạch)
-        if (parentId) {
-            window.VT_CancelReply(parentId); 
-        }
+        // if (parentId) {
+        //     window.VT_CancelReply(parentId); 
+        // }
 
         const postId = appBox.getAttribute('data-post-id');
 
@@ -232,7 +232,6 @@ window.VT_InitCommentSystem = function() {
                     }
                 }
             }
-            console.log("Đã đăng bình luận:", finalPostUrl);
 			window.VT_SyncUserMetadata();
         } catch (e) { 
             console.error("Lỗi gửi comment:", e);
@@ -599,34 +598,61 @@ window.VT_InitCommentSystem = function() {
         document.execCommand("insertHTML", false, text);
     });
 
+    // 1. Hàm khởi tạo chính cho các khung comment
     const initApps = () => {
-        document.querySelectorAll('.VT-comment-app').forEach(app => {
-            if (app.dataset.loaded !== "true") startListening(app);
+        const apps = document.querySelectorAll('.VT-comment-app');
+        
+        apps.forEach(app => {
+            // Kiểm tra: Nếu chưa load thì mới kích hoạt listener
+            if (app.dataset.loaded !== "true") {
+                startListening(app);
+            }
         });
-        VT_SyncUserUI(auth.currentUser);
+
+        // Sau khi quét xong, cập nhật ngay thông tin user (Avatar/Tên) vào các ô input
+        if (typeof VT_SyncUserUI === "function") {
+            VT_SyncUserUI(auth.currentUser);
+        }
     };
 
+    // 2. Kích hoạt quét lần đầu khi module chạy
     initApps();
 
+    // 3. MutationObserver: Tự động "bắt" các bài viết mới khi AJAX load more thêm vào DOM
     const observer = new MutationObserver((mutations) => {
+        let hasNewApp = false;
+        
         mutations.forEach((mutation) => {
             mutation.addedNodes.forEach((node) => {
-                if (node.nodeType === 1) {
+                // Kiểm tra xem node mới thêm vào có chứa khung comment không
+                if (node.nodeType === 1) { 
                     const apps = node.querySelectorAll('.VT-comment-app');
-                    if (apps.length > 0) {
+                    const isDirectApp = node.classList.contains('VT-comment-app');
+                    
+                    if (apps.length > 0 || isDirectApp) {
+                        hasNewApp = true;
+                        
+                        // Kích hoạt cho các khung lẻ
+                        if (isDirectApp && node.dataset.loaded !== "true") {
+                            startListening(node);
+                        }
+                        
+                        // Kích hoạt cho các khung nằm trong node
                         apps.forEach(app => {
                             if (app.dataset.loaded !== "true") startListening(app);
                         });
-                        VT_SyncUserUI(auth.currentUser);
-                    }
-                    if (node.classList.contains('VT-comment-app')) {
-                        if (node.dataset.loaded !== "true") startListening(node);
-                        VT_SyncUserUI(auth.currentUser);
                     }
                 }
             });
         });
+
+        // Nếu phát hiện có khung mới thì đồng bộ UI 1 lần duy nhất cho gọn
+        if (hasNewApp && typeof VT_SyncUserUI === "function") {
+            VT_SyncUserUI(auth.currentUser);
+        }
     });
+
+    // Bắt đầu quan sát sự thay đổi của toàn bộ trang
     observer.observe(document.body, { childList: true, subtree: true });
 };
 
@@ -636,8 +662,3 @@ if (document.readyState === 'loading') {
     window.VT_InitCommentSystem();
 }
 // =========================================================================================
-
-
-
-
-
