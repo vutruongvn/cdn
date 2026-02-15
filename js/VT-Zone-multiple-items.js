@@ -1,6 +1,23 @@
 // FULL CODE SCRIPT OPTIMIZED for INDEX - MULTIPLE ITEMS
 // VT Zone === vutruong.vn ===
 
+// Kiểm tra và lấy instance Firebase đã có hoặc khởi tạo mới an toàn
+(function() {
+    try {
+        const { getApp, getApps, initializeApp } = window.FirebaseApp || {}; // Giả sử ní dùng SDK global
+        const { getFirestore, initializeFirestore } = window.FirebaseFirestore || {};
+
+        if (typeof window.db === 'undefined') {
+            const app = (window.getApps && window.getApps().length) ? window.getApp() : null;
+            if (app) {
+                // Nếu đã có App rồi thì chỉ lấy db ra dùng, không khởi tạo lại để tránh lỗi
+                window.db = window.getFirestore ? window.getFirestore(app) : undefined;
+            }
+        }
+    } catch (err) {
+        console.warn("Lưu ý: Firebase chưa sẵn sàng trong multiple-items:", err);
+    }
+})();
 
 // Function hiển thị comments bên dưới mỗi bài viết trang Index
 const VT_PostComments = {
@@ -662,6 +679,7 @@ if (document.readyState === 'loading') {
 } else {
     VT_LazyLoad();
 }
+
 
 
 
