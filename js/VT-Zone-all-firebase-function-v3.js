@@ -168,25 +168,42 @@ function updateAuthUI(user) {
     const name = user ? user.displayName : '';
     const photo = user ? user.photoURL : '';
 
-    // Update visibility
-    userNullContainers.forEach(el => {
-        if (el) el.style.display = user ? 'none' : 'block';
+    console.log(`%c👤 [UI] User data:`, 'color: #4285F4;', { name, photo });
+    console.log(`%c👤 [UI] Elements count:`, 'color: #4285F4;', {
+        userNullContainers: userNullContainers.length,
+        userTrueContainers: userTrueContainers.length,
+        userNameDisplays: userNameDisplays.length,
+        userPhotoDisplays: userPhotoDisplays.length
     });
-    userTrueContainers.forEach(el => {
-        if (el) el.style.display = user ? 'block' : 'none';
+
+    // Update visibility
+    userNullContainers.forEach((el, index) => {
+        if (el) {
+            el.style.display = user ? 'none' : 'block';
+            console.log(`%c👤 [UI] userNull[${index}] display set to: ${user ? 'none' : 'block'}`, 'color: #666;');
+        }
+    });
+    
+    userTrueContainers.forEach((el, index) => {
+        if (el) {
+            el.style.display = user ? 'block' : 'none';
+            console.log(`%c👤 [UI] userTrue[${index}] display set to: ${user ? 'block' : 'none'}`, 'color: #666;');
+        }
     });
     
     // Update name
-    userNameDisplays.forEach(el => {
+    userNameDisplays.forEach((el, index) => {
         el.innerText = name;
+        console.log(`%c👤 [UI] userName[${index}] set to: "${name}"`, 'color: #666;');
     });
     
     // Update photo
-    userPhotoDisplays.forEach(el => {
+    userPhotoDisplays.forEach((el, index) => {
         el.src = photo;
+        console.log(`%c👤 [UI] userPhoto[${index}] src set to: ${photo}`, 'color: #666;');
     });
     
-    console.log('%c✅ [UI] Auth UI updated', 'color: #34A853;');
+    console.log('%c✅ [UI] Auth UI updated successfully', 'color: #34A853; font-weight: bold;');
 }
 
 function updateLikeUI(btnElement, isLiked) {
@@ -453,21 +470,21 @@ async function saveViewHistory(user) {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('%c🎨 [DOM] DOM Content Loaded', 'color: #4285F4; font-weight: bold;');
     
-    // Gán các biến UI
-    userNullContainers = document.querySelectorAll('.user-null');
-    userTrueContainers = document.querySelectorAll('.user-true');
-    signInLinks = document.querySelectorAll('.sign-in');
-    signOutButtons = document.querySelectorAll('.sign-out');
-    userNameDisplays = document.querySelectorAll('.user-name');
-    userPhotoDisplays = document.querySelectorAll('.user-photo');
+    // Gán các biến UI - KHỚP VỚI HTML TEMPLATE
+    userNullContainers = document.querySelectorAll('.user-auth-null');
+    userTrueContainers = document.querySelectorAll('.user-auth-true');
+    signInLinks = document.querySelectorAll('.sign-in-link');
+    signOutButtons = document.querySelectorAll('.sign-out-button-class');
+    userNameDisplays = document.querySelectorAll('.user-name-display');
+    userPhotoDisplays = document.querySelectorAll('.user-photo-display');
 
     console.log(`%c🎨 [DOM] Found UI elements:`, 'color: #666;', {
-        userNull: userNullContainers.length,
-        userTrue: userTrueContainers.length,
-        signIn: signInLinks.length,
-        signOut: signOutButtons.length,
-        userName: userNameDisplays.length,
-        userPhoto: userPhotoDisplays.length
+        userAuthNull: userNullContainers.length,
+        userAuthTrue: userTrueContainers.length,
+        signInLinks: signInLinks.length,
+        signOutButtons: signOutButtons.length,
+        userNameDisplays: userNameDisplays.length,
+        userPhotoDisplays: userPhotoDisplays.length
     });
 
     // Gắn sự kiện đăng nhập
