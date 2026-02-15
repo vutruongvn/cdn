@@ -844,7 +844,105 @@ document.addEventListener("DOMContentLoaded", () => {
 })();
 
 
+// ========= Function for Featured Story
+// ========= by VT Zone
+// ========= vutruong.vn
+document.addEventListener("DOMContentLoaded", function() {
+    "use strict";
 
+    // 1. Data - trong widget
+
+    // 2. Helper: Tạo URL thumbnail từ link full size
+    function getThumbnail(fullUrl) {
+        // Chuyển s1600 -> s250 cho Blogger images
+        return fullUrl.replace(/\/s\d+\//, '/s250/');
+    }
+
+    const track = document.getElementById('vt-carousel-track');
+    const btnPrev = document.getElementById('vt-btn-prev');
+    const btnNext = document.getElementById('vt-btn-next');
+
+    // 3. Hàm Render HTML - GIỮ NGUYÊN CẤU TRÚC
+    function renderCarousel() {
+        if (!track) return;
+
+        const groupedData = carouselData.reduce((acc, current) => {
+            if (!acc[current.title]) acc[current.title] = [];
+            acc[current.title].push(current);
+            return acc;
+        }, {});
+
+        let html = '';
+        Object.keys(groupedData).forEach(title => {
+            const groupItems = groupedData[title];
+            const mainItem = groupItems[0];
+            const groupId = `group-${title.replace(/[\s\W]+/g, '-')}`; 
+            const thumbnailUrl = getThumbnail(mainItem.link);
+
+            html += `
+            <div class="vt-card-item">
+                <a href="${mainItem.link}" class="text-decoration-none d-block" data-fancybox="${groupId}">
+                    <div class="carousel-div-img position-relative p-0 m-0 overflow-hidden">
+                        <img src="${thumbnailUrl}" class="vt-card-img shadow-sm" alt="${title}" loading="lazy">
+                        ${groupItems.length > 1 ? `<span class="position-absolute bottom-0 start-0 m-2 bg-dark badge rounded-pill fw-normal opacity-75">+${groupItems.length - 1}</span>` : ''}
+                    </div>
+                    <div class="text-center fw-medium small text-truncate px-1 d-none">
+                        ${title}
+                    </div>
+                </a>
+                ${groupItems.slice(1).map(item => {
+                    return `<a class="story-item-hidden d-none" href="${item.link}" data-fancybox="${groupId}"></a>`;
+                }).join('')}
+            </div>
+            `;
+        });
+
+        track.innerHTML = html;
+    }
+
+    // 4. Hàm xử lý Scroll (Logic giữ nguyên)
+    function handleScroll(direction) {
+        if (!track) return;
+        const scrollAmount = track.clientWidth; 
+        const currentScroll = track.scrollLeft;
+        const maxScroll = track.scrollWidth - track.clientWidth;
+
+        let target = (direction === 'next') ? currentScroll + scrollAmount : currentScroll - scrollAmount;
+
+        if (direction === 'next' && target >= maxScroll - 10) {
+            track.scrollTo({ left: maxScroll, behavior: 'smooth' });
+        } else if (direction === 'prev' && target <= 10) {
+            track.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+            track.scrollTo({ left: target, behavior: 'smooth' });
+        }
+    }
+
+    // 5. Hàm cập nhật trạng thái nút
+    function updateButtons() {
+        if (!track || !btnPrev || !btnNext) return;
+
+        const scrollLeft = track.scrollLeft;
+        const maxScroll = track.scrollWidth - track.clientWidth;
+
+        btnPrev.style.display = (scrollLeft <= 2) ? 'none' : 'flex';
+        btnNext.style.display = (scrollLeft >= maxScroll - 2) ? 'none' : 'flex';
+    }
+
+    // 6. Gán sự kiện (Event Listeners)
+    if (btnNext) btnNext.addEventListener('click', () => handleScroll('next'));
+    if (btnPrev) btnPrev.addEventListener('click', () => handleScroll('prev'));
+
+    if (track) {
+        track.addEventListener('scroll', updateButtons);
+        window.addEventListener('resize', updateButtons);
+    }
+
+    // Khởi chạy
+    renderCarousel();
+    setTimeout(updateButtons, 100);
+});
+// === END FEATURED STORIES ===
 
 
 // === Function Photo Widget
@@ -993,6 +1091,7 @@ if (document.readyState === 'loading') {
 }
 // End
 // ===============================================================
+
 
 
 
