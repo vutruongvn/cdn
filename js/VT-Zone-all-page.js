@@ -1093,7 +1093,73 @@ if (document.readyState === 'loading') {
 // ===============================================================
 
 
+// ================================================ VT ================================================
+// FUNCTION CONVERT ẢNH SANG .WEBP
+document.addEventListener("DOMContentLoaded", function() {
+    const processUrl = (url) => {
+        if (!url || url.includes('-rw') || !url.match(/bp\.blogspot\.com|googleusercontent\.com/)) return url;
+        
+        let newUrl = url;
+        if (url.includes('=')) {
+            // Dạng có dấu bằng: ...=w640 -> ...=w640-rw
+            newUrl = url.replace(/=([^]*)$/, "=$1-rw");
+        } else {
+            // Dạng có dấu gạch chéo: .../s1600/anh.jpg -> .../s1600-rw/anh.jpg
+            // Regex này tìm cụm /s(số) hoặc /w(số) và chèn -rw vào sau số đó
+            newUrl = url.replace(/\/(s|w)(\d+)(-[^/]+)?\//, "/$1$2$3-rw/");
+        }
+        return newUrl;
+    };
 
+    const convertAll = (container) => {
+        const elements = container.querySelectorAll('img, a[data-fancybox]');
+        elements.forEach(el => {
+            if (el.tagName === 'IMG') {
+                const oldSrc = el.getAttribute('src');
+                const newSrc = processUrl(oldSrc);
+                if (newSrc !== oldSrc) {
+                    el.onerror = function() { this.src = oldSrc; this.onerror = null; };
+                    el.src = newSrc;
+                }
+            } else if (el.tagName === 'A') {
+                const oldHref = el.getAttribute('href');
+                const newHref = processUrl(oldHref);
+                if (newHref !== oldHref) {
+                    // Cập nhật cả href và data-src cho chắc ăn với các đời Fancybox
+                    el.href = newHref;
+                    el.setAttribute('data-src', newHref);
+                }
+            }
+        });
+    };
+
+    // Chạy lần đầu
+    convertAll(document);
+
+    // Theo dõi nội dung mới (quan trọng cho films.vutruong.vn)
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === 1) {
+                    if (node.tagName === 'IMG' || (node.tagName === 'A' && node.hasAttribute('data-fancybox'))) {
+                        // Nếu chính node đó là ảnh hoặc link
+                        const target = node.tagName === 'IMG' ? node : node; // xử lý trực tiếp
+                        // Tái sử dụng hàm convert cho node đơn lẻ hoặc con của nó
+                        if(node.tagName === 'IMG') {
+                           const old = node.src; node.src = processUrl(old);
+                        } else {
+                           const old = node.href; node.href = processUrl(old);
+                        }
+                    } 
+                    convertAll(node);
+                }
+            });
+        });
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+});
+// ================================================ END ================================================
 
 
 
