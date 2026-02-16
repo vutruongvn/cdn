@@ -243,6 +243,7 @@ function VT_homePostLayout() {
 // Chạy lần đầu khi trang tải xong
 document.addEventListener('DOMContentLoaded', VT_homePostLayout);
 
+// ========================================================================================================
 // Function kiểm tra trạng thái data:post.body và ẩn nút v-fullPost (ẩn khi bài viết quá ngắn, dưới 2 hàng)
 function VT_checkReadMore() {
     // 1. Chỉ quét những hộp nội dung chưa được kiểm tra
@@ -262,7 +263,7 @@ function VT_checkReadMore() {
             const isOverflowing = box.scrollHeight > (box.clientHeight + 0);
 
             if (!isOverflowing) {
-                // Ép kiểu display: none !important để đè class d-inline-block của Bootstrap
+                // Ép display: none !important
                 btn.style.setProperty('display', 'none', 'important');
             }
         }
@@ -325,13 +326,13 @@ function fadeOut(element, duration = 100) {
 }
 
 
-/* === Chức năng Hiển thị/Ẩn Popup Tài khoản Người dùng (Sử dụng Fade) === */
+/* === Chức năng Ẩn/Hiện Popup Tài khoản Người dùng (Sử dụng Fade) === */
 document.addEventListener('DOMContentLoaded', function() {
     // 1. Lấy các phần tử DOM cần thiết
     const avatarButton = document.querySelector('.user-profile-details .avatar-user');
     const popupPanel = document.querySelector('.popupShow_accountPanel');
     const body = document.body;
-    const FADE_DURATION = 300; // Thời gian hiệu ứng (milliseconds)
+    const FADE_DURATION = 100; // Thời gian hiệu ứng (milliseconds)
 
     if (!avatarButton || !popupPanel) {
         return;
@@ -1183,6 +1184,7 @@ document.addEventListener("DOMContentLoaded", function() {
 // VT ZONE
 // VUTRUONG.VN
 // =========================================================================================
+
 
 
 
