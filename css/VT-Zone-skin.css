@@ -1659,7 +1659,7 @@ html.VT_darkMode .VT-comment-input {background: var(--darkbd)}
     display: block !important;
     width: 100% !important;
     max-width: 100% !important;
-    min-height: 36px;
+    min-height: 40px;
     padding-right: 45px; /* Chừa chỗ cho cái icon máy bay gửi tin */
     
     /* "Bùa" trị link dài cho cả 2 khung */
@@ -1685,6 +1685,7 @@ div[class*="VT-rep-box-"] .d-flex {
 .VT-comment-item:target .VT-comment-bubble { background: #dcefff; border: 1px solid #0084ff; }
 .cursor-pointer {cursor:pointer}
 /* ========================================================================= */
+
 
 
 
