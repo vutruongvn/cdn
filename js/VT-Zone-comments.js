@@ -1,8 +1,8 @@
 // =========================================================================================
 /**
  * VUTRUONG.VN - HỆ THỐNG BÌNH LUẬN REALTIME
- * Phiên bản: 4.3.0
- * Cập nhật lần cuối: 15/2/2026
+ * Phiên bản: 4.5.0
+ * Cập nhật lần cuối: 17/2/2026
  */
 
 import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -36,7 +36,7 @@ import { getAuth, updateProfile, onAuthStateChanged } from "https://www.gstatic.
     const auth = getAuth(app);
 
     const ADMIN_UIDS = ["u9U3j9O63jbipOgai3o88X4008q2"];
-    const DEFAULT_AVATAR = 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhS34MMIbvh9P6obSup4qu4xfE2LrXkhY8rAXLJGX3PzwvolCMWTeXSU0hgm3fETQnfGbcEd0jklsAzNV9NIA-v3XQblgT6DTLHsC9zVuTrEuifK3h9P1Fq7PIAha8Z9TER64RIcfAzSgtq7uHbZL4iLJuR5XGhqn3ju4ZXoTHYjXCclA/s35/vtzone-default-avatar.jpg';
+    const DEFAULT_AVATAR = 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhS34MMIbvh9P6obSup4qu4xfE2LrXkhY8rAXLJGX3PzwvolCMWTeXSU0hgm3fETQnfGbcEd0jklsAzNV9NIA-v3XQblgT6DTLHsC9zVuTrEuifK3h9P1Fq7PIAha8Z9TER64RIcfAzSgtq7uHbZL4iLJuR5XGhqn3ju4ZXoTHYjXCclA/s44/vtzone-default-avatar.jpg';
 
 // Đóng gói module
 window.VT_InitCommentSystem = function() {
@@ -59,16 +59,16 @@ window.VT_InitCommentSystem = function() {
         const placeholder = isLogged ? (replyToName ? `Trả lời ${replyToName}` : 'Trả lời') : `Đăng nhập để trả lời ${replyToName}`;
 
         return `
-        <div class="VT-rep-box-${parentId} VT-dynamic-reply-box p-0 m-0 ms-3 mt-3">
+        <div class="VT-rep-box-${parentId} VT-dynamic-reply-box p-0 m-0 mt-3">
             <div class="d-flex align-items-start gap-2">
                 <img src="${avatar}" class="VT-user-avatar rounded-circle m-0" loading="lazy" width="28" height="28" style="object-fit:cover;">
                 <div class="flex-grow-1">
-                    <div class="VT-rep-box d-flex align-items-center rounded-5 px-3 py-2 position-relative">
+                    <div class="VT-rep-box d-flex align-items-center py-1 m-0 position-relative">
                         <div class="VT-rep-in-${parentId} flex-grow-1" contenteditable="${isLogged}" oninput="VT_HandlePlaceholder(this)" style="outline:none; min-height:1rem; z-index:2"></div>
-                        <div class="VT-rep-placeholder VT-placeholder position-absolute opacity-75" style="left:15px; z-index:1">${placeholder}</div>
-                        ${isLogged ? `<button onclick="VT_SendComment(this, '${parentId}')" class="btn btn-link p-0 ms-2 text-primary shadow-none border-0"><i class="fa-duotone fa-solid fa-paper-plane-top"></i></button>` : ''}
+                        <div class="VT-rep-placeholder VT-placeholder position-absolute opacity-75" style="z-index:1">${placeholder}</div>
+                        ${isLogged ? `<button onclick="VT_SendComment(this, '${parentId}')" class="btn btn-link p-0 m-0 text-primary shadow-none border-0"><i class="fa-duotone fa-solid fa-paper-plane-top"></i></button>` : ''}
                     </div>
-                    <a class="d-inline-flex ms-3 mt-2 fw-bold small opacity-75 cursor-pointer" onclick="VT_CancelReply('${parentId}')">Hủy</a>
+                    <a class="d-inline-flex mt-2 fw-bold small opacity-75 cursor-pointer" onclick="VT_CancelReply('${parentId}')">Hủy</a>
                 </div>
             </div>
         </div>`;
@@ -114,7 +114,7 @@ window.VT_InitCommentSystem = function() {
     };
 
     const renderSkeleton = () => {
-        return `<div class="VT-comment-item mt-3"><div class="d-flex align-items-start"><div class="vt-ske-avatar vt-loading-effect-loading me-2" style="width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0"></div><div class="flex-grow-1"><div class="vt-ske-bubble vt-loading-effect-loading" style="width: 18rem; height: 2rem; border-radius: 1.2rem"></div><div class="d-flex align-items-center gap-2 mt-1 ms-3"><div class="vt-ske-text vt-loading-effect-loading" style="width: 2.75rem; height: .8rem; border-radius: 4px"></div><div class="vt-ske-text vt-loading-effect-loading" style="width: 2.75rem; height: .8rem; border-radius: 4px"></div></div></div></div></div>`;
+        return `<div class="VT-comment-item mt-3"><div class="d-flex align-items-start gap-2"><div class="vt-ske-avatar vt-loading-effect-loading" style="width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0"></div><div class="flex-grow-1"><div class="vt-ske-bubble vt-loading-effect-loading" style="width: 18rem; height: 1rem; border-radius: 4px"></div><div class="d-flex align-items-center gap-2 mt-1"><div class="vt-ske-text vt-loading-effect-loading" style="width: 2.75rem; height: .8rem; border-radius: 4px"></div><div class="vt-ske-text vt-loading-effect-loading" style="width: 2.75rem; height: .8rem; border-radius: 4px"></div></div></div></div></div>`;
     };
 
     const formatCommentText = (str, cId) => {
@@ -328,21 +328,21 @@ window.VT_InitCommentSystem = function() {
         // [QUAN TRỌNG] Đã XÓA đoạn HTML .VT-rep-box-${cId} tĩnh ở đây.
         // Giờ khung reply chỉ xuất hiện khi gọi VT_ToggleReply
 
-        return `<div class="VT-comment-item ${isChild ? 'ms-3 VT-comment-item-reply' : ''}" id="VT-cmt-${cId}">
+        return `<div class="VT-comment-item m-0 mt-3 ${isChild ? 'VT-comment-item-reply' : ''}" id="VT-cmt-${cId}">
             <div class="d-flex align-items-start gap-2">
-                <img src="${data.userAvatar || DEFAULT_AVATAR}" class="rounded-circle m-0" loading="lazy" width="${isChild ? 28 : 32}" height="${isChild ? 28 : 32}" style="object-fit:cover;">
+                <img src="${data.userAvatar || DEFAULT_AVATAR}" class="rounded-circle m-0 object-fit-cover pe-none" loading="lazy" width="${isChild ? 28 : 44}" height="${isChild ? 28 : 44}">
                 <div class="flex-grow-1">
-                    <div class="VT-comment-bubble py-2 px-3 rounded-4">
-                        <div class="d-inline me-1 ${isCmtAdmin ? 'is-admin-name fw-medium' : 'is-not-admin-name fw-medium'}">
+                    <div class="VT-comment-bubble">
+                        <div class="d-inline ${isCmtAdmin ? 'is-admin-name fw-medium' : 'is-not-admin-name fw-medium'}">
                             ${data.userName}${isCmtAdmin ? '<i class="fa-solid fa-badge-check ms-1 text-primary small" data-bs-toggle="tooltip" title="Tài khoản đã được xác thực"></i>' : ''}
                         </div>
-                        <div class="VT-comment-text d-inline border-0" style="outline:none;word-break:break-word">${formatCommentText(data.content, cId)}</div>
+                        <div class="VT-comment-text d-inline border-0">${formatCommentText(data.content, cId)}</div>
                     </div>
-                        <div class="VT-edit-btns mt-1 ms-3" style="display: none;">
+                        <div class="VT-edit-btns mt-1" style="display:none">
                             <small class="text-primary fw-bold cursor-pointer me-2" onclick="VT_SaveEdit(this, '${cId}')">Lưu chỉnh sửa</small>
                             <small class="opacity-75 cursor-pointer" onclick="VT_CancelEdit(this, '${cId}')">Hủy</small>
                         </div>
-                    <div class="d-flex align-items-center gap-3 opacity-75 mt-1 ms-3 small">
+                    <div class="d-flex align-items-center gap-3 opacity-75 mt-1 small">
                         <a href="${window.location.href.split('#')[0]}#VT-cmt-${cId}" class="VT-cmt-time opacity-75 text-decoration-none" title="${fullDate}">${timeAgo(data.createdAt?.toDate())}${data.lastEdited ? ' (đã chỉnh sửa)' : ''}</a>
                         ${!isChild ? `<span class="VT-action-link" onclick="VT_ToggleReply(this, '${cId}', '${data.userName}')">Trả lời</span>` : ''}
                         ${isOwner ? `<span class="VT-action-link" onclick="VT_EditMode(this, '${cId}')">Chỉnh sửa</span>` : ''}
@@ -350,10 +350,10 @@ window.VT_InitCommentSystem = function() {
                     </div>
 
                     ${!isChild && childCount > 0 ? `
-                    <div class="ms-3 mt-2 fw-medium opacity-75 cursor-pointer small" onclick="VT_LoadSubComments(this, '${cId}')">
+                    <div class="d-inline-block mt-2 fw-medium opacity-75 cursor-pointer small" onclick="VT_LoadSubComments(this, '${cId}')">
                         <i class="fa-duotone fa-turn-down-right me-2"></i>${childCount} phản hồi
                     </div>` : ""}
-                    <div class="VT-child-list VT-child-list-${cId}" style="display: none;"></div>
+                    <div class="VT-child-list VT-child-list-${cId}"></div>
                 </div>
             </div>
         </div>`;
@@ -380,7 +380,7 @@ window.VT_InitCommentSystem = function() {
             const all = []; snap.forEach(d => all.push({ id: d.id, ...d.data() }));
             const parents = all.filter(c => !c.parentId).reverse();
             const isSingleItem = window.location.pathname.endsWith('.html');
-            const limitCount = PAGINATION_STATE[postId] || (isSingleItem ? 5 : 1);
+            const limitCount = PAGINATION_STATE[postId] || (isSingleItem ? 5 : 2);
             
             const list = appBox.querySelector('.VT-comment-list');
             if (list) {
@@ -425,17 +425,17 @@ window.VT_InitCommentSystem = function() {
         list.appendChild(skeletonWrap);
         IS_LOADING_MAP[appBox.id] = true;
         if (loadMoreBox) loadMoreBox.style.setProperty('display', 'none', 'important'); 
-        await new Promise(res => setTimeout(res, 500)); 
+        await new Promise(res => setTimeout(res, 1500)); // delay khi tải thêm cmt chaaa
         const isSingleItem = window.location.pathname.endsWith('.html');
-        const incrementValue = isSingleItem ? 5 : 1; 
-        const currentLimit = PAGINATION_STATE[postId] || (isSingleItem ? 5 : 1); 
+        const incrementValue = isSingleItem ? 5 : 2; 
+        const currentLimit = PAGINATION_STATE[postId] || (isSingleItem ? 5 : 2); 
         PAGINATION_STATE[postId] = currentLimit + incrementValue;
         startListening(appBox, true);
         skeletonWrap.style.display = 'none';
         setTimeout(() => {
             skeletonWrap.remove();
             IS_LOADING_MAP[appBox.id] = false;
-        }, 500);
+        }, 300); // thời gian delay giữa các lần click load more btn
     };
 
     const injectDeleteModal = () => {
@@ -516,7 +516,7 @@ window.VT_InitCommentSystem = function() {
             if (input) {
                 input.contentEditable = !!user;
                 if (!user) { input.innerText = ""; VT_HandlePlaceholder(input); }
-                if (ph) ph.innerText = user ? `Bình luận dưới tên ${user.displayName}` : "Đăng nhập để bình luận";
+                if (ph) ph.innerText = user ? `Bình luận bằng tên ${user.displayName}` : "Đăng nhập để thích hoặc bình luận";
             }
         });
 
@@ -580,13 +580,15 @@ window.VT_InitCommentSystem = function() {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     const bubble = el.querySelector('.VT-comment-bubble');
                     if (bubble) {
-                        bubble.style.transition = 'all 0.4s'; 
-                        bubble.style.backgroundColor = '#dcefff'; 
-                        bubble.style.border = '1px solid #0084ff';
-                        setTimeout(() => { bubble.style.backgroundColor = ''; bubble.style.border = ''; }, 10000);
+						bubble.style.animation = 'VT-heartbeat 1.5s ease-in-out';
+						bubble.style.animation.iteration.count = '1';
+                        // bubble.style.transition = 'all 0.4s'; 
+                        // bubble.style.backgroundColor = '#dcefff'; 
+                        // bubble.style.border = '1px solid #0084ff';
+                        // setTimeout(() => { bubble.style.backgroundColor = ''; bubble.style.border = ''; }, 1000);
                     }
                 }
-            }, 800);
+            }, 500);
         }
     };
 
