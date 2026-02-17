@@ -1,7 +1,7 @@
 // =========================================================================================
 /**
  * VUTRUONG.VN - HỆ THỐNG BÌNH LUẬN REALTIME
- * Phiên bản: 4.5.0
+ * Phiên bản: 4.6.0
  * Cập nhật lần cuối: 17/2/2026
  */
 
@@ -10,7 +10,7 @@ import {
     initializeFirestore, 
     persistentLocalCache, 
     persistentMultipleTabManager,
-    collection, addDoc, doc, getDoc, deleteDoc, updateDoc, query, where, orderBy, onSnapshot, serverTimestamp, getDocs, writeBatch, getCountFromServer, increment 
+    collection, addDoc, doc, getDoc, deleteDoc, setDoc, updateDoc, query, where, orderBy, onSnapshot, serverTimestamp, getDocs, writeBatch, getCountFromServer, increment 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, updateProfile, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
@@ -47,6 +47,228 @@ window.VT_InitCommentSystem = function() {
     let commentIdToDelete = null; 
     let deleteModalObj = null;    
     const IS_LOADING_MAP = {};    
+
+    // =============================================================
+    // --- 2b. BẬT / TẮT BÌNH LUẬN THEO BÀI VIẾT ---
+    // Lưu trạng thái vào Firestore collection "postSettings"
+    // → realtime toàn bộ browser/tab/user, không dùng localStorage
+    //
+    // Cấu trúc document:
+    //   postSettings/{postId}
+    //     commentsDisabled: true
+    //     updatedAt: Timestamp
+    //
+    // Khi bật lại → deleteDoc để tiết kiệm storage (không để trường false)
+    // =============================================================
+
+    // Tên collection Firestore lưu cài đặt bài viết
+    const POST_SETTINGS_COL = 'postSettings';
+
+    // Cache session { postId: boolean } — tránh query Firestore mỗi lần cần kiểm tra
+    const commentDisabledCache = {};
+
+    // Map lưu unsubscribe của onSnapshot postSettings (1 listener/postId)
+    const settingsUnsubMap = {};
+
+    // ---------------------------------------------------------------
+    // HTML thông báo thay thế ô nhập khi bình luận bị tắt
+    // Nhận photoURL để render avatar đúng với trạng thái đăng nhập hiện tại
+    // ---------------------------------------------------------------
+    const getDisabledNoticeHtml = (photoURL) => `
+        <div class="VT-disabled-notice flex-grow-1 position-relative d-flex align-items-center gap-2">
+            <img src="${photoURL || DEFAULT_AVATAR}" 
+                 class="VT-user-avatar rounded-circle m-0 pe-none" 
+                 loading="lazy" width="44" height="44" 
+                 style="object-fit:cover; flex-shrink:0;">
+            <div class="VT-comment-input VT-comment-disabled-noty flex-grow-1 d-flex align-items-center opacity-75 text-nowrap" style="cursor:not-allowed;user-select:none">
+                Quản trị viên đã tắt bình luận
+            </div>
+        </div>`;
+
+    // ---------------------------------------------------------------
+    // Áp dụng trạng thái tắt/bật lên DOM của một .VT-comment-app
+    //
+    // disabled = true  → XÓA ô nhập & nút Trả lời khỏi DOM, thêm thông báo
+    // disabled = false → KHÔI PHỤC ô nhập từ node đã lưu, xóa thông báo
+    // ---------------------------------------------------------------
+    const applyCommentDisabledState = (appBox, disabled) => {
+        const postId = appBox.getAttribute('data-post-id');
+
+        // Cập nhật cache và data-attribute để các guard kiểm tra nhanh
+        commentDisabledCache[postId] = disabled;
+        appBox.dataset.commentDisabled = disabled ? 'true' : '';
+
+        if (disabled) {
+            // 1. Lưu reference đến node .VT-input-area (để khôi phục sau)
+            //    Dùng JS property thay vì innerHTML để không mất event listeners
+            const inputArea = appBox.querySelector('.VT-input-area');
+            if (inputArea && !appBox._vtSavedInputNode) {
+                appBox._vtSavedInputNode = inputArea;
+                inputArea.remove(); // XÓA khỏi DOM (không phải ẩn)
+            }
+
+            // 2. Chèn thông báo vào đầu appBox (thay chỗ ô nhập)
+            if (!appBox.querySelector('.VT-disabled-notice')) {
+                const photoURL = auth.currentUser?.photoURL || DEFAULT_AVATAR;
+                appBox.insertAdjacentHTML('afterbegin', getDisabledNoticeHtml(photoURL));
+            }
+
+            // 3. Xóa tất cả nút "Trả lời" đang hiển thị khỏi DOM
+            appBox.querySelectorAll('[onclick*="VT_ToggleReply"]').forEach(btn => btn.remove());
+
+            // 4. Xóa reply box đang mở (nếu có)
+            appBox.querySelectorAll('.VT-dynamic-reply-box').forEach(box => box.remove());
+
+            console.log(`%c🔕 [VT Comments] Bài viết ${postId}: bình luận đã tắt → DOM đã xóa ô nhập`, 'color:#e67e22;');
+
+        } else {
+            // 1. Xóa thông báo
+            appBox.querySelector('.VT-disabled-notice')?.remove();
+
+            // 2. Khôi phục ô nhập từ node đã lưu (nếu chưa có trong DOM)
+            if (!appBox.querySelector('.VT-input-area') && appBox._vtSavedInputNode) {
+                appBox.insertBefore(appBox._vtSavedInputNode, appBox.firstChild);
+                appBox._vtSavedInputNode = null;
+
+                // Đồng bộ lại avatar và placeholder với trạng thái user hiện tại
+                const user = auth.currentUser;
+                const restoredImg   = appBox.querySelector('.VT-user-avatar');
+                const restoredInput = appBox.querySelector('.VT-comment-input');
+                const restoredPh    = appBox.querySelector('.VT-placeholder');
+                if (restoredImg)   restoredImg.src         = user?.photoURL || DEFAULT_AVATAR;
+                if (restoredInput) restoredInput.contentEditable = String(!!user);
+                if (restoredPh)    restoredPh.innerText    = user
+                    ? `Bình luận bằng tên ${user.displayName}`
+                    : 'Đăng nhập để thích hoặc bình luận';
+            }
+
+            console.log(`%c🔔 [VT Comments] Bài viết ${postId}: bình luận đã bật → DOM đã khôi phục ô nhập`, 'color:#27ae60;');
+        }
+    };
+
+    // ---------------------------------------------------------------
+    // Lắng nghe Firestore realtime: postSettings/{postId}
+    //
+    // Chỉ đăng ký 1 listener/postId (dù startListening gọi nhiều lần)
+    // Chi phí: 1 read ban đầu + 0 read mỗi lần có thay đổi (push từ server)
+    // ---------------------------------------------------------------
+    const listenPostSettings = (appBox) => {
+        const postId = appBox.getAttribute('data-post-id');
+        if (!postId) return;
+
+        // Đã có listener rồi → bỏ qua, không đăng ký thêm
+        if (settingsUnsubMap[postId]) return;
+
+        console.log(`%c📡 [VT Comments] Đăng ký lắng nghe postSettings cho bài viết ${postId}`, 'color:#3498db;');
+
+        const settingsRef = doc(db, POST_SETTINGS_COL, postId);
+        settingsUnsubMap[postId] = onSnapshot(
+            settingsRef,
+            (snap) => {
+                // Document tồn tại + commentsDisabled === true → đang tắt
+                const disabled = snap.exists() && snap.data().commentsDisabled === true;
+
+                // Chỉ áp dụng khi trạng thái thực sự thay đổi (tránh re-render vô nghĩa)
+                if (commentDisabledCache[postId] === disabled) return;
+
+                console.log(`%c📨 [VT Comments] Trạng thái bình luận của bài viết ${postId}: ${disabled ? 'TẮT' : 'BẬT'}`, 'color:#8e44ad;');
+                applyCommentDisabledState(appBox, disabled);
+
+                // Cập nhật text nút .VT_offComment trong postOptions của bài viết này
+                const postCont = appBox.closest('.post');
+                if (postCont) {
+                    const offBtn = postCont.querySelector('.VT_offComment');
+                    if (offBtn) {
+                        offBtn.innerHTML = disabled
+                            ? `<i class="fa-duotone fa-comment me-2"></i>Bật bình luận`
+                            : `<i class="fa-duotone fa-comment-slash me-2"></i>Tắt bình luận`;
+                    }
+                }
+            },
+            (err) => {
+                // Lỗi permission → log cảnh báo rõ ràng, KHÔNG hiện alert
+                console.warn(
+                    `%c⚠️ [VT Comments] Không thể đọc postSettings cho bài viết ${postId}.\n` +
+                    `Nguyên nhân: ${err.message}\n` +
+                    `→ Kiểm tra Firestore Rules: collection "postSettings" cần có allow read: if true`,
+                    'color:#e74c3c;'
+                );
+            }
+        );
+    };
+
+    // ---------------------------------------------------------------
+    // VT_offComment — Hàm public, gọi từ onclick="VT_offComment(this)"
+    //
+    // Quy trình:
+    //   1. Tìm .post → .VT-comment-app → data-post-id
+    //   2. Toggle trạng thái (đọc từ cache, không đọc Firestore)
+    //   3. setDoc (tắt) hoặc deleteDoc (bật) — 1 write duy nhất
+    //   4. onSnapshot tự nhận thay đổi → gọi applyCommentDisabledState
+    //
+    // Chi phí Firestore: 1 write hoặc 1 delete mỗi lần click
+    // ---------------------------------------------------------------
+    window.VT_offComment = async function(btn) {
+        // Tìm bài viết chứa nút này
+        const postContainer = btn.closest('.post');
+        if (!postContainer) {
+            console.warn('%c⚠️ [VT Comments] VT_offComment: Không tìm thấy .post cha', 'color:#e74c3c;');
+            return;
+        }
+
+        const appBox = postContainer.querySelector('.VT-comment-app');
+        if (!appBox) {
+            console.warn('%c⚠️ [VT Comments] VT_offComment: Không tìm thấy .VT-comment-app', 'color:#e74c3c;');
+            return;
+        }
+
+        const postId = appBox.getAttribute('data-post-id');
+        if (!postId) {
+            console.warn('%c⚠️ [VT Comments] VT_offComment: Không có data-post-id', 'color:#e74c3c;');
+            return;
+        }
+
+        // Đọc trạng thái từ cache (không tốn Firestore read)
+        // commentDisabledCache[postId] undefined → coi như đang bật
+        const currentlyDisabled = commentDisabledCache[postId] === true;
+        const willDisable = !currentlyDisabled;
+
+        console.log(`%c🔧 [VT Comments] Admin thay đổi bình luận bài viết ${postId}: ${currentlyDisabled ? 'BẬT' : 'TẮT'} → ${willDisable ? 'TẮT' : 'BẬT'}`, 'color:#2980b9; font-weight:bold;');
+
+        // Disable nút tạm thời để tránh double-click
+        btn.style.pointerEvents = 'none';
+        btn.style.opacity = '0.5';
+
+        try {
+            const settingsRef = doc(db, POST_SETTINGS_COL, postId);
+
+            if (willDisable) {
+                // Tắt bình luận → ghi document vào Firestore
+                await setDoc(settingsRef, {
+                    commentsDisabled: true,
+                    updatedAt: serverTimestamp()
+                });
+                console.log(`%c✅ [VT Comments] Đã lưu Firestore: bài viết ${postId} TẮT bình luận`, 'color:#27ae60;');
+            } else {
+                // Bật bình luận → XÓA document → tiết kiệm storage, không tốn Firestore read
+                await deleteDoc(settingsRef);
+                console.log(`%c✅ [VT Comments] Đã xóa Firestore: bài viết ${postId} BẬT bình luận`, 'color:#27ae60;');
+            }
+            // onSnapshot tự nhận → gọi applyCommentDisabledState và cập nhật text nút
+        } catch (err) {
+            // Không dùng alert() — chỉ log console để không làm phiền user
+            console.error(
+                `%c❌ [VT Comments] Lỗi khi thay đổi trạng thái bình luận bài viết ${postId}:\n` +
+                `${err.message}\n` +
+                `→ Kiểm tra Firestore Rules: collection "postSettings" cần allow write cho admin UID`,
+                'color:#e74c3c; font-weight:bold;'
+            );
+        } finally {
+            // Luôn khôi phục lại nút dù thành công hay thất bại
+            btn.style.pointerEvents = '';
+            btn.style.opacity = '';
+        }
+    };
 
     // --- 3. TIỆN ÍCH & HELPER ---
     
@@ -148,6 +370,13 @@ window.VT_InitCommentSystem = function() {
     window.VT_SendComment = async function(btn, parentId = null) {
         // Tìm input: nếu là reply thì tìm theo class dynamic, nếu ko thì tìm class tĩnh
         const appBox = btn.closest('.VT-comment-app');
+
+        // Guard: bình luận bị tắt → chặn mọi submission dù client bypass được nút gửi
+        if (appBox && appBox.dataset.commentDisabled === 'true') {
+            console.warn('%c🚫 [VT Comments] Bình luận đã bị tắt, không thể gửi', 'color:#e74c3c;');
+            return;
+        }
+
         let input;
         
         if (parentId) {
@@ -259,6 +488,13 @@ window.VT_InitCommentSystem = function() {
     window.VT_ToggleReply = (btn, id, name = "") => {
         const cmtItem = document.getElementById(`VT-cmt-${id}`);
         if (!cmtItem) return;
+
+        // Guard: bình luận bị tắt → không cho mở reply box
+        const parentApp = cmtItem.closest('.VT-comment-app');
+        if (parentApp && parentApp.dataset.commentDisabled === 'true') {
+            console.warn('%c🚫 [VT Comments] Bình luận đã bị tắt, không thể trả lời', 'color:#e74c3c;');
+            return;
+        }
 
         // Tìm xem khung reply đã tồn tại chưa
         const existingBox = cmtItem.querySelector(`.VT-rep-box-${id}`);
@@ -373,6 +609,10 @@ window.VT_InitCommentSystem = function() {
         if (appBox.dataset.loaded === "true" && !isForce) return;
         appBox.dataset.loaded = "true";
         if (unsubscribeMap[postId]) unsubscribeMap[postId]();
+
+        // Lắng nghe trạng thái tắt/bật bình luận từ Firestore (1 lần/postId)
+        // settingsUnsubMap đảm bảo không đăng ký lại dù startListening gọi nhiều lần
+        listenPostSettings(appBox);
 
         const q = query(collection(db, "comments"), where("postId", "==", postId), orderBy("createdAt", "asc"));
         
@@ -509,8 +749,11 @@ window.VT_InitCommentSystem = function() {
         const photoURL = user?.photoURL || DEFAULT_AVATAR;
         document.querySelectorAll('.VT-user-avatar').forEach(img => img.src = photoURL);
         
-        // 1. Cập nhật các input chính
+        // Cập nhật các input chính
+        // → BỎ QUA nếu bình luận đang bị tắt (không ghi đè thông báo đã hiện)
         document.querySelectorAll('.VT-comment-app').forEach(app => {
+            if (app.dataset.commentDisabled === 'true') return;
+
             const input = app.querySelector('.VT-comment-input');
             const ph = app.querySelector('.VT-placeholder');
             if (input) {
@@ -520,7 +763,7 @@ window.VT_InitCommentSystem = function() {
             }
         });
 
-        // 2. [QUAN TRỌNG] Xóa hết các khung reply đang mở khi Login/Logout
+        // [QUAN TRỌNG] Xóa hết các khung reply đang mở khi Login/Logout
         // Vì nếu để lại thì nó sẽ hiển thị avatar/tên của trạng thái cũ
         document.querySelectorAll('.VT-dynamic-reply-box').forEach(box => box.remove());
     };
