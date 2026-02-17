@@ -1269,9 +1269,46 @@ document.addEventListener("DOMContentLoaded", (() => {
 
 
 // =========================================================================================
+// HIỆU ỨNG MATERIAL DESIGN KHI CLICK .ripple
+document.addEventListener("DOMContentLoaded", () => {
+  // Sử dụng Event Delegation để tối ưu bộ nhớ và hỗ trợ các phần tử load động (API)
+  document.body.addEventListener("click", (event) => {
+    const target = event.target.closest(".ripple");
+    
+    if (!target) return;
+
+    const button = target;
+    const circle = document.createElement("span");
+    const diameter = Math.max(button.clientWidth, button.clientHeight);
+    const radius = diameter / 2;
+    const rect = button.getBoundingClientRect();
+
+    circle.style.width = circle.style.height = `${diameter}px`;
+    circle.style.left = `${event.clientX - rect.left - radius}px`;
+    circle.style.top = `${event.clientY - rect.top - radius}px`;
+    circle.classList.add("ripple-effect");
+
+    // Xóa ripple cũ ngay lập tức nếu người dùng click quá nhanh
+    const oldRipple = button.querySelector(".ripple-effect");
+    if (oldRipple) {
+      oldRipple.remove();
+    }
+
+    button.appendChild(circle);
+
+    // Xóa element sau khi hoàn thành để tránh rác DOM
+    circle.addEventListener("animationend", () => {
+      circle.remove();
+    }, { once: true }); // Tối ưu: tự hủy listener sau khi chạy xong
+  });
+});
+
+
+// =========================================================================================
 // VT ZONE
 // VUTRUONG.VN
 // =========================================================================================
+
 
 
 
