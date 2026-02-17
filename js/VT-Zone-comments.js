@@ -703,7 +703,7 @@ window.VT_InitCommentSystem = function() {
         const confirmBtn = document.getElementById('VTConfirmDeleteBtn');
         confirmBtn.onclick = async () => {
             if (commentIdToDelete) {
-                confirmBtn.innerText = 'Đang xóa...'; confirmBtn.disabled = true;
+                confirmBtn.innerText = 'Đang xóa'; confirmBtn.disabled = true;
                 try {
                     const docRef = doc(db, "comments", commentIdToDelete);
                     const docSnap = await getDoc(docRef);
@@ -907,3 +907,4 @@ if (document.readyState === 'loading') {
     window.VT_InitCommentSystem();
 }
 // =========================================================================================
+
