@@ -175,7 +175,7 @@ window.VT_ApplyAdminUI = function() {
 window.VT_InitAdminSystem = function() {
     // Không làm gì - logic đã được gộp vào onAuthStateChanged bên dưới
     // Admin tools được xử lý trong applyAdminToolsUI
-    const uid = user ? user.uid : null;
+    const uid = auth.currentUser ? auth.currentUser.uid : null;
     applyAdminToolsUI(uid);
 };
 
