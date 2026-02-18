@@ -7,47 +7,45 @@ console.log('%c🚀 VT Zone Scripts', 'color: #4285F4; font-weight: bold; font-s
 
 // =========================================================================================
 // Function bật/tắt VT_darkMode => Ghi nhớ lịch sử
+// FIX: Bọc trong DOMContentLoaded để đảm bảo DOM đã sẵn sàng trước khi querySelectorAll
+document.addEventListener('DOMContentLoaded', function() {
     console.log('%c🌓 Theme Toggle', 'color: #FBBC04;', 'Đã khởi tạo');
-    
+
     const toggleButtons = document.querySelectorAll('.theme-toggle');
     const htmlElement = document.documentElement;
+
     function toggleTheme() {
-      const isDark = htmlElement.classList.toggle('VT_darkMode');
-      localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      console.log('%c🌓 Theme', 'color: #FBBC04;', isDark ? 'Chế độ tối' : 'Chế độ sáng');
+        const isDark = htmlElement.classList.toggle('VT_darkMode');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        console.log('%c🌓 Theme', 'color: #FBBC04;', isDark ? 'Chế độ tối' : 'Chế độ sáng');
     }
+
     toggleButtons.forEach(button => {
-      button.addEventListener('click', toggleTheme);
+        button.addEventListener('click', toggleTheme);
     });
+});
 
 // Function auto lấy url ảnh đại diện tác giả => chèn vào profile-wrapper avatar
-    document.addEventListener("DOMContentLoaded", function() {
-    // Kiểm tra biến authorAvatarUrl từ Blogger
+document.addEventListener("DOMContentLoaded", function() {
     if (typeof authorAvatarUrl !== 'undefined' && authorAvatarUrl !== "") {
         
-        // 1. URL đã resize (s180-c)
         const optimizedUrl = authorAvatarUrl.replace(/\/s\d+(-c)?\//, '/s200/').replace(/\/w\d+(-h\d+)?(-c)?\//, '/s200/');
-
-        // 2. URL ảnh gốc (s1600)
         const originalUrl = authorAvatarUrl.replace(/\/s\d+(-c)?\//, '/s1600/').replace(/\/w\d+(-h\d+)?(-c)?\//, '/s1600/');
 
-        // --- Hàm xử lý gán dữ liệu ---
         const updateElements = (selector, url) => {
             const elements = document.querySelectorAll(selector);
             elements.forEach(el => {
                 const tagName = el.tagName.toLowerCase();
-                
                 if (tagName === 'img') {
-                    el.src = url; // Gán cho thẻ ảnh
+                    el.src = url;
                 } else if (tagName === 'a') {
-                    el.href = url; // Gán link vào thẻ a theo yêu cầu của bạn
+                    el.href = url;
                 } else {
-                    el.style.backgroundImage = `url('${url}')`; // Gán nền cho div/span
+                    el.style.backgroundImage = `url('${url}')`;
                 }
             });
         };
 
-        // Chạy gán cho các class tương ứng
         updateElements('.set-author-avatar', optimizedUrl);
         updateElements('.set-author-avatar-original', originalUrl);
     }
@@ -56,39 +54,30 @@ console.log('%c🚀 VT Zone Scripts', 'color: #4285F4; font-weight: bold; font-s
 // =========================================================================================
 // Function share native gán vào .btn-share-native sử dụng trình chia sẻ của hệ thống
 document.addEventListener('click', async function(event) {
-  const btn = event.target.closest('.btn-share-native');
-  if (!btn) return;
+    const btn = event.target.closest('.btn-share-native');
+    if (!btn) return;
 
-  const title = btn.getAttribute('data-title');
-  const url = btn.getAttribute('data-url');
-  // Blogger thường trả về ảnh mặc định nếu không có ảnh, ta xử lý chuỗi ở đây nếu cần
-  const img = btn.getAttribute('data-image'); 
+    const title = btn.getAttribute('data-title');
+    const url = btn.getAttribute('data-url');
 
-  const shareData = {
-    title: title,
-    text: `${title}`, // Thêm dòng dẫn dắt
-    url: url
-  };
+    const shareData = { title, text: title, url };
 
-  try {
-    if (navigator.share) {
-      await navigator.share(shareData);
-    } else {
-      // Nếu máy tính bàn không hỗ trợ Web Share, ta copy link vào bộ nhớ
-      await navigator.clipboard.writeText(url);
-      alert('Đã copy link: ' + title);
+    try {
+        if (navigator.share) {
+            await navigator.share(shareData);
+        } else {
+            await navigator.clipboard.writeText(url);
+            alert('Đã copy link: ' + title);
+        }
+    } catch (err) {
+        console.log('User cancelled or error:', err);
     }
-  } catch (err) {
-    console.log('User cancelled or error:', err);
-  }
 });
 
 // =========================================================================================
 // Function ẩn hiện .centerMenu khi xem trên Mobile === by VT Zone ===
 document.addEventListener('DOMContentLoaded', () => {
     const menu = document.querySelector('.centerMenu');
-    
-    // Nếu không có menu thì thoát
     if (!menu) return;
 
     let lastScrollTop = 0;
@@ -98,31 +87,23 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleScrollMenu() {
         const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
 
-        // 1. Nếu cuộn gần sát top, luôn hiện menu
         if (currentScroll < delta) {
             menu.classList.remove('menu-hidden');
             lastScrollTop = currentScroll;
             return;
         }
 
-        // 2. Kiểm tra độ nhạy (delta) để tránh rung lắc menu
-        if (Math.abs(lastScrollTop - currentScroll) <= delta) {
-            return;
-        }
+        if (Math.abs(lastScrollTop - currentScroll) <= delta) return;
 
-        // 3. Logic ẩn khi cuộn xuống, hiện khi cuộn lên
         if (currentScroll > lastScrollTop) {
-            // Cuộn xuống
             menu.classList.add('menu-hidden');
         } else {
-            // Cuộn lên
             menu.classList.remove('menu-hidden');
         }
 
         lastScrollTop = currentScroll;
     }
 
-    // Tối ưu hiệu suất cuộn
     const requestTick = () => {
         if (!isTicking) {
             window.requestAnimationFrame(() => {
@@ -133,15 +114,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Lắng nghe sự kiện cuộn
     window.addEventListener('scroll', requestTick, { passive: true });
 });
 
 
 // =========================================================================================
 // Function xóa ?m=1 trên URL khi xem bằng Mobile
+// FIX: Bỏ tham số thứ 2 dư thừa của indexOf (không phải fromIndex)
 var uri = window.location.toString();
-if (uri.indexOf("?m=1", "?m=1") > 0) {
+if (uri.indexOf("?m=1") > 0) {
     var clean_uri = uri.substring(0, uri.indexOf("?m=1"));
     window.history.replaceState({}, document.title, clean_uri);
 }
@@ -149,23 +130,14 @@ if (uri.indexOf("?m=1", "?m=1") > 0) {
 // =========================================================================================
 // Function lấy dữ liệu từ .reportPost => điền vào input trang /report
 document.addEventListener('click', function(e) {
-    // Kiểm tra nếu click vào đúng thẻ reportPost
     const reportBtn = e.target.closest('.reportPost');
-    
     if (reportBtn) {
         e.preventDefault();
-        
-        const postTitle = reportBtn.getAttribute('data-post-title');
-        const postUrl = reportBtn.getAttribute('data-post-url');
-
-        // Lưu thông tin vào sessionStorage
         const reportData = {
-            title: postTitle,
-            url: postUrl
+            title: reportBtn.getAttribute('data-post-title'),
+            url: reportBtn.getAttribute('data-post-url')
         };
         sessionStorage.setItem('pendingReport', JSON.stringify(reportData));
-
-        // Chuyển hướng đến trang báo lỗi
         window.location.href = '//vutruong.vn/report'; 
     }
 });
@@ -175,32 +147,25 @@ document.addEventListener('click', function(e) {
 function VT_homePostLayout() {
     console.log('%c🖼️ Gallery Layout', 'color: #4285F4;', 'Đang xử lý bài viết...');
     
-    // 1. Quét các container bài viết chưa được xử lý layout
     const postContainers = document.querySelectorAll('.postBody_multipleItems:not([data-layout-processed]), .postBody_singleItem:not([data-layout-processed])');
 
     postContainers.forEach((container) => {
-        // Tìm tất cả ảnh gốc trong nội dung bài viết
         const imgs = container.querySelectorAll('img');
         const count = imgs.length;
 
         if (count > 0) {
-            // Tạo container gallery mới
             const gallery = document.createElement('div');
             const displayCount = count > 5 ? 5 : count;
             gallery.className = `VT_homePostGallery p-0 m-0 mb-3 layout-${displayCount}`;
             
-            // Lấy ID bài viết để nhóm ảnh cho Fancybox
             const postId = container.closest('.post')?.id || 'album-' + Math.random().toString(36).substr(2, 5);
 
             imgs.forEach((img, idx) => {
-                // TÌM PHẦN TỬ BAO QUANH GỐC (như .separator) ĐỂ XỬ LÝ SAU KHI DI CHUYỂN
                 const parentSep = img.closest('.separator');
-
                 const link = document.createElement('a');
                 link.href = img.src;
                 link.setAttribute('data-fancybox', 'gallery-' + postId);
                 
-                // Hiển thị Overlay số lượng ảnh còn lại (+N) ở ảnh thứ 5
                 if (idx === 4 && count > 5) {
                     const overlay = document.createElement('div');
                     overlay.className = 'vt-gallery-overlay';
@@ -208,124 +173,85 @@ function VT_homePostLayout() {
                     link.appendChild(overlay);
                 }
 
-                // Từ ảnh thứ 6 trở đi sẽ ẩn (nhưng vẫn có trong Gallery để Fancybox quét được)
                 if (idx >= 5) link.style.display = 'none';
 
-                // --- TỐI ƯU TÀI NGUYÊN TẠI ĐÂY ---
-                // Xóa bỏ style inline của Blogger trước khi di chuyển
                 img.removeAttribute('style'); 
-                
-                // appendChild sẽ DI CHUYỂN node img gốc vào thẻ link, KHÔNG TẠO MỚI
                 link.appendChild(img);
                 gallery.appendChild(link);
                 
-                // Sau khi di chuyển img, nếu separator cũ bị trống thì xóa nó đi cho sạch DOM
                 if (parentSep && parentSep.innerHTML.trim() === "") {
                     parentSep.remove();
                 } else if (parentSep) {
-                    parentSep.style.display = 'none'; // Nếu vẫn còn nội dung khác thì ẩn đi
+                    parentSep.style.display = 'none';
                 }
-                // ---------------------------------
             });
 
-            // Chèn gallery vào cuối nội dung bài viết
-            // Thay vì container.appendChild(gallery);
-			// Tìm thẻ đích đã có sẵn trong HTML
-			const target = container.querySelector('.postGallery');
-				if (target) {
-    				target.innerHTML = ''; // Xóa nội dung cũ nếu có (tránh trùng lặp khi re-render)
-    				target.appendChild(gallery);
-				} else {
-    			// Nếu không tìm thấy thẻ đích, có thể fallback (dự phòng) chèn vào cuối container
-    			container.appendChild(gallery);
-			}
+            const target = container.querySelector('.postGallery');
+            if (target) {
+                target.innerHTML = '';
+                target.appendChild(gallery);
+            } else {
+                container.appendChild(gallery);
+            }
         }
 
-        // Đánh dấu đã xử lý xong
         container.setAttribute('data-layout-processed', 'true');
     });
 }
-// Chạy lần đầu khi trang tải xong
 document.addEventListener('DOMContentLoaded', VT_homePostLayout);
 
 // ========================================================================================================
-// Function kiểm tra trạng thái data:post.body và ẩn nút v-fullPost (ẩn khi bài viết quá ngắn, dưới 2 hàng)
+// Function kiểm tra trạng thái data:post.body và ẩn nút v-fullPost
 function VT_checkReadMore() {
-    // 1. Chỉ quét những hộp nội dung chưa được kiểm tra
     const limitedBoxes = document.querySelectorAll('.postBodyLimited:not([data-readmore-checked])');
     
     limitedBoxes.forEach(box => {
-        // Tìm nút "Xem thêm" nằm cùng cấp hoặc trong cùng container bài viết
         const container = box.closest('.postBody_multipleItems, .postBody_singleItem');
         if (!container) return;
         
         const btn = container.querySelector('.v-fullPost');
         if (btn) {
-            /**
-             * So sánh chiều cao thực tế (scrollHeight) và chiều cao hiển thị (clientHeight).
-             * Cộng thêm 5px tolerance để xử lý sai số rendering trên các trình duyệt khác nhau.
-             */
             const isOverflowing = box.scrollHeight > (box.clientHeight + 0);
-
             if (!isOverflowing) {
-                // Ép display: none !important
                 btn.style.setProperty('display', 'none', 'important');
             }
         }
 
-        // Đánh dấu đã kiểm tra xong để lần gọi hàm sau không xử lý lại bài này
         box.setAttribute('data-readmore-checked', 'true');
     });
 }
 
-// Chạy lần đầu khi trang tải xong
 document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(VT_checkReadMore, 200); // Đợi layout ổn định rồi mới đo
+    setTimeout(VT_checkReadMore, 200);
 });
 
 // =========================================================================================
 /* === Hàm Fade (Chỉ dùng JS thuần) === */
 
-// Hiệu ứng Hiện dần (Fade In)
 function fadeIn(element, duration = 100) {
-    // 1. Chuẩn bị cho hiệu ứng
     element.style.opacity = '0';
-    element.style.visibility = 'visible'; // Đảm bảo phần tử hiển thị (nhưng vẫn mờ)
-    element.style.transition = `opacity ${duration}ms ease-in`; // Tùy chỉnh transition
-
-    // 2. Bắt đầu hiệu ứng (từ opacity 0 đến 1)
-    // requestAnimationFrame đảm bảo hoạt ảnh được bắt đầu ngay sau khi trình duyệt render
+    element.style.visibility = 'visible';
+    element.style.transition = `opacity ${duration}ms ease-in`;
     requestAnimationFrame(() => {
         element.style.opacity = '1';
     });
-
-    // 3. Xử lý sau khi hiệu ứng hoàn tất
     element.addEventListener('transitionend', function handler() {
-        // Sau khi hiệu ứng xong, loại bỏ transition và opacity cố định 
-        // để CSS có thể quản lý lại, hoặc để sẵn sàng cho lần fadeOut tiếp theo
         element.style.transition = ''; 
         element.removeEventListener('transitionend', handler);
     }, { once: true });
 }
 
-// Hiệu ứng Mờ dần (Fade Out)
 function fadeOut(element, duration = 100) {
-    // 1. Chuẩn bị cho hiệu ứng
     element.style.opacity = '1';
-    element.style.transition = `opacity ${duration}ms ease-out`; // Tùy chỉnh transition
-
-    // 2. Bắt đầu hiệu ứng (từ opacity 1 đến 0)
+    element.style.transition = `opacity ${duration}ms ease-out`;
     requestAnimationFrame(() => {
         element.style.opacity = '0';
     });
-
-    // 3. Xử lý sau khi hiệu ứng hoàn tất
     element.addEventListener('transitionend', function handler() {
-        // Sau khi mờ xong, ẩn hoàn toàn phần tử bằng visibility: hidden và display: none (hoặc chỉ visibility)
         element.style.visibility = 'hidden'; 
-        element.style.display = 'none'; // Thêm display: none để ngăn chiếm không gian
-        element.style.opacity = ''; // Reset opacity
-        element.style.transition = ''; // Loại bỏ transition
+        element.style.display = 'none';
+        element.style.opacity = '';
+        element.style.transition = '';
         element.removeEventListener('transitionend', handler);
     }, { once: true });
 }
@@ -333,57 +259,39 @@ function fadeOut(element, duration = 100) {
 
 /* === Chức năng Ẩn/Hiện Popup Tài khoản Người dùng (Sử dụng Fade) === */
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. Lấy các phần tử DOM cần thiết
     const avatarButton = document.querySelector('.user-profile-details .avatar-user');
     const popupPanel = document.querySelector('.popupShow_accountPanel');
     const body = document.body;
-    const FADE_DURATION = 100; // Thời gian hiệu ứng (milliseconds)
+    const FADE_DURATION = 100;
 
-    if (!avatarButton || !popupPanel) {
-        return;
-    }
+    if (!avatarButton || !popupPanel) return;
 
-    // Đảm bảo trạng thái ban đầu là ẩn
-    // Cần thiết lập visibility: hidden và opacity: 0 trong CSS hoặc tại đây
     popupPanel.style.display = 'none'; 
-    popupPanel.style.visibility = 'hidden'; // Đảm bảo phần tử bị ẩn
+    popupPanel.style.visibility = 'hidden';
     popupPanel.style.opacity = '0'; 
 
-    // 2. Định nghĩa hàm bật/tắt Popup
     function togglePopup(event) {
-        event.stopPropagation(); // Ngăn sự kiện click lan truyền lên body
-
-        // Kiểm tra trạng thái hiển thị bằng CSS computed style
+        event.stopPropagation();
         const computedStyle = window.getComputedStyle(popupPanel);
-        // Kiểm tra dựa trên visibility thay vì height và display như trước
         const isVisible = computedStyle.visibility !== 'hidden' && computedStyle.opacity !== '0';
 
         if (isVisible) {
-            // Đang hiện -> Đóng bằng Fade Out
             fadeOut(popupPanel, FADE_DURATION);
         } else {
-            // Đang ẩn -> Mở bằng Fade In
-            // Quan trọng: Phải đặt display: block (hoặc flex/grid) trước khi fade In
             popupPanel.style.display = 'block'; 
             fadeIn(popupPanel, FADE_DURATION);
         }
     }
 
-    // 3. Xử lý sự kiện click vào Avatar
     avatarButton.addEventListener('click', togglePopup);
 
-    // 4. Xử lý sự kiện click ngoài Popup (trên body)
     body.addEventListener('click', function(event) {
-        // Kiểm tra trạng thái hiển thị bằng CSS computed style
         const computedStyle = window.getComputedStyle(popupPanel);
         const isVisible = computedStyle.visibility !== 'hidden' && computedStyle.opacity !== '0';
 
-        // Chỉ xử lý nếu popup đang hiển thị
         if (isVisible) {
             const isClickInsidePanel = popupPanel.contains(event.target);
             const isClickOnAvatar = avatarButton.contains(event.target);
-
-            // Nếu click không nằm trong popup và không nằm trên avatar, thì đóng popup
             if (!isClickInsidePanel && !isClickOnAvatar) {
                 fadeOut(popupPanel, FADE_DURATION);
             }
@@ -392,52 +300,33 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // =========================================================================================
-// Tính năng Live Search --- xây dung bằng Javascript thuần --- tối ưu tốc độ
-// VT Zone - vutruong.vn
-
+// Tính năng Live Search - Vanilla JS (UI show/hide)
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. Định nghĩa các Selector JS thuần
     const liveSearchTarget = document.getElementById('target_VT_live_search');
     const showTrigger = document.querySelector('.show_liveSearch');
-    // Chú ý: document.querySelectorAll để lấy tất cả phần tử (nút đóng & overlay)
     const closeButtons = document.querySelectorAll('.close_liveSearch, .vt-live-search-wrapper-overlay-background');
     
-    // Nếu không tìm thấy phần tử nào thì dừng
-    if (!liveSearchTarget || !showTrigger || closeButtons.length === 0) {
-        return;
-    }
+    if (!liveSearchTarget || !showTrigger || closeButtons.length === 0) return;
     
-    // Đảm bảo trạng thái ban đầu là ẩn
     liveSearchTarget.style.display = 'none'; 
     liveSearchTarget.style.visibility = 'hidden'; 
     liveSearchTarget.style.opacity = '0';
-    // Đảm bảo CSS transition đã được thiết lập cho Live Search Target!
     
-    // --- Các Hàm Hỗ Trợ (Sử dụng hàm fadeOut/fadeIn ở trên) ---
-    
-    // Hàm mở Live Search
     function openLiveSearch(duration = 300) {
-        liveSearchTarget.style.display = 'block'; // Hiển thị trước khi fade In
+        liveSearchTarget.style.display = 'block';
         fadeIn(liveSearchTarget, duration);
     }
     
-    // Hàm đóng Live Search
     function closeLiveSearch(duration = 300) {
         fadeOut(liveSearchTarget, duration);
     }
     
-    // -----------------------------------------------------------------
-    // A. Xử lý Mở Live Search (Khi click vào .show_liveSearch)
-    // -----------------------------------------------------------------
     showTrigger.addEventListener('click', function(event) {
         event.preventDefault(); 
-        openLiveSearch(300); // Tùy chỉnh duration cho Live Search
+        openLiveSearch(300);
         event.stopPropagation(); 
     });
     
-    // -----------------------------------------------------------------
-    // B. Xử lý Đóng Live Search (Khi click vào .close_liveSearch hoặc overlay)
-    // -----------------------------------------------------------------
     closeButtons.forEach(button => {
         button.addEventListener('click', function(event) {
             event.preventDefault(); 
@@ -446,24 +335,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // -----------------------------------------------------------------
-    // C. Xử lý Đóng Live Search (Khi click bất kỳ đâu bên ngoài)
-    // -----------------------------------------------------------------
     document.addEventListener('click', function(event) {
         const target = event.target;
-        
-        // Kiểm tra trạng thái hiển thị bằng CSS computed style
         const computedStyle = window.getComputedStyle(liveSearchTarget);
         const isVisible = computedStyle.visibility !== 'hidden' && computedStyle.opacity !== '0';
 
-        // Chỉ thực hiện logic đóng nếu Live Search đang hiển thị
         if (isVisible) {
-            
-            // Điều kiện để đóng (JS thuần):
-            // 1. Phần tử click KHÔNG PHẢI là Live Search Target
-            // 2. Phần tử click KHÔNG PHẢI là phần tử con của Live Search Target
-            // 3. Phần tử click KHÔNG PHẢI là nút mở .show_liveSearch
-            
             if (
                 target !== liveSearchTarget && 
                 !liveSearchTarget.contains(target) &&
@@ -475,52 +352,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // -----------------------------------------------------------------
-    // D. Tùy chọn: Đóng Live Search khi nhấn phím ESC
-    // -----------------------------------------------------------------
     document.addEventListener('keyup', function(e) {
         if (e.key === "Escape" || e.keyCode === 27) {
-            // Kiểm tra trạng thái trước khi đóng
             const computedStyle = window.getComputedStyle(liveSearchTarget);
             const isVisible = computedStyle.visibility !== 'hidden' && computedStyle.opacity !== '0';
-
-            if (isVisible) {
-                 closeLiveSearch(300);
-            }
+            if (isVisible) closeLiveSearch(300);
         }
     });
 });
 
 // =========================================================================================
-// Function Live Search by Jquery
-// VT Zone --- vutruong.vn
-
+// Function Live Search - Core tìm kiếm (dùng jQuery + Blogger API)
 $(document).ready(function() {
-    // Biến cờ để đảm bảo logic tìm kiếm chỉ được khởi tạo (initialize) một lần duy nhất
     let isLiveSearchInitialized = false;
 
-    // Lắng nghe sự kiện click vào nút hiển thị tìm kiếm
     $('.show_liveSearch').on('click', function() {
-        
-        if (isLiveSearchInitialized) {
-            console.log('Live Search đã được khởi tạo.');
-            // Nếu bạn có logic hiển thị/ẩn thanh tìm kiếm khi click, hãy đặt ở đây.
-            return;
-        }
+        if (isLiveSearchInitialized) return;
 
         console.log('Nút tìm kiếm được click. Bắt đầu khởi tạo Live Search.');
         
-        // ==========================================================
-        // I. TÍNH NĂNG: LIVE SEARCH (TÌM KIẾM TRỰC TIẾP) - ĐƯỢC CHẠY KHI CLICK
-        // ==========================================================
-        
-        // Định nghĩa lại các thành phần (Chắc chắn đã có trên DOM)
         const searchInput = $('#vt-search-input');
         const resultsBox = $('#vt-live-results');
         let typingTimer;
-        const doneTypingInterval = 500; // Thời gian chờ sau khi gõ xong (Debounce)
+        const doneTypingInterval = 500;
         
-        // 2. Hàm gọi API Blogger (Định nghĩa trước)
         function fetchSearchResults(keyword) {
             $.ajax({
                 url: '/feeds/posts/summary?alt=json&q=' + encodeURIComponent(keyword) + '&max-results=10',
@@ -537,9 +392,7 @@ $(document).ready(function() {
             });
         }
 
-        // 3. Hàm hiển thị kết quả (Render) (Định nghĩa trước)
         function renderResults(json) {
-            
             if (resultsBox.length === 0) return; 
             
             if (!json.feed.entry) {
@@ -548,24 +401,15 @@ $(document).ready(function() {
             }
 
             let html = '';
-            
             $.each(json.feed.entry, function(i, entry) {
-                
                 const fullId = entry.id.$t;
                 let displayId = fullId.substring(fullId.lastIndexOf('-') + 1);    
                 let title = entry.title.$t;
-                let finalTitle = title;
-                
-                if (!title || title.trim() === '') {
-                    finalTitle = 'Bài viết ID: ' + displayId;
-                }
+                let finalTitle = title || 'Bài viết ID: ' + displayId;
                 
                 let link = '';
                 for (let j = 0; j < entry.link.length; j++) {
-                    if (entry.link[j].rel == 'alternate') {
-                        link = entry.link[j].href;
-                        break;
-                    }
+                    if (entry.link[j].rel == 'alternate') { link = entry.link[j].href; break; }
                 }
                 
                 let img = 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi1iPw_w8MsNvluVqo_hgSKU5IoxcSUNJWb-YyjgdBGNyFH9ACIQHLj8g4EXnzHTiQ8D7PiR72qCpICKpVTPhyphenhyphen1Kq6u-GmBf5eJfLY5fmPxMscEdVXzfkXtP_2AFqz2oMaxB-Zm3cysmkl2ukTlqW7dz2BaOnqxUMPdH8wdS49L0snioA/s1600/avatarVT.JPEG'; 
@@ -591,38 +435,26 @@ $(document).ready(function() {
             resultsBox.html(html);
         }
 
-        // 1. Lắng nghe sự kiện nhập liệu (Chức năng cốt lõi)
         searchInput.on('keyup input', function() {
             clearTimeout(typingTimer);
             const query = $(this).val().trim();
-            
             if (resultsBox.length === 0) return;
-            
             if (query.length > 1) {    
                 resultsBox.show().html('<div class="vt-search-loading text-left"><i class="fa-duotone fa-spinner-third fa-spin me-2"></i>Đang tìm kiếm...</div>');
-                typingTimer = setTimeout(function() {
-                    fetchSearchResults(query);
-                }, doneTypingInterval);
+                typingTimer = setTimeout(function() { fetchSearchResults(query); }, doneTypingInterval);
             } else {
                 resultsBox.hide().empty();
             }
         });
 
-        // 4. Đóng kết quả khi click ra ngoài
         $(document).on('click', function(e) {
-            if (!$(e.target).closest('.vt-live-search-wrapper').length) {
-                resultsBox.hide();
-            }
+            if (!$(e.target).closest('.vt-live-search-wrapper').length) resultsBox.hide();
         });
         
-        // Mở lại kết quả khi click vào ô input (nếu đã có nội dung)
         searchInput.on('focus', function() {
-            if ($(this).val().length > 1 && resultsBox.html().trim() !== '') {
-                resultsBox.show();
-            }
+            if ($(this).val().length > 1 && resultsBox.html().trim() !== '') resultsBox.show();
         });
 
-        // Đặt cờ là true sau khi tất cả đã được gán sự kiện
         isLiveSearchInitialized = true;
     }); 
 });
@@ -630,58 +462,38 @@ $(document).ready(function() {
 
 // =========================================================================================
 // Function thay đổi Font chữ trên toàn BODY
+// FIX: Bọc trong IIFE để tránh ô nhiễm global scope
+(function() {
     const FONT_STORAGE_KEY = 'blogFontPreference';
     const GOOGLE_SANS_CLASS = 'font-google-sans';
     const bodyElement = document.body;
-    
-    // Tham chiếu đến phần tử ID
     const togglerElement = document.getElementById('font-toggler');
-    
-    // Giá trị lưu trữ
     const FONT_NAME_1 = 'Roboto';
     const FONT_NAME_2 = 'Google Sans Flex';
 
-    /**
-     * Hàm chính để chuyển đổi font chữ (Chỉ thay đổi Class CSS và localStorage)
-     */
     function toggleFont() {
-        // Kiểm tra trạng thái hiện tại
         const isGoogleSans = bodyElement.classList.contains(GOOGLE_SANS_CLASS);
-
         if (isGoogleSans) {
-            // Đang là Google Sans -> Chuyển về Roboto
             bodyElement.classList.remove(GOOGLE_SANS_CLASS);
             localStorage.setItem(FONT_STORAGE_KEY, FONT_NAME_1);
         } else {
-            // Đang là Roboto -> Chuyển sang Google Sans Flex
             bodyElement.classList.add(GOOGLE_SANS_CLASS);
             localStorage.setItem(FONT_STORAGE_KEY, FONT_NAME_2);
         }
     }
 
-    /**
-     * Hàm áp dụng font đã lưu trữ ngay khi trang tải
-     */
     function applySavedFont() {
         const savedFont = localStorage.getItem(FONT_STORAGE_KEY);
-        
-        // Chỉ áp dụng class nếu font đã lưu là Google Sans Flex
-        if (savedFont === FONT_NAME_2) {
-            bodyElement.classList.add(GOOGLE_SANS_CLASS);
-        }
-
-        // Gắn sự kiện click vào phần tử
-        if (togglerElement) {
-            togglerElement.addEventListener('click', toggleFont);
-        }
+        if (savedFont === FONT_NAME_2) bodyElement.classList.add(GOOGLE_SANS_CLASS);
+        if (togglerElement) togglerElement.addEventListener('click', toggleFont);
     }
-    // Chạy hàm áp dụng font ngay lập tức
+
     applySavedFont();
+})();
 
 
 // =========================================================================================
 // === Function Slide Menu ===
-// đã convert qua js by VT Zone
 "use strict";
 
 class Sidenav {
@@ -699,19 +511,13 @@ class Sidenav {
     initToggle() {
         document.addEventListener("click", (e) => {
             const target = e.target;
-            
-            // Xử lý nút Toggle (Mở menu)
-            // Kiểm tra xem click có trúng vào selector được định nghĩa trong data-sidenav-toggle không
             const toggleBtn = this.toggleSelector ? target.closest(this.toggleSelector) : null;
 
             if (toggleBtn) {
                 this.el.classList.toggle("show");
                 document.body.classList.toggle("sidenav-no-scrolls");
                 this.toggleOverlay();
-            } 
-            // Xử lý click ra ngoài (Đóng menu)
-            // Nếu không click vào menu và menu đang mở
-            else if (!target.closest('[data-sidenav]') && this.el.classList.contains("show")) {
+            } else if (!target.closest('[data-sidenav]') && this.el.classList.contains("show")) {
                 this.el.classList.remove("show");
                 document.body.classList.remove("sidenav-no-scrolls");
                 this.hideOverlay();
@@ -720,41 +526,30 @@ class Sidenav {
     }
 
     initDropdown() {
-        // Sử dụng Event Delegation cho dropdown bên trong sidenav
         this.el.addEventListener("click", (e) => {
             const toggle = e.target.closest("[data-sidenav-dropdown_toggle]");
             if (!toggle) return;
 
             e.preventDefault();
-            
-            const dropdown = toggle.nextElementSibling; // Tương đương .next()
+            const dropdown = toggle.nextElementSibling;
             const icon = toggle.querySelector("[data-sidenav-dropdown-icon]");
 
             if (dropdown && dropdown.matches("[data-sidenav-dropdown]")) {
-                // Thay thế slideToggle của jQuery
                 this.slideToggle(dropdown);
-                
-                if (icon) {
-                    icon.classList.toggle("show");
-                }
+                if (icon) icon.classList.toggle("show");
             }
         });
     }
 
     toggleOverlay() {
         let overlay = document.querySelector("[data-sidenav-overlay]");
-        
         if (!overlay) {
             overlay = document.createElement("div");
             overlay.setAttribute("data-sidenav-overlay", "");
             overlay.className = "sidenav-overlay";
             document.body.appendChild(overlay);
         }
-
-        // Thay thế fadeToggle: Logic hiển thị overlay
-        // Chúng ta sẽ dùng class để CSS xử lý transition opacity
         const isVisible = getComputedStyle(overlay).display !== "none";
-        
         if (isVisible) {
             this.fadeOut(overlay);
         } else {
@@ -764,12 +559,8 @@ class Sidenav {
 
     hideOverlay() {
         const overlay = document.querySelector("[data-sidenav-overlay]");
-        if (overlay) {
-            this.fadeOut(overlay);
-        }
+        if (overlay) this.fadeOut(overlay);
     }
-
-    // --- Helper Functions để thay thế Animation của jQuery ---
 
     slideToggle(element) {
         if (window.getComputedStyle(element).display === 'none') {
@@ -781,9 +572,8 @@ class Sidenav {
 
     slideUp(element) {
         element.style.height = element.offsetHeight + 'px';
-        element.offsetHeight; // force repaint
+        element.offsetHeight;
         element.style.height = '0px';
-        // Sau khi animation xong (giả sử 300ms) thì ẩn hẳn
         setTimeout(() => {
             element.style.display = 'none';
             element.style.removeProperty('height');
@@ -794,9 +584,8 @@ class Sidenav {
         element.style.display = 'block';
         let height = element.scrollHeight;
         element.style.height = '0px';
-        element.offsetHeight; // force repaint
+        element.offsetHeight;
         element.style.height = height + 'px';
-        // Sau khi animation xong thì xóa height cứng để nội dung co giãn tự nhiên
         setTimeout(() => {
             element.style.removeProperty('height');
         }, 300);
@@ -805,8 +594,6 @@ class Sidenav {
     fadeIn(element) {
         element.style.opacity = 0;
         element.style.display = "block";
-        
-        // Dùng requestAnimationFrame để đảm bảo transition hoạt động
         requestAnimationFrame(() => {
             element.style.transition = "opacity 0.3s";
             element.style.opacity = 1;
@@ -816,14 +603,10 @@ class Sidenav {
     fadeOut(element) {
         element.style.transition = "opacity 0.3s";
         element.style.opacity = 0;
-        
-        setTimeout(() => {
-            element.style.display = "none";
-        }, 300); // Khớp với thời gian transition
+        setTimeout(() => { element.style.display = "none"; }, 300);
     }
 }
 
-// Khởi tạo
 document.addEventListener("DOMContentLoaded", () => {
     const sidenavs = document.querySelectorAll("[data-sidenav]");
     sidenavs.forEach(el => new Sidenav(el));
@@ -836,48 +619,29 @@ document.addEventListener("DOMContentLoaded", () => {
 // === Function auto scroll ===
 (function() {
     const path = window.location.pathname;
-    const search = window.location.search;
-
-    // 1. Phân loại trang
     const isHomePage = (path === '/' || path === '/index.html');
-    const isSearchPage = path.includes('/search'); // Bao gồm cả /search/label/ và /search?q=
-    
-    // Nếu là trang chủ HOẶC trang tìm kiếm/nhãn -> Dùng offset 90
+    const isSearchPage = path.includes('/search');
     const isListView = isHomePage || isSearchPage;
 
-    // 2. Thiết lập cấu hình
     const targetSelector = isListView ? '.profile-info-section' : '#mainPost';
     const offset = isListView ? 90 : 75;
 
-    // 3. Thực thi tìm kiếm phần tử
     const element = document.querySelector(targetSelector);
-
     if (element) {
-        // Sử dụng setTimeout để đảm bảo các script rút gọn link/Bootstrap đã chạy xong
         setTimeout(() => {
             const elementPosition = element.getBoundingClientRect().top + window.scrollY;
-            
-            window.scrollTo({
-                top: elementPosition - offset,
-                behavior: 'smooth'
-            });
-        }, 150); // Tăng lên 150ms để độ chính xác cao hơn khi load trang
+            window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' });
+        }, 150);
     }
 })();
 
 
 // =========================================================================================
 // ========= Function for Featured Story
-// ========= by VT Zone
-// ========= vutruong.vn
 document.addEventListener("DOMContentLoaded", function() {
     "use strict";
 
-    // 1. Data - trong widget
-
-    // 2. Helper: Tạo URL thumbnail từ link full size
     function getThumbnail(fullUrl) {
-        // Chuyển s1600 -> s250 cho Blogger images
         return fullUrl.replace(/\/s\d+\//, '/s250/');
     }
 
@@ -885,7 +649,6 @@ document.addEventListener("DOMContentLoaded", function() {
     const btnPrev = document.getElementById('vt-btn-prev');
     const btnNext = document.getElementById('vt-btn-next');
 
-    // 3. Hàm Render HTML - GIỮ NGUYÊN CẤU TRÚC
     function renderCarousel() {
         if (!track) return;
 
@@ -923,7 +686,6 @@ document.addEventListener("DOMContentLoaded", function() {
         track.innerHTML = html;
     }
 
-    // 4. Hàm xử lý Scroll (Logic giữ nguyên)
     function handleScroll(direction) {
         if (!track) return;
         const scrollAmount = track.clientWidth; 
@@ -941,18 +703,14 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    // 5. Hàm cập nhật trạng thái nút
     function updateButtons() {
         if (!track || !btnPrev || !btnNext) return;
-
         const scrollLeft = track.scrollLeft;
         const maxScroll = track.scrollWidth - track.clientWidth;
-
         btnPrev.style.display = (scrollLeft <= 2) ? 'none' : 'flex';
         btnNext.style.display = (scrollLeft >= maxScroll - 2) ? 'none' : 'flex';
     }
 
-    // 6. Gán sự kiện (Event Listeners)
     if (btnNext) btnNext.addEventListener('click', () => handleScroll('next'));
     if (btnPrev) btnPrev.addEventListener('click', () => handleScroll('prev'));
 
@@ -961,16 +719,15 @@ document.addEventListener("DOMContentLoaded", function() {
         window.addEventListener('resize', updateButtons);
     }
 
-    // Khởi chạy
     renderCarousel();
     setTimeout(updateButtons, 100);
 });
 // === END FEATURED STORIES ===
 
 
-// === Function Photo Widget
-// === Post by Label
-// == By VT Zone == vutruong.vn
+// === Function Photo Widget - Post by Label
+// FIX: Bọc trong IIFE để tránh ô nhiễm global scope
+(function() {
     const CONFIG = {
         blogUrl: "https://www.vutruong.vn",
         maxResults: 9,
@@ -982,35 +739,35 @@ document.addEventListener("DOMContentLoaded", function() {
 
     document.addEventListener("DOMContentLoaded", () => {
         fetchPosts();
-        document.getElementById('VT_photoPostwidget_btnLoadMore').onclick = function() {
-            this.innerHTML = "<i class='fa-duotone fa-spinner-third fa-spin me-2'></i>";
-            fetchPosts();
-        };
+        const loadMoreBtn = document.getElementById('VT_photoPostwidget_btnLoadMore');
+        if (loadMoreBtn) {
+            loadMoreBtn.onclick = function() {
+                this.innerHTML = "<i class='fa-duotone fa-spinner-third fa-spin me-2'></i>";
+                fetchPosts();
+            };
+        }
     });
 
     function fetchPosts() {
-    const script = document.createElement('script');
-    
-    // Tạo phân đoạn nhãn nếu có cấu hình labelName
-    const labelPath = CONFIG.labelName ? `/-/${encodeURIComponent(CONFIG.labelName)}` : "";
-    
-    // URL mới có chứa labelPath
-    script.src = `${CONFIG.blogUrl}/feeds/posts/default${labelPath}?alt=json-in-script&start-index=${startIndex}&max-results=${CONFIG.maxResults}&callback=renderPosts`;
-    
-    document.head.appendChild(script);
-    script.onload = () => script.remove();
-}
+        const script = document.createElement('script');
+        const labelPath = CONFIG.labelName ? `/-/${encodeURIComponent(CONFIG.labelName)}` : "";
+        script.src = `${CONFIG.blogUrl}/feeds/posts/default${labelPath}?alt=json-in-script&start-index=${startIndex}&max-results=${CONFIG.maxResults}&callback=renderPosts`;
+        document.head.appendChild(script);
+        script.onload = () => script.remove();
+    }
 
-    function renderPosts(json) {
+    window.renderPosts = function(json) {
         const wrapper = document.getElementById('VT_photoPostwidgetWrapper');
         const btn = document.getElementById('VT_photoPostwidget_btnLoadMore');
+        if (!wrapper) return;
+
         const loading = wrapper.querySelector('.VT_photoPostwidget_loadingText');
         if (loading) loading.remove();
 
         const entries = json.feed.entry;
         if (!entries || entries.length === 0) {
             if (startIndex === 1) wrapper.innerHTML = '<p class="m-0 p-0">Không có bài viết.</p>';
-            btn.style.display = "none";
+            if (btn) btn.style.display = "none";
             return;
         }
 
@@ -1020,17 +777,14 @@ document.addEventListener("DOMContentLoaded", function() {
             const title = post.title.$t.trim();
             const content = post.content?.$t || post.summary?.$t || "";
             
-            // Xử lý text thuần từ HTML nội dung
             const doc = parser.parseFromString(content, 'text/html');
             const cleanText = doc.body.textContent.trim().replace(/\s+/g, ' ');
             
-            // Logic tiêu đề: Ưu tiên title -> text nội dung -> ID
             const displayTitle = title || (cleanText ? cleanText.substring(0, 100) + "..." : `#ID: ${id}`);
             const summary = cleanText.substring(0, 100) + (cleanText.length > 100 ? "..." : "");
             
             const link = post.link.find(l => l.rel === 'alternate').href;
             
-            // Lấy Thumbnail
             let thumb = CONFIG.defaultThumb;
             if (post.media$thumbnail) {
                 thumb = post.media$thumbnail.url.replace(/\/s72\-c/, "/s200-c");
@@ -1056,30 +810,29 @@ document.addEventListener("DOMContentLoaded", function() {
 
         wrapper.insertAdjacentHTML('beforeend', html);
 
-        // Update nút tải thêm
         const hasMore = entries.length === CONFIG.maxResults;
-        btn.style.display = hasMore ? "inline-block" : "none";
-        btn.innerHTML = "Xem thêm";
+        if (btn) {
+            btn.style.display = hasMore ? "inline-block" : "none";
+            btn.innerHTML = "Xem thêm";
+        }
         if (hasMore) startIndex += CONFIG.maxResults;
-    }
+    };
+})();
 
 // === END ===
 
 
 // ===============================================================
-// Quyền ADMIN, chỉ hiển thị với VT và chỉ VT mới có thể kiểm soát
+// Quyền ADMIN
 const VT_ADMIN_UID = 'u9U3j9O63jbipOgai3o88X4008q2';
 
-// 1. Tách hàm xử lý UI riêng ra để gọi lại khi load AJAX
 window.VT_ApplyAdminUI = () => {
     const isAdmin = sessionStorage.getItem('VT_AdminLogged') === 'true';
     const VT_adminTools = document.querySelectorAll('.VT-admin-tools');
 
     if (isAdmin) {
-        // NẾU LÀ ADMIN: Chỉ gỡ class ẩn, TUYỆT ĐỐI không dùng .remove()
         VT_adminTools.forEach(el => el.classList.remove('d-none'));
     } else {
-        // NẾU KHÔNG PHẢI ADMIN: Xóa sạch dấu vết khỏi DOM
         VT_adminTools.forEach(el => el.remove());
     }
 };
@@ -1089,7 +842,6 @@ const VT_InitAdminSystem = () => {
         const VT_isAdmin = user && user.uid === VT_ADMIN_UID;
         const VT_wasAdmin = sessionStorage.getItem('VT_AdminLogged') === 'true';
 
-        // Logic check quyền để reload
         if (VT_isAdmin && !VT_wasAdmin) {
             sessionStorage.setItem('VT_AdminLogged', 'true');
             window.location.reload();
@@ -1101,18 +853,15 @@ const VT_InitAdminSystem = () => {
             return;
         }
 
-        // Chạy lần đầu khi load trang
         window.VT_ApplyAdminUI();
     });
 };
 
-// Đảm bảo khởi chạy chuẩn
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', VT_InitAdminSystem);
 } else {
     VT_InitAdminSystem();
 }
-// End
 // ===============================================================
 
 
@@ -1124,11 +873,8 @@ document.addEventListener("DOMContentLoaded", function() {
         
         let newUrl = url;
         if (url.includes('=')) {
-            // Dạng có dấu bằng: ...=w640 -> ...=w640-rw
             newUrl = url.replace(/=([^]*)$/, "=$1-rw");
         } else {
-            // Dạng có dấu gạch chéo: .../s1600/anh.jpg -> .../s1600-rw/anh.jpg
-            // Regex này tìm cụm /s(số) hoặc /w(số) và chèn -rw vào sau số đó
             newUrl = url.replace(/\/(s|w)(\d+)(-[^/]+)?\//, "/$1$2$3-rw/");
         }
         return newUrl;
@@ -1148,7 +894,6 @@ document.addEventListener("DOMContentLoaded", function() {
                 const oldHref = el.getAttribute('href');
                 const newHref = processUrl(oldHref);
                 if (newHref !== oldHref) {
-                    // Cập nhật cả href và data-src cho chắc ăn với các đời Fancybox
                     el.href = newHref;
                     el.setAttribute('data-src', newHref);
                 }
@@ -1156,24 +901,17 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     };
 
-    // Chạy lần đầu
     convertAll(document);
 
-    // Theo dõi nội dung mới (quan trọng cho films.vutruong.vn)
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             mutation.addedNodes.forEach((node) => {
                 if (node.nodeType === 1) {
-                    if (node.tagName === 'IMG' || (node.tagName === 'A' && node.hasAttribute('data-fancybox'))) {
-                        // Nếu chính node đó là ảnh hoặc link
-                        const target = node.tagName === 'IMG' ? node : node; // xử lý trực tiếp
-                        // Tái sử dụng hàm convert cho node đơn lẻ hoặc con của nó
-                        if(node.tagName === 'IMG') {
-                           const old = node.src; node.src = processUrl(old);
-                        } else {
-                           const old = node.href; node.href = processUrl(old);
-                        }
-                    } 
+                    if (node.tagName === 'IMG') {
+                        const old = node.src; node.src = processUrl(old);
+                    } else if (node.tagName === 'A' && node.hasAttribute('data-fancybox')) {
+                        const old = node.href; node.href = processUrl(old);
+                    }
                     convertAll(node);
                 }
             });
@@ -1186,13 +924,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
 
 // =========================================================================================
-// SIDEBAR STICKY - Thanh bên dính thông minh khi cuộn trang
-// Chỉ hoạt động trên desktop (>= 992px)
-// =========================================================================================
+// SIDEBAR STICKY
 document.addEventListener("DOMContentLoaded", (() => {
     const sidebar = document.querySelector("#sidebar");
-    
-    // Nếu không có sidebar thì thoát
     if (!sidebar) {
         console.log('%c⚠️ Sidebar', 'color: #FBBC04;', 'Không tìm thấy #sidebar');
         return;
@@ -1205,7 +939,6 @@ document.addEventListener("DOMContentLoaded", (() => {
     let isTicking = false;
     
     function updateSidebarPosition() {
-        // Chỉ hoạt động trên desktop (>= 992px)
         if (window.innerWidth < 992) {
             sidebar.style.position = '';
             sidebar.style.top = '';
@@ -1218,10 +951,8 @@ document.addEventListener("DOMContentLoaded", (() => {
         const sidebarHeight = sidebar.offsetHeight;
         const scrollDelta = currentScrollY - lastScrollY;
         
-        // Điều chỉnh offset khi cuộn
         sidebarOffset -= scrollDelta;
         
-        // Giới hạn offset
         const maxOffset = viewportHeight - sidebarHeight - 20;
         const minOffset = 80;
         
@@ -1231,14 +962,8 @@ document.addEventListener("DOMContentLoaded", (() => {
             sidebarOffset = maxOffset;
         }
         
-        // Áp dụng styles
         sidebar.style.position = 'sticky';
-        
-        if (sidebarHeight <= viewportHeight) {
-            sidebar.style.top = '80px';
-        } else {
-            sidebar.style.top = sidebarOffset + 'px';
-        }
+        sidebar.style.top = (sidebarHeight <= viewportHeight) ? '80px' : sidebarOffset + 'px';
         
         lastScrollY = currentScrollY;
     }
@@ -1255,8 +980,6 @@ document.addEventListener("DOMContentLoaded", (() => {
     
     window.addEventListener('scroll', requestSidebarTick, { passive: true });
     window.addEventListener('resize', requestSidebarTick, { passive: true });
-    
-    // Khởi tạo vị trí ban đầu
     updateSidebarPosition();
 }));
 
@@ -1264,52 +987,33 @@ document.addEventListener("DOMContentLoaded", (() => {
 // =========================================================================================
 // HIỆU ỨNG MATERIAL DESIGN KHI CLICK .ripple
 document.addEventListener("DOMContentLoaded", () => {
-  // Sử dụng Event Delegation để tối ưu bộ nhớ và hỗ trợ các phần tử load động (API)
-  document.body.addEventListener("click", (event) => {
-    const target = event.target.closest(".ripple");
-    
-    if (!target) return;
+    document.body.addEventListener("click", (event) => {
+        const target = event.target.closest(".ripple");
+        if (!target) return;
 
-    const button = target;
-    const circle = document.createElement("span");
-    const diameter = Math.max(button.clientWidth, button.clientHeight);
-    const radius = diameter / 2;
-    const rect = button.getBoundingClientRect();
+        const button = target;
+        const circle = document.createElement("span");
+        const diameter = Math.max(button.clientWidth, button.clientHeight);
+        const radius = diameter / 2;
+        const rect = button.getBoundingClientRect();
 
-    circle.style.width = circle.style.height = `${diameter}px`;
-    circle.style.left = `${event.clientX - rect.left - radius}px`;
-    circle.style.top = `${event.clientY - rect.top - radius}px`;
-    circle.classList.add("ripple-effect");
+        circle.style.width = circle.style.height = `${diameter}px`;
+        circle.style.left = `${event.clientX - rect.left - radius}px`;
+        circle.style.top = `${event.clientY - rect.top - radius}px`;
+        circle.classList.add("ripple-effect");
 
-    // Xóa ripple cũ ngay lập tức nếu người dùng click quá nhanh
-    const oldRipple = button.querySelector(".ripple-effect");
-    if (oldRipple) {
-      oldRipple.remove();
-    }
+        const oldRipple = button.querySelector(".ripple-effect");
+        if (oldRipple) oldRipple.remove();
 
-    button.appendChild(circle);
+        button.appendChild(circle);
 
-    // Xóa element sau khi hoàn thành để tránh rác DOM
-    circle.addEventListener("animationend", () => {
-      circle.remove();
-    }, { once: true }); // Tối ưu: tự hủy listener sau khi chạy xong
-  });
+        circle.addEventListener("animationend", () => {
+            circle.remove();
+        }, { once: true });
+    });
 });
 
 
 // =========================================================================================
-// VT ZONE
-// VUTRUONG.VN
+// VT ZONE - VUTRUONG.VN
 // =========================================================================================
-
-
-
-
-
-
-
-
-
-
-
-
