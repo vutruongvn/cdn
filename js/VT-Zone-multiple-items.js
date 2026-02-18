@@ -156,6 +156,7 @@ function applyPostLogic() {
     let nextUrl = "";
     let isLoading = false;
     let loadMoreBtn;
+    let btnContainer;  // Hoist lên IIFE scope để finally block và scroll listener truy cập được
 
     async function loadMorePosts() {
         if (isLoading || !nextUrl) return;
@@ -245,7 +246,7 @@ function applyPostLogic() {
 
             nextUrl = olderLink.getAttribute("href");
 
-            const btnContainer     = document.createElement('div');
+            btnContainer           = document.createElement('div');
             btnContainer.className = 'VT_ajaxLoadMorePosts mt-3';
             loadMoreBtn            = document.createElement('a');
             loadMoreBtn.className  = 'VT_loadMorePost ripple';
@@ -380,4 +381,4 @@ if (document.readyState === 'loading') {
 
 // =========================================================================================
 // VT Zone Multiple Items Scripts v5.0.0 - Ready
-// ======================================================================================
+// =============================================
