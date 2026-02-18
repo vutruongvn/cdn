@@ -2,7 +2,7 @@
 /**
  * VUTRUONG.VN - HỆ THỐNG FIREBASE TỔNG HỢP
  * Các tính năng: Auth, Like, View, History...
- * Phiên bản: 4.0.0 (Firebase v10 + Session Cache + No jQuery)
+ * Phiên bản: 4.1.0 (Firebase v10 + Session Cache + Unified Auth Listener)
  * Cập nhật: 18/2/2026
  * VT Zone - vutruong.vn
  */
@@ -15,7 +15,6 @@ console.log('%c📦 Đang khởi tạo Firebase v10 + Session Cache...', 'color:
 import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { 
     getFirestore, 
-    collection, 
     doc, 
     getDoc, 
     setDoc, 
@@ -63,28 +62,14 @@ const _originalGoogleAuthProvider = GoogleAuthProvider;
 window.firebase = {
     apps: getApps(),
     initializeApp: (config) => initializeApp(config),
-    
-    // Auth namespace - trả về function
-    auth: function() {
-        return auth;
-    },
-    
-    // Firestore namespace - trả về function  
-    firestore: function() {
-        return db;
-    }
+    auth: function() { return auth; },
+    firestore: function() { return db; }
 };
 
 // Thêm GoogleAuthProvider - KHÔNG override credential ngay
 window.firebase.auth.GoogleAuthProvider = class {
     constructor() {
         return new _originalGoogleAuthProvider();
-    }
-    
-    setCustomParameters(params) {
-        const provider = new _originalGoogleAuthProvider();
-        provider.setCustomParameters(params);
-        return provider;
     }
 };
 
@@ -96,14 +81,8 @@ window.firebase.auth.GoogleAuthProvider.credential = function(idToken, accessTok
 
 // Thêm FieldValue cho Firestore
 window.firebase.firestore.FieldValue = {
-    serverTimestamp: () => {
-        console.log('%c⏰ [Firestore] Using serverTimestamp', 'color: #FBBC04;');
-        return serverTimestamp();
-    },
-    increment: (n) => {
-        console.log(`%c➕ [Firestore] Increment by ${n}`, 'color: #FBBC04;');
-        return increment(n);
-    }
+    serverTimestamp: () => serverTimestamp(),
+    increment: (n) => increment(n)
 };
 
 console.log('%c✅ Firebase Compatibility Layer đã được tạo', 'color: #34A853; font-weight: bold;');
@@ -127,14 +106,13 @@ const SESSION_TTL = 30 * 24 * 60 * 60 * 1000; // 30 ngày
 function saveUserSession(user) {
     if (!user) return;
     try {
-        const sessionData = {
+        localStorage.setItem(SESSION_KEY, JSON.stringify({
             uid: user.uid,
             displayName: user.displayName || '',
             email: user.email || '',
             photoURL: user.photoURL || '',
             cachedAt: Date.now()
-        };
-        localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+        }));
         console.log('%c💾 [Session] Phiên đăng nhập đã được lưu', 'color: #34A853;');
     } catch (e) {
         console.warn('%c⚠️ [Session] Không thể lưu session:', 'color: #FBBC04;', e);
@@ -185,34 +163,20 @@ let userNullContainers, userTrueContainers, signInLinks, signOutButtons, userNam
 
 function signInWithGoogle() {
     console.log('%c🔐 [Auth] Initiating Google Sign-in...', 'color: #EA4335;');
-    
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-        prompt: 'select_account'
-    });
-
+    provider.setCustomParameters({ prompt: 'select_account' });
     signInWithPopup(auth, provider)
-        .then(() => {
-            console.log('%c✅ [Auth] Sign-in successful', 'color: #34A853; font-weight: bold;');
-        })
-        .catch((error) => {
-            console.error('%c❌ [Auth] Sign-in failed:', 'color: #EA4335; font-weight: bold;', error.message);
-        });
+        .then(() => console.log('%c✅ [Auth] Sign-in successful', 'color: #34A853; font-weight: bold;'))
+        .catch((error) => console.error('%c❌ [Auth] Sign-in failed:', 'color: #EA4335; font-weight: bold;', error.message));
 }
 
 function signOut() {
     console.log('%c🚪 [Auth] Signing out...', 'color: #EA4335;');
-    
     // Xóa cache ngay lập tức - không chờ Firebase
     clearUserSession();
-    
     firebaseSignOut(auth)
-        .then(() => {
-            console.log('%c✅ [Auth] Sign-out successful', 'color: #34A853;');
-        })
-        .catch((error) => {
-            console.error('%c❌ [Auth] Sign-out failed:', 'color: #EA4335;', error.message);
-        });
+        .then(() => console.log('%c✅ [Auth] Sign-out successful', 'color: #34A853;'))
+        .catch((error) => console.error('%c❌ [Auth] Sign-out failed:', 'color: #EA4335;', error.message));
 }
 
 // =========================================================================================
@@ -221,65 +185,23 @@ function signOut() {
 
 function updateAuthUI(user) {
     console.log(`%c👤 [UI] Updating auth UI for: ${user ? user.displayName : 'Guest'}`, 'color: #4285F4;');
-    
     const name = user ? user.displayName : '';
     const photo = user ? user.photoURL : '';
 
-    console.log(`%c👤 [UI] User data:`, 'color: #4285F4;', { name, photo });
-    console.log(`%c👤 [UI] Elements count:`, 'color: #4285F4;', {
-        userNullContainers: userNullContainers.length,
-        userTrueContainers: userTrueContainers.length,
-        userNameDisplays: userNameDisplays.length,
-        userPhotoDisplays: userPhotoDisplays.length
-    });
+    userNullContainers.forEach(el => { if (el) el.style.display = user ? 'none' : 'block'; });
+    userTrueContainers.forEach(el => { if (el) el.style.display = user ? 'block' : 'none'; });
+    userNameDisplays.forEach(el => { el.innerText = name; });
+    userPhotoDisplays.forEach(el => { el.src = photo; });
 
-    // Update visibility
-    userNullContainers.forEach((el, index) => {
-        if (el) {
-            el.style.display = user ? 'none' : 'block';
-            console.log(`%c👤 [UI] userNull[${index}] display set to: ${user ? 'none' : 'block'}`, 'color: #666;');
-        }
-    });
-    
-    userTrueContainers.forEach((el, index) => {
-        if (el) {
-            el.style.display = user ? 'block' : 'none';
-            console.log(`%c👤 [UI] userTrue[${index}] display set to: ${user ? 'block' : 'none'}`, 'color: #666;');
-        }
-    });
-    
-    // Update name
-    userNameDisplays.forEach((el, index) => {
-        el.innerText = name;
-        console.log(`%c👤 [UI] userName[${index}] set to: "${name}"`, 'color: #666;');
-    });
-    
-    // Update photo
-    userPhotoDisplays.forEach((el, index) => {
-        el.src = photo;
-        console.log(`%c👤 [UI] userPhoto[${index}] src set to: ${photo}`, 'color: #666;');
-    });
-    
     console.log('%c✅ [UI] Auth UI updated successfully', 'color: #34A853; font-weight: bold;');
 }
 
 function updateLikeUI(btnElement, isLiked) {
     const iconElement = btnElement.querySelector('i');
-
-    if (isLiked) {
-        btnElement.classList.add('active-like');
-    } else {
-        btnElement.classList.remove('active-like');
-    }
-
+    btnElement.classList.toggle('active-like', isLiked);
     if (iconElement) {
-        if (isLiked) {
-            iconElement.classList.remove('fad');
-            iconElement.classList.add('fa-solid');
-        } else {
-            iconElement.classList.remove('fa-solid');
-            iconElement.classList.add('fad');
-        }
+        iconElement.classList.toggle('fad', !isLiked);
+        iconElement.classList.toggle('fa-solid', isLiked);
     }
 }
 
@@ -291,33 +213,20 @@ window.updateLikeUI = updateLikeUI;
 
 function countView() {
     if (!isPostPage || !db) return;
-
     const viewElement = document.querySelector('.post-view-count');
     const viewDisplay = viewElement ? (viewElement.querySelector('#view-count-number') || viewElement.querySelector('span')) : null;
-
     if (!viewElement || !viewDisplay) return;
-
     const postId = viewElement.getAttribute('data-id');
     if (!postId) return;
 
     console.log(`%c📊 [View] Tracking view for post: ${postId}`, 'color: #FBBC04;');
 
-    const viewDocRef = doc(db, 'views', postId);
-    
     /* --- TẠM ĐÓNG BĂNG TÍNH NĂNG VIEW POST
-    setDoc(viewDocRef, {
-            count: increment(1)
-        }, {
-            merge: true
-        })
+    const viewDocRef = doc(db, 'views', postId);
+    setDoc(viewDocRef, { count: increment(1) }, { merge: true })
         .then(() => {
             onSnapshot(viewDocRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const count = docSnap.data().count;
-                    viewDisplay.innerText = count.toLocaleString('en-US');
-                } else {
-                    viewDisplay.innerText = '1';
-                }
+                viewDisplay.innerText = docSnap.exists() ? docSnap.data().count.toLocaleString('en-US') : '1';
             }, (error) => {
                 console.error("Lỗi khi theo dõi lượt xem:", error);
                 viewDisplay.innerText = 'Lỗi!';
@@ -337,10 +246,8 @@ function countView() {
 
 function initLikeCountDisplay() {
     if (!db) return;
-
     const likeButtons = document.querySelectorAll('.likePost[data-post-id]');
     const postIds = new Set();
-
     likeButtons.forEach(btn => {
         const postId = btn.getAttribute('data-post-id');
         if (postId) postIds.add(postId);
@@ -349,28 +256,19 @@ function initLikeCountDisplay() {
     console.log(`%c❤️ [Like] Monitoring ${postIds.size} posts`, 'color: #EA4335;');
 
     postIds.forEach(postId => {
-        const postCountRef = doc(db, 'postMetrics', postId);
-
-        onSnapshot(postCountRef, docSnap => {
-            const countElements = document.querySelectorAll('.likePost[data-post-id="' + postId + '"] .like-count');
-
-            if (docSnap.exists()) {
-                const count = docSnap.data().likeCount || 0;
-                const formattedCount = count.toLocaleString('en-US');
-                countElements.forEach(el => el.innerText = formattedCount);
-            } else {
-                countElements.forEach(el => el.innerText = '0');
-            }
-        }, err => {
-            console.error(`%c❌ [Like] Error for post ${postId}:`, 'color: #EA4335;', err);
-        });
+        onSnapshot(doc(db, 'postMetrics', postId), docSnap => {
+            const count = docSnap.exists() ? (docSnap.data().likeCount || 0) : 0;
+            const formattedCount = count.toLocaleString('en-US');
+            document.querySelectorAll(`.likePost[data-post-id="${postId}"] .like-count`)
+                .forEach(el => el.innerText = formattedCount);
+        }, err => console.error(`%c❌ [Like] Error for post ${postId}:`, 'color: #EA4335;', err));
     });
 }
 
 window.initLikeCountDisplay = initLikeCountDisplay;
 
 // =========================================================================================
-// PHẦN 5: XỬ LÝ LIKE/UNLIKE CÁ NHÂN - FIXED DATA EXTRACTION
+// PHẦN 5: XỬ LÝ LIKE/UNLIKE CÁ NHÂN
 // =========================================================================================
 
 function initSingleLikeButton(button, user) {
@@ -382,18 +280,13 @@ function initSingleLikeButton(button, user) {
     let postTitle = button.getAttribute('data-post-title');
     let postUrl = button.getAttribute('data-post-url');
     
-    // Nếu không có trong button, tìm trong DOM
     if (!postTitle || !postUrl) {
-        // Tìm post container gần nhất
         const postContainer = button.closest('article.post, .post-outer, [data-post-id]');
-        
         if (postContainer) {
-            // Thử lấy từ container
             if (!postTitle) {
                 const titleElement = postContainer.querySelector('.post-title a, h2.post-title, h1.post-title, [itemprop="name"]');
                 postTitle = titleElement ? titleElement.textContent.trim() : '';
             }
-            
             if (!postUrl) {
                 const linkElement = postContainer.querySelector('.post-title a, a[rel="bookmark"], [itemprop="url"]');
                 postUrl = linkElement ? linkElement.href : window.location.href;
@@ -401,46 +294,31 @@ function initSingleLikeButton(button, user) {
         }
     }
     
-    // Fallback cuối cùng
     if (!postTitle) postTitle = document.title;
     if (!postUrl) postUrl = window.location.href.split('?')[0];
-    
-    console.log(`%c❤️ [Like] Init button for post:`, 'color: #EA4335;', {
-        postId,
-        postTitle: postTitle.substring(0, 50) + '...',
-        postUrl
-    });
+
+    console.log(`%c❤️ [Like] Init button for post: ${postId}`, 'color: #EA4335;');
 
     const userLikeRef = doc(db, 'users', user.uid, 'likes', postId);
     const postMetricsRef = doc(db, 'postMetrics', postId);
 
     // Lắng nghe trạng thái like
-    onSnapshot(userLikeRef, docSnap => {
-        const isLiked = docSnap.exists();
-        updateLikeUI(button, isLiked);
-    });
+    onSnapshot(userLikeRef, docSnap => updateLikeUI(button, docSnap.exists()));
 
     // Gán sự kiện click
     button.onclick = async (e) => {
         e.preventDefault();
-
         const currentLikeDoc = await getDoc(userLikeRef);
-        const isCurrentlyLiked = currentLikeDoc.exists();
 
-        if (isCurrentlyLiked) {
+        if (currentLikeDoc.exists()) {
             // UNLIKE
             console.log(`%c💔 [Like] Unliking post: ${postId}`, 'color: #EA4335;');
             try {
                 await deleteDoc(userLikeRef);
-                await updateDoc(postMetricsRef, {
-                    likeCount: increment(-1)
-                });
-                console.log(`%c✅ [Like] Unlike successful`, 'color: #34A853;');
+                await updateDoc(postMetricsRef, { likeCount: increment(-1) });
             } catch (error) {
                 if (error.code === 'not-found') {
-                    await setDoc(postMetricsRef, {
-                        likeCount: 0
-                    });
+                    await setDoc(postMetricsRef, { likeCount: 0 });
                 } else {
                     console.error('%c❌ [Like] Unlike error:', 'color: #EA4335;', error);
                 }
@@ -449,24 +327,13 @@ function initSingleLikeButton(button, user) {
             // LIKE
             console.log(`%c❤️ [Like] Liking post: ${postId}`, 'color: #EA4335;');
             try {
-                await setDoc(userLikeRef, {
-                    postId: postId,
-                    postTitle: postTitle,
-                    postUrl: postUrl,
-                    timestamp: serverTimestamp()
-                });
-
+                await setDoc(userLikeRef, { postId, postTitle, postUrl, timestamp: serverTimestamp() });
                 const postMetricDoc = await getDoc(postMetricsRef);
                 if (postMetricDoc.exists()) {
-                    await updateDoc(postMetricsRef, {
-                        likeCount: increment(1)
-                    });
+                    await updateDoc(postMetricsRef, { likeCount: increment(1) });
                 } else {
-                    await setDoc(postMetricsRef, {
-                        likeCount: 1
-                    });
+                    await setDoc(postMetricsRef, { likeCount: 1 });
                 }
-                console.log(`%c✅ [Like] Like successful`, 'color: #34A853;');
             } catch (error) {
                 console.error('%c❌ [Like] Like error:', 'color: #EA4335;', error);
             }
@@ -482,52 +349,41 @@ window.initSingleLikeButton = initSingleLikeButton;
 
 async function saveViewHistory(user) {
     let postId = null;
-    
-    // Lấy ID từ _WidgetManager
     if (typeof _WidgetManager !== 'undefined' && _WidgetManager._GetAllData().blog.postId) {
         postId = _WidgetManager._GetAllData().blog.postId;
     }
-    
-    // Fallback: Lấy từ DOM
     if (!postId) {
         const postContainer = document.querySelector('article.post[data-post-id], .post-outer[data-post-id]');
-        if (postContainer) {
-            postId = postContainer.getAttribute('data-post-id');
-        }
+        if (postContainer) postId = postContainer.getAttribute('data-post-id');
     }
-    
-    const title = document.title; 
-    const url = window.location.href.split('?')[0]; 
 
-    if (postId && db) {
-        console.log(`%c📚 [History] Saving view history for post: ${postId}`, 'color: #FBBC04;');
-
-        try {
-            const historyRef = doc(db, 'users', user.uid, 'viewedHistory', postId);
-            await setDoc(historyRef, {
-                postId: postId,
-                title: title, 
-                url: url,
-                timestamp: serverTimestamp()
-            }, { merge: true });
-            
-            console.log('%c✅ [History] View history saved', 'color: #34A853;');
-        } catch (error) {
-            console.error('%c❌ [History] Save error:', 'color: #EA4335;', error);
-        }
-    } else {
+    if (!postId || !db) {
         console.warn('%c⚠️ [History] Post ID not found', 'color: #FBBC04;');
+        return;
+    }
+
+    console.log(`%c📚 [History] Saving view history for post: ${postId}`, 'color: #FBBC04;');
+    try {
+        await setDoc(doc(db, 'users', user.uid, 'viewedHistory', postId), {
+            postId,
+            title: document.title,
+            url: window.location.href.split('?')[0],
+            timestamp: serverTimestamp()
+        }, { merge: true });
+        console.log('%c✅ [History] View history saved', 'color: #34A853;');
+    } catch (error) {
+        console.error('%c❌ [History] Save error:', 'color: #EA4335;', error);
     }
 }
 
 // =========================================================================================
-// PHẦN 7: KHỞI TẠO KHI DOM READY - PURE JAVASCRIPT
+// PHẦN 7: KHỞI TẠO KHI DOM READY
 // =========================================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('%c🎨 [DOM] DOM Content Loaded', 'color: #4285F4; font-weight: bold;');
     
-    // Gán các biến UI - KHỚP VỚI HTML TEMPLATE
+    // Gán các biến UI
     userNullContainers = document.querySelectorAll('.user-auth-null');
     userTrueContainers = document.querySelectorAll('.user-auth-true');
     signInLinks = document.querySelectorAll('.sign-in-link');
@@ -545,27 +401,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ⚡ RENDER UI NGAY LẬP TỨC TỪ CACHE - không chờ Firebase
-    // Giúp tránh "flash" giao diện khi trang load
     if (_cachedUser) {
         console.log('%c⚡ [Session] Render UI từ cache ngay lập tức', 'color: #34A853; font-weight: bold;');
         updateAuthUI(_cachedUser);
     }
 
     // Gắn sự kiện đăng nhập
-    signInLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            signInWithGoogle();
-        });
-    });
+    signInLinks.forEach(link => link.addEventListener('click', (e) => { e.preventDefault(); signInWithGoogle(); }));
 
     // Gắn sự kiện đăng xuất
-    signOutButtons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            signOut();
-        });
-    });
+    signOutButtons.forEach(btn => btn.addEventListener('click', (e) => { e.preventDefault(); signOut(); }));
 
     // Khởi động bộ đếm lượt xem
     countView();
@@ -573,72 +418,53 @@ document.addEventListener('DOMContentLoaded', () => {
     // Khởi động bộ đếm lượt Like
     initLikeCountDisplay();
 
-    // Lưu lịch sử xem
-    if (auth && isItemPageByBlogger) {
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                saveViewHistory(user);
-            }
-        });
-    }
-
-    // Logic Like/Unlike - PURE JAVASCRIPT (NO JQUERY)
+    // ✅ MỘT LISTENER DUY NHẤT cho toàn bộ auth logic (Like + History + UI)
     const likeButtons = document.querySelectorAll('.likePost');
     let isPopupShowing = false;
 
-    if (auth && likeButtons.length > 0) {
-        console.log(`%c❤️ [Like] Found ${likeButtons.length} like buttons`, 'color: #EA4335;');
-        
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                console.log(`%c👤 [Auth] User logged in: ${user.email}`, 'color: #34A853; font-weight: bold;');
-                console.log(`%c👤 [Auth] Display Name: ${user.displayName}`, 'color: #34A853;');
-                console.log(`%c👤 [Auth] Photo URL: ${user.photoURL}`, 'color: #34A853;');
-                
-                // Lưu phiên đăng nhập vào cache
-                saveUserSession(user);
-                
-                // Cập nhật UI (chỉ cần nếu khác với cache đã render)
-                updateAuthUI(user);
-                
-                // Khởi tạo like buttons
-                likeButtons.forEach(btn => {
-                    initSingleLikeButton(btn, user);
-                });
-            } else {
-                console.log('%c⚠️ [Auth] No user logged in', 'color: #FBBC04;');
-                
-                // Xóa cache phiên đăng nhập
-                clearUserSession();
-                
-                // Cập nhật UI
-                updateAuthUI(null);
-                
-                // Xử lý chưa đăng nhập - PURE JAVASCRIPT
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            console.log(`%c👤 [Auth] User logged in: ${user.email}`, 'color: #34A853; font-weight: bold;');
+
+            // Lưu phiên đăng nhập vào cache
+            saveUserSession(user);
+
+            // Cập nhật UI
+            updateAuthUI(user);
+
+            // Lưu lịch sử xem (chỉ trên bài viết đơn)
+            if (isItemPageByBlogger) saveViewHistory(user);
+
+            // Khởi tạo like buttons
+            if (likeButtons.length > 0) {
+                likeButtons.forEach(btn => initSingleLikeButton(btn, user));
+            }
+        } else {
+            console.log('%c⚠️ [Auth] No user logged in', 'color: #FBBC04;');
+
+            // Xóa cache phiên đăng nhập
+            clearUserSession();
+
+            // Cập nhật UI
+            updateAuthUI(null);
+
+            // Xử lý chưa đăng nhập
+            if (likeButtons.length > 0) {
                 const loginPopup = document.querySelector('.VTloginPopup');
-                
                 likeButtons.forEach(btn => {
                     updateLikeUI(btn, false);
-
                     btn.onclick = (e) => {
                         e.preventDefault();
-
                         if (loginPopup && !isPopupShowing) {
                             isPopupShowing = true;
-                            
-                            // Fade in
                             loginPopup.style.display = 'block';
                             loginPopup.style.opacity = '0';
-                            
                             setTimeout(() => {
                                 loginPopup.style.transition = 'opacity 300ms';
                                 loginPopup.style.opacity = '1';
                             }, 10);
-                            
-                            // Fade out after 3 seconds
                             setTimeout(() => {
                                 loginPopup.style.opacity = '0';
-                                
                                 setTimeout(() => {
                                     loginPopup.style.display = 'none';
                                     isPopupShowing = false;
@@ -648,12 +474,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
                 });
             }
-        });
-    }
+        }
+    });
 });
 
 // =========================================================================================
-// PHẦN 8: ONE TAP LOGIN - FIXED
+// PHẦN 8: ONE TAP LOGIN
 // =========================================================================================
 
 function parseJwt(token) {
@@ -667,121 +493,75 @@ function parseJwt(token) {
 
 window.handleCredentialResponse = async function(response) {
     console.log('%c🎫 [One Tap] Token received', 'color: #4285F4; font-weight: bold;');
-    
     try {
-        // Parse token để lấy thông tin
         const payload = parseJwt(response.credential);
         const googleName = payload.name;
         const googlePicture = payload.picture;
-        const googleEmail = payload.email;
 
-        console.log('%c👤 [One Tap] User Info:', 'color: #4285F4;', {
-            name: googleName,
-            email: googleEmail,
-            picture: googlePicture
-        });
+        console.log('%c👤 [One Tap] User Info:', 'color: #4285F4;', { name: googleName, email: payload.email });
 
-        // Tạo credential - DÙNG REFERENCE GỐC
-        console.log('%c🔑 [One Tap] Creating Firebase credential...', 'color: #34A853;');
         const credential = _originalGoogleAuthProviderCredential(response.credential);
-
-        // Đăng nhập vào Firebase
-        console.log('%c🔐 [One Tap] Signing in to Firebase...', 'color: #34A853;');
         const result = await signInWithCredential(auth, credential);
         const user = result.user;
         
         console.log('%c✅ [One Tap] Firebase login successful!', 'color: #34A853; font-weight: bold;');
-        console.log('%c👤 [One Tap] Firebase User:', 'color: #34A853;', {
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL
-        });
 
         // Cập nhật profile nếu cần
         if (user.displayName !== googleName || user.photoURL !== googlePicture) {
             console.log('%c🔄 [One Tap] Updating user profile...', 'color: #FBBC04;');
-            await updateProfile(user, {
-                displayName: googleName,
-                photoURL: googlePicture
-            });
+            await updateProfile(user, { displayName: googleName, photoURL: googlePicture });
             console.log('%c✅ [One Tap] Profile updated', 'color: #34A853;');
         }
 
         // Lưu phiên đăng nhập vào cache session
         saveUserSession(result.user);
         
-        // Lưu vào localStorage để sync (giữ nguyên logic cũ)
+        // Lưu vào localStorage để sync
         localStorage.setItem('vutruong_sync_name', googleName);
         localStorage.setItem('vutruong_sync_avatar', googlePicture);
         
-        // Ẩn popup One Tap
-        if (window.google && window.google.accounts) {
-            window.google.accounts.id.cancel();
-        }
+        if (window.google && window.google.accounts) window.google.accounts.id.cancel();
 
         console.log('%c🔄 [One Tap] Reloading page...', 'color: #4285F4;');
-        
-        // Reload trang
-        setTimeout(() => {
-            window.location.reload();
-        }, 500);
+        setTimeout(() => window.location.reload(), 500);
         
     } catch (error) {
         console.error('%c❌ [One Tap] Login failed:', 'color: #EA4335; font-weight: bold;', error);
-        console.error('%c❌ [One Tap] Error details:', 'color: #EA4335;', {
-            code: error.code,
-            message: error.message,
-            stack: error.stack
-        });
     }
-}
+};
 
-// Khởi chạy logic One Tap
-var checkAuthInterval = setInterval(function() {
-    if (auth) {
-        clearInterval(checkAuthInterval);
-
-        onAuthStateChanged(auth, function(user) {
-            if (user) {
-                console.log(`%c✅ [Auth] User already logged in: ${user.email}`, 'color: #34A853; font-weight: bold;');
-                
-                // Auto sync nếu cần
-                if (localStorage.getItem('vutruong_sync_name') && window.VT_SyncUserMetadata) {
-                    console.log('%c🔄 [Auth] Auto syncing user metadata...', 'color: #FBBC04;');
-                    window.VT_SyncUserMetadata();
-                }
-                
-                // Disable auto select
-                if (window.google && window.google.accounts) {
-                    window.google.accounts.id.disableAutoSelect();
-                }
-            } else {
-                console.log('%c⚠️ [Auth] No user logged in, initializing One Tap...', 'color: #FBBC04;');
-                
-                var checkGSIInterval = setInterval(function() {
-                    if (window.google && window.google.accounts && window.google.accounts.id) {
-                        clearInterval(checkGSIInterval);
-                        
-                        console.log('%c🚀 [One Tap] Initializing Google Sign-In...', 'color: #4285F4;');
-                        
-                        window.google.accounts.id.initialize({
-                            client_id: "129635740050-2htdgc0rf6sq0dmmqa9uvkgefumbm3qm.apps.googleusercontent.com",
-                            callback: window.handleCredentialResponse,
-                            auto_select: true,
-                            cancel_on_tap_outside: false
-                        });
-                        
-                        window.google.accounts.id.prompt();
-                        console.log('%c✅ [One Tap] Prompt displayed', 'color: #34A853;');
-                    }
-                }, 500);
+// Khởi chạy logic One Tap - auth đã sẵn sàng ngay, không cần setInterval
+onAuthStateChanged(auth, function(user) {
+    if (user) {
+        console.log(`%c✅ [Auth] User already logged in: ${user.email}`, 'color: #34A853; font-weight: bold;');
+        
+        if (localStorage.getItem('vutruong_sync_name') && window.VT_SyncUserMetadata) {
+            console.log('%c🔄 [Auth] Auto syncing user metadata...', 'color: #FBBC04;');
+            window.VT_SyncUserMetadata();
+        }
+        
+        if (window.google && window.google.accounts) window.google.accounts.id.disableAutoSelect();
+    } else {
+        console.log('%c⚠️ [Auth] No user logged in, initializing One Tap...', 'color: #FBBC04;');
+        
+        var checkGSIInterval = setInterval(function() {
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                clearInterval(checkGSIInterval);
+                console.log('%c🚀 [One Tap] Initializing Google Sign-In...', 'color: #4285F4;');
+                window.google.accounts.id.initialize({
+                    client_id: "129635740050-2htdgc0rf6sq0dmmqa9uvkgefumbm3qm.apps.googleusercontent.com",
+                    callback: window.handleCredentialResponse,
+                    auto_select: true,
+                    cancel_on_tap_outside: false
+                });
+                window.google.accounts.id.prompt();
+                console.log('%c✅ [One Tap] Prompt displayed', 'color: #34A853;');
             }
-        });
+        }, 500);
     }
-}, 500);
+});
 
 // =========================================================================================
 console.log('%c🎉 VT-Zone Firebase System Ready!', 'color: #4285F4; font-weight: bold; font-size: 16px;');
-console.log('%c📦 Version: 4.0.0 (Firebase v10 + Session Cache + No jQuery)', 'color: #666;');
+console.log('%c📦 Version: 4.1.0 (Firebase v10 + Session Cache + Unified Auth Listener)', 'color: #666;');
 // =========================================================================================
