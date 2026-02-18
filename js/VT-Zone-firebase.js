@@ -363,16 +363,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         signInWithPopup(auth, provider)
-            .then(() => console.log("[Auth] Đăng nhập thành công"))
+            .then(() => {
+                console.log("[Auth] Đăng nhập thành công");
+                window.location.reload();
+            })
             .catch(err => console.error("[Auth] Lỗi đăng nhập:", err.message));
     }));
 
     // Sự kiện đăng xuất
     signOutButtons.forEach(btn => btn.addEventListener('click', (e) => {
         e.preventDefault();
-        clearUserSession(); // Xóa cache ngay - UI cập nhật tức thì không cần reload
+        clearUserSession(); // Xóa cache ngay
         firebaseSignOut(auth)
-            .then(() => console.log("[Auth] Đăng xuất thành công"))
+            .then(() => {
+                console.log("[Auth] Đăng xuất thành công");
+                window.location.reload();
+            })
             .catch(err => console.error("[Auth] Lỗi đăng xuất:", err.message));
     }));
 
@@ -518,4 +524,4 @@ window.handleCredentialResponse = async function(response) {
 
 // =========================================================================================
 // VT Zone Firebase System v5.0.0 - Ready
-// =======================================================================================
+// ======================================
