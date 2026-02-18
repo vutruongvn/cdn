@@ -148,6 +148,10 @@ let userNullContainers, userTrueContainers, signInLinks, signOutButtons,
 
 const VT_ADMIN_UID = 'u9U3j9O63jbipOgai3o88X4008q2';
 
+// Flag: Firebase onAuthStateChanged đã resolve ít nhất 1 lần chưa
+// Nếu chưa resolve, không xóa admin-tools khỏi DOM (tránh mất element trước khi biết user thực sự)
+let _firebaseAuthResolved = false;
+
 function applyAdminToolsUI(uid) {
     const isAdmin    = uid === VT_ADMIN_UID;
     const adminTools = document.querySelectorAll('.VT-admin-tools');
@@ -156,9 +160,14 @@ function applyAdminToolsUI(uid) {
         // Là admin: gỡ class ẩn, KHÔNG xóa khỏi DOM
         adminTools.forEach(el => el.classList.remove('d-none'));
         sessionStorage.setItem('VT_AdminLogged', 'true');
-    } else {
-        // Không phải admin: XÓA khỏi DOM để bảo mật
+    } else if (_firebaseAuthResolved) {
+        // Firebase đã resolve xác nhận không phải admin → xóa khỏi DOM để bảo mật
         adminTools.forEach(el => el.remove());
+        sessionStorage.removeItem('VT_AdminLogged');
+    } else {
+        // Chưa resolve (gọi từ cache) → chỉ ẩn, KHÔNG xóa khỏi DOM
+        // để khi Firebase resolve là admin thì vẫn còn element để show
+        adminTools.forEach(el => el.classList.add('d-none'));
         sessionStorage.removeItem('VT_AdminLogged');
     }
 }
@@ -375,9 +384,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // Gộp tất cả logic phụ thuộc auth vào 1 listener - tối ưu Firebase calls
     // =====================
     const likeButtons  = document.querySelectorAll('.likePost');
-    let isPopupShowing = false;
+    let _likeLoginToast = null;
+
+    // Helper: lấy hoặc tạo Bootstrap Toast thông báo đăng nhập
+    function _getOrCreateLikeToast() {
+        if (_likeLoginToast) return _likeLoginToast;
+        let toastEl = document.getElementById('loginToast');
+        if (!toastEl) {
+            const container     = document.createElement('div');
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            container.style.zIndex = '1060';
+            container.innerHTML = `
+                <div id="loginToast" class="toast align-items-center text-white bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="fa-solid fa-circle-info me-2"></i>Đăng nhập để Thích bài viết này!
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>`;
+            document.body.appendChild(container);
+            toastEl = document.getElementById('loginToast');
+        }
+        if (typeof bootstrap !== 'undefined') {
+            _likeLoginToast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3000 });
+        }
+        return _likeLoginToast;
+    }
 
     onAuthStateChanged(auth, (user) => {
+        // Đánh dấu Firebase đã resolve - từ đây admin-tools mới được xóa khỏi DOM nếu không phải admin
+        _firebaseAuthResolved = true;
+
         if (user) {
             console.log("[Auth] Đã đăng nhập:", user.email);
 
@@ -407,28 +445,13 @@ document.addEventListener('DOMContentLoaded', () => {
             clearUserSession();
             updateAuthUI(null);
 
-            // Like buttons: chuyển về trạng thái guest + hiện popup khi click
-            const loginPopup = document.querySelector('.VTloginPopup');
+            // Like buttons: chuyển về trạng thái guest + hiện Toast khi click
             likeButtons.forEach(btn => {
                 updateLikeUI(btn, false);
                 btn.onclick = (e) => {
                     e.preventDefault();
-                    if (loginPopup && !isPopupShowing) {
-                        isPopupShowing            = true;
-                        loginPopup.style.display  = 'block';
-                        loginPopup.style.opacity  = '0';
-                        setTimeout(() => {
-                            loginPopup.style.transition = 'opacity 300ms';
-                            loginPopup.style.opacity    = '1';
-                        }, 10);
-                        setTimeout(() => {
-                            loginPopup.style.opacity = '0';
-                            setTimeout(() => {
-                                loginPopup.style.display = 'none';
-                                isPopupShowing           = false;
-                            }, 300);
-                        }, 3000);
-                    }
+                    const t = _getOrCreateLikeToast();
+                    if (t) t.show();
                 };
             });
 
@@ -493,6 +516,6 @@ window.handleCredentialResponse = async function(response) {
     }
 };
 
-// ===============================================
+// =========================================================================================
 // VT Zone Firebase System v5.0.0 - Ready
-// ===============================================
+// =======================================================================================
