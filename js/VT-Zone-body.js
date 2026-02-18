@@ -1,16 +1,9 @@
 // =========================================================================================
 // VT ZONE - ALL PAGE SCRIPTS
-// Script chạy trên toàn bộ trang web - vutruong.vn
+// Chạy trên toàn hệ thống - vutruong.vn
 // =========================================================================================
 
 console.log('%c🚀 VT Zone Scripts', 'color: #4285F4; font-weight: bold; font-size: 14px;', 'Đang khởi tạo...');
-
-// === JS for All Page === JS body
-// === VT Zone === vutruong.vn
-// Js for all page === Chạy trên toàn hệ thống
-
-
-
 
 // =========================================================================================
 // Function bật/tắt VT_darkMode => Ghi nhớ lịch sử
@@ -1308,6 +1301,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // VT ZONE
 // VUTRUONG.VN
 // =========================================================================================
+
 
 
 
