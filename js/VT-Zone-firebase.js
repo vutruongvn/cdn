@@ -175,7 +175,6 @@ window.VT_ApplyAdminUI = function() {
 window.VT_InitAdminSystem = function() {
     // Không làm gì - logic đã được gộp vào onAuthStateChanged bên dưới
     // Admin tools được xử lý trong applyAdminToolsUI
-    updateAuthUI(user);
 };
 
 // =====================
@@ -494,6 +493,6 @@ window.handleCredentialResponse = async function(response) {
     }
 };
 
-// =========================================================================================
+// ===============================================
 // VT Zone Firebase System v5.0.0 - Ready
-// =========================================================================================
+// ===============================================
