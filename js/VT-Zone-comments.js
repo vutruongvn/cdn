@@ -4,6 +4,7 @@
  * Phiên bản: 4.7.0
  * Cập nhật lần cuối: 18/2/2026
  */
+// =========================================================================================
 
 import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { 
@@ -755,3 +756,4 @@ if (document.readyState === 'loading') {
     window.VT_InitCommentSystem();
 }
 // =========================================================================================
+
