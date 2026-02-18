@@ -1,523 +1,483 @@
 // =========================================================================================
-// VT ZONE - ALL PAGE SCRIPTS
-// Chạy trên toàn hệ thống - vutruong.vn -
+/**
+ * VUTRUONG.VN - ALL PAGE SCRIPTS
+ * Chạy trên toàn hệ thống - vutruong.vn
+ * Phiên bản: 5.0.0
+ * Cập nhật: 18/2/2026
+ */
 // =========================================================================================
 
-console.log('%c🚀 VT Zone Scripts', 'color: #4285F4; font-weight: bold; font-size: 14px;', 'Đang khởi tạo...');
+console.log("[VT Zone] Body scripts đang khởi tạo...");
 
-// =========================================================================================
-// Function bật/tắt VT_darkMode => Ghi nhớ lịch sử
-// FIX: Bọc trong DOMContentLoaded để đảm bảo DOM đã sẵn sàng trước khi querySelectorAll
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('%c🌓 Theme Toggle', 'color: #FBBC04;', 'Đã khởi tạo');
+// =====================
+// DARK MODE TOGGLE
+// Lưu trạng thái vào localStorage
+// =====================
 
-    const toggleButtons = document.querySelectorAll('.theme-toggle');
+(function() {
     const htmlElement = document.documentElement;
 
-    function toggleTheme() {
-        const isDark = htmlElement.classList.toggle('VT_darkMode');
-        localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        console.log('%c🌓 Theme', 'color: #FBBC04;', isDark ? 'Chế độ tối' : 'Chế độ sáng');
-    }
+    // Áp dụng theme đã lưu trước khi DOM sẵn sàng (tránh flash)
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') htmlElement.classList.add('VT_darkMode');
 
-    toggleButtons.forEach(button => {
-        button.addEventListener('click', toggleTheme);
+    document.addEventListener('DOMContentLoaded', () => {
+        const toggleButtons = document.querySelectorAll('.theme-toggle');
+        if (!toggleButtons.length) return;
+
+        function toggleTheme() {
+            const isDark = htmlElement.classList.toggle('VT_darkMode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        toggleButtons.forEach(btn => btn.addEventListener('click', toggleTheme));
+        console.log("[Theme] Đã khởi tạo");
     });
-});
+})();
 
-// Function auto lấy url ảnh đại diện tác giả => chèn vào profile-wrapper avatar
-document.addEventListener("DOMContentLoaded", function() {
-    if (typeof authorAvatarUrl !== 'undefined' && authorAvatarUrl !== "") {
-        
-        const optimizedUrl = authorAvatarUrl.replace(/\/s\d+(-c)?\//, '/s200/').replace(/\/w\d+(-h\d+)?(-c)?\//, '/s200/');
-        const originalUrl = authorAvatarUrl.replace(/\/s\d+(-c)?\//, '/s1600/').replace(/\/w\d+(-h\d+)?(-c)?\//, '/s1600/');
+// =====================
+// FONT SWITCHER
+// Toggle giữa Roboto và Google Sans Flex
+// =====================
 
-        const updateElements = (selector, url) => {
-            const elements = document.querySelectorAll(selector);
-            elements.forEach(el => {
-                const tagName = el.tagName.toLowerCase();
-                if (tagName === 'img') {
-                    el.src = url;
-                } else if (tagName === 'a') {
-                    el.href = url;
-                } else {
-                    el.style.backgroundImage = `url('${url}')`;
-                }
-            });
-        };
+(function() {
+    const FONT_KEY          = 'blogFontPreference';
+    const GOOGLE_SANS_CLASS = 'font-google-sans';
+    const FONT_NAME_1       = 'Roboto';
+    const FONT_NAME_2       = 'Google Sans Flex';
 
-        updateElements('.set-author-avatar', optimizedUrl);
-        updateElements('.set-author-avatar-original', originalUrl);
+    function toggleFont() {
+        const isGoogleSans = document.body.classList.contains(GOOGLE_SANS_CLASS);
+        if (isGoogleSans) {
+            document.body.classList.remove(GOOGLE_SANS_CLASS);
+            localStorage.setItem(FONT_KEY, FONT_NAME_1);
+        } else {
+            document.body.classList.add(GOOGLE_SANS_CLASS);
+            localStorage.setItem(FONT_KEY, FONT_NAME_2);
+        }
     }
+
+    // Áp dụng font đã lưu
+    if (localStorage.getItem(FONT_KEY) === FONT_NAME_2) {
+        document.body.classList.add(GOOGLE_SANS_CLASS);
+    }
+
+    // Gắn sự kiện sau khi DOM sẵn sàng
+    document.addEventListener('DOMContentLoaded', () => {
+        const toggler = document.getElementById('font-toggler');
+        if (toggler) toggler.addEventListener('click', toggleFont);
+    });
+})();
+
+// =====================
+// AUTHOR AVATAR
+// Tự động lấy URL ảnh đại diện tác giả từ Blogger và điền vào DOM
+// =====================
+
+document.addEventListener("DOMContentLoaded", function() {
+    if (typeof authorAvatarUrl === 'undefined' || !authorAvatarUrl) return;
+
+    const optimizedUrl = authorAvatarUrl.replace(/\/s\d+(-c)?\//, '/s200/').replace(/\/w\d+(-h\d+)?(-c)?\//, '/s200/');
+    const originalUrl  = authorAvatarUrl.replace(/\/s\d+(-c)?\//, '/s1600/').replace(/\/w\d+(-h\d+)?(-c)?\//, '/s1600/');
+
+    const updateElements = (selector, url) => {
+        document.querySelectorAll(selector).forEach(el => {
+            const tag = el.tagName.toLowerCase();
+            if (tag === 'img')       el.src = url;
+            else if (tag === 'a')    el.href = url;
+            else                     el.style.backgroundImage = `url('${url}')`;
+        });
+    };
+
+    updateElements('.set-author-avatar',          optimizedUrl);
+    updateElements('.set-author-avatar-original', originalUrl);
 });
 
-// =========================================================================================
-// Function share native gán vào .btn-share-native sử dụng trình chia sẻ của hệ thống
+// =====================
+// NATIVE SHARE
+// Sử dụng Web Share API hoặc copy link nếu không hỗ trợ
+// =====================
+
 document.addEventListener('click', async function(event) {
     const btn = event.target.closest('.btn-share-native');
     if (!btn) return;
 
-    const title = btn.getAttribute('data-title');
-    const url = btn.getAttribute('data-url');
-
-    const shareData = { title, text: title, url };
+    const shareData = {
+        title: btn.getAttribute('data-title'),
+        text:  btn.getAttribute('data-title'),
+        url:   btn.getAttribute('data-url')
+    };
 
     try {
         if (navigator.share) {
             await navigator.share(shareData);
         } else {
-            await navigator.clipboard.writeText(url);
-            alert('Đã copy link: ' + title);
+            await navigator.clipboard.writeText(shareData.url);
+            alert('Đã copy link: ' + shareData.title);
         }
-    } catch (err) {
-        console.log('User cancelled or error:', err);
+    } catch(err) {
+        // User hủy share - không cần log
     }
 });
 
-// =========================================================================================
-// Function ẩn hiện .centerMenu khi xem trên Mobile === by VT Zone ===
+// =====================
+// CENTER MENU - Ẩn/Hiện khi cuộn trang trên Mobile
+// =====================
+
 document.addEventListener('DOMContentLoaded', () => {
     const menu = document.querySelector('.centerMenu');
     if (!menu) return;
 
     let lastScrollTop = 0;
-    const delta = 5;
-    let isTicking = false;
+    const delta       = 5;
+    let isTicking     = false;
 
     function handleScrollMenu() {
-        const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
-
-        if (currentScroll < delta) {
-            menu.classList.remove('menu-hidden');
-            lastScrollTop = currentScroll;
-            return;
-        }
-
-        if (Math.abs(lastScrollTop - currentScroll) <= delta) return;
-
-        if (currentScroll > lastScrollTop) {
-            menu.classList.add('menu-hidden');
-        } else {
-            menu.classList.remove('menu-hidden');
-        }
-
-        lastScrollTop = currentScroll;
+        const current = window.pageYOffset || document.documentElement.scrollTop;
+        if (current < delta) { menu.classList.remove('menu-hidden'); lastScrollTop = current; return; }
+        if (Math.abs(lastScrollTop - current) <= delta) return;
+        menu.classList.toggle('menu-hidden', current > lastScrollTop);
+        lastScrollTop = current;
     }
 
-    const requestTick = () => {
+    window.addEventListener('scroll', () => {
         if (!isTicking) {
-            window.requestAnimationFrame(() => {
-                handleScrollMenu();
-                isTicking = false;
-            });
+            window.requestAnimationFrame(() => { handleScrollMenu(); isTicking = false; });
             isTicking = true;
         }
-    };
-
-    window.addEventListener('scroll', requestTick, { passive: true });
+    }, { passive: true });
 });
 
+// =====================
+// XÓA ?m=1 TRÊN URL KHI XEM MOBILE
+// Fix: indexOf chỉ truyền 1 tham số (tham số thứ 2 phải là number, không phải string)
+// =====================
 
-// =========================================================================================
-// Function xóa ?m=1 trên URL khi xem bằng Mobile
-// FIX: Bỏ tham số thứ 2 dư thừa của indexOf (không phải fromIndex)
-var uri = window.location.toString();
-if (uri.indexOf("?m=1") > 0) {
-    var clean_uri = uri.substring(0, uri.indexOf("?m=1"));
-    window.history.replaceState({}, document.title, clean_uri);
-}
-
-// =========================================================================================
-// Function lấy dữ liệu từ .reportPost => điền vào input trang /report
-document.addEventListener('click', function(e) {
-    const reportBtn = e.target.closest('.reportPost');
-    if (reportBtn) {
-        e.preventDefault();
-        const reportData = {
-            title: reportBtn.getAttribute('data-post-title'),
-            url: reportBtn.getAttribute('data-post-url')
-        };
-        sessionStorage.setItem('pendingReport', JSON.stringify(reportData));
-        window.location.href = '//vutruong.vn/report'; 
+(function() {
+    const uri = window.location.toString();
+    if (uri.indexOf("?m=1") > 0) {
+        window.history.replaceState({}, document.title, uri.substring(0, uri.indexOf("?m=1")));
     }
+})();
+
+// =====================
+// REPORT POST
+// Lưu thông tin bài viết vào sessionStorage rồi chuyển đến trang /report
+// =====================
+
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.reportPost');
+    if (!btn) return;
+    e.preventDefault();
+    sessionStorage.setItem('pendingReport', JSON.stringify({
+        title: btn.getAttribute('data-post-title'),
+        url:   btn.getAttribute('data-post-url')
+    }));
+    window.location.href = '//vutruong.vn/report';
 });
 
-// =========================================================================================
-// ===== Function Post Gallery Layout Auto for Blog Post by VT Zone =====
+// =====================
+// POST GALLERY LAYOUT AUTO
+// Tự động tạo gallery layout cho bài viết có nhiều ảnh
+// =====================
+
 function VT_homePostLayout() {
-    console.log('%c🖼️ Gallery Layout', 'color: #4285F4;', 'Đang xử lý bài viết...');
-    
     const postContainers = document.querySelectorAll('.postBody_multipleItems:not([data-layout-processed]), .postBody_singleItem:not([data-layout-processed])');
 
     postContainers.forEach((container) => {
-        const imgs = container.querySelectorAll('img');
-        const count = imgs.length;
+        const imgs   = container.querySelectorAll('img');
+        const count  = imgs.length;
+        if (count === 0) { container.setAttribute('data-layout-processed', 'true'); return; }
 
-        if (count > 0) {
-            const gallery = document.createElement('div');
-            const displayCount = count > 5 ? 5 : count;
-            gallery.className = `VT_homePostGallery p-0 m-0 mb-3 layout-${displayCount}`;
-            
-            const postId = container.closest('.post')?.id || 'album-' + Math.random().toString(36).substr(2, 5);
+        const gallery     = document.createElement('div');
+        const displayCount = count > 5 ? 5 : count;
+        gallery.className  = `VT_homePostGallery p-0 m-0 mb-3 layout-${displayCount}`;
+        const postId       = container.closest('.post')?.id || 'album-' + Math.random().toString(36).substr(2, 5);
 
-            imgs.forEach((img, idx) => {
-                const parentSep = img.closest('.separator');
-                const link = document.createElement('a');
-                link.href = img.src;
-                link.setAttribute('data-fancybox', 'gallery-' + postId);
-                
-                if (idx === 4 && count > 5) {
-                    const overlay = document.createElement('div');
-                    overlay.className = 'vt-gallery-overlay';
-                    overlay.innerHTML = `<span>+${count - 5}</span>`;
-                    link.appendChild(overlay);
-                }
+        imgs.forEach((img, idx) => {
+            const parentSep = img.closest('.separator');
+            const link      = document.createElement('a');
+            link.href       = img.src;
+            link.setAttribute('data-fancybox', 'gallery-' + postId);
 
-                if (idx >= 5) link.style.display = 'none';
-
-                img.removeAttribute('style'); 
-                link.appendChild(img);
-                gallery.appendChild(link);
-                
-                if (parentSep && parentSep.innerHTML.trim() === "") {
-                    parentSep.remove();
-                } else if (parentSep) {
-                    parentSep.style.display = 'none';
-                }
-            });
-
-            const target = container.querySelector('.postGallery');
-            if (target) {
-                target.innerHTML = '';
-                target.appendChild(gallery);
-            } else {
-                container.appendChild(gallery);
+            // Overlay "+N" tại ảnh thứ 5 nếu có nhiều hơn 5 ảnh
+            if (idx === 4 && count > 5) {
+                const overlay     = document.createElement('div');
+                overlay.className = 'vt-gallery-overlay';
+                overlay.innerHTML = `<span>+${count - 5}</span>`;
+                link.appendChild(overlay);
             }
+
+            // Từ ảnh thứ 6 trở đi ẩn nhưng vẫn có trong DOM để Fancybox quét được
+            if (idx >= 5) link.style.display = 'none';
+
+            img.removeAttribute('style');
+            link.appendChild(img);
+            gallery.appendChild(link);
+
+            if (parentSep && parentSep.innerHTML.trim() === '') {
+                parentSep.remove();
+            } else if (parentSep) {
+                parentSep.style.display = 'none';
+            }
+        });
+
+        const target = container.querySelector('.postGallery');
+        if (target) {
+            target.innerHTML = '';
+            target.appendChild(gallery);
+        } else {
+            container.appendChild(gallery);
         }
 
         container.setAttribute('data-layout-processed', 'true');
     });
 }
+
 document.addEventListener('DOMContentLoaded', VT_homePostLayout);
 
-// ========================================================================================================
-// Function kiểm tra trạng thái data:post.body và ẩn nút v-fullPost
+// =====================
+// CHECK READ MORE
+// Ẩn nút "Xem thêm" nếu bài viết quá ngắn (không tràn)
+// =====================
+
 function VT_checkReadMore() {
-    const limitedBoxes = document.querySelectorAll('.postBodyLimited:not([data-readmore-checked])');
-    
-    limitedBoxes.forEach(box => {
+    document.querySelectorAll('.postBodyLimited:not([data-readmore-checked])').forEach(box => {
         const container = box.closest('.postBody_multipleItems, .postBody_singleItem');
         if (!container) return;
-        
         const btn = container.querySelector('.v-fullPost');
-        if (btn) {
-            const isOverflowing = box.scrollHeight > (box.clientHeight + 0);
-            if (!isOverflowing) {
-                btn.style.setProperty('display', 'none', 'important');
-            }
+        if (btn && !(box.scrollHeight > box.clientHeight)) {
+            btn.style.setProperty('display', 'none', 'important');
         }
-
         box.setAttribute('data-readmore-checked', 'true');
     });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(VT_checkReadMore, 200);
-});
+document.addEventListener('DOMContentLoaded', () => setTimeout(VT_checkReadMore, 200));
 
-// =========================================================================================
-/* === Hàm Fade (Chỉ dùng JS thuần) === */
+// =====================
+// FADE IN / FADE OUT
+// Hàm tiện ích dùng cho popup và live search (thuần JS)
+// =====================
 
 function fadeIn(element, duration = 100) {
-    element.style.opacity = '0';
+    element.style.opacity    = '0';
     element.style.visibility = 'visible';
     element.style.transition = `opacity ${duration}ms ease-in`;
-    requestAnimationFrame(() => {
-        element.style.opacity = '1';
-    });
-    element.addEventListener('transitionend', function handler() {
-        element.style.transition = ''; 
-        element.removeEventListener('transitionend', handler);
+    requestAnimationFrame(() => { element.style.opacity = '1'; });
+    element.addEventListener('transitionend', function h() {
+        element.style.transition = '';
+        element.removeEventListener('transitionend', h);
     }, { once: true });
 }
 
 function fadeOut(element, duration = 100) {
-    element.style.opacity = '1';
+    element.style.opacity    = '1';
     element.style.transition = `opacity ${duration}ms ease-out`;
-    requestAnimationFrame(() => {
-        element.style.opacity = '0';
-    });
-    element.addEventListener('transitionend', function handler() {
-        element.style.visibility = 'hidden'; 
-        element.style.display = 'none';
-        element.style.opacity = '';
+    requestAnimationFrame(() => { element.style.opacity = '0'; });
+    element.addEventListener('transitionend', function h() {
+        element.style.visibility = 'hidden';
+        element.style.display    = 'none';
+        element.style.opacity    = '';
         element.style.transition = '';
-        element.removeEventListener('transitionend', handler);
+        element.removeEventListener('transitionend', h);
     }, { once: true });
 }
 
+// =====================
+// POPUP TÀI KHOẢN NGƯỜI DÙNG
+// Ẩn/Hiện panel khi click avatar
+// =====================
 
-/* === Chức năng Ẩn/Hiện Popup Tài khoản Người dùng (Sử dụng Fade) === */
 document.addEventListener('DOMContentLoaded', function() {
-    const avatarButton = document.querySelector('.user-profile-details .avatar-user');
+    const avatarBtn  = document.querySelector('.user-profile-details .avatar-user');
     const popupPanel = document.querySelector('.popupShow_accountPanel');
-    const body = document.body;
-    const FADE_DURATION = 100;
+    if (!avatarBtn || !popupPanel) return;
 
-    if (!avatarButton || !popupPanel) return;
-
-    popupPanel.style.display = 'none'; 
+    const FADE_DUR = 100;
+    popupPanel.style.display    = 'none';
     popupPanel.style.visibility = 'hidden';
-    popupPanel.style.opacity = '0'; 
+    popupPanel.style.opacity    = '0';
 
     function togglePopup(event) {
         event.stopPropagation();
-        const computedStyle = window.getComputedStyle(popupPanel);
-        const isVisible = computedStyle.visibility !== 'hidden' && computedStyle.opacity !== '0';
-
+        const isVisible = window.getComputedStyle(popupPanel).visibility !== 'hidden'
+                       && window.getComputedStyle(popupPanel).opacity    !== '0';
         if (isVisible) {
-            fadeOut(popupPanel, FADE_DURATION);
+            fadeOut(popupPanel, FADE_DUR);
         } else {
-            popupPanel.style.display = 'block'; 
-            fadeIn(popupPanel, FADE_DURATION);
+            popupPanel.style.display = 'block';
+            fadeIn(popupPanel, FADE_DUR);
         }
     }
 
-    avatarButton.addEventListener('click', togglePopup);
+    avatarBtn.addEventListener('click', togglePopup);
 
-    body.addEventListener('click', function(event) {
-        const computedStyle = window.getComputedStyle(popupPanel);
-        const isVisible = computedStyle.visibility !== 'hidden' && computedStyle.opacity !== '0';
-
-        if (isVisible) {
-            const isClickInsidePanel = popupPanel.contains(event.target);
-            const isClickOnAvatar = avatarButton.contains(event.target);
-            if (!isClickInsidePanel && !isClickOnAvatar) {
-                fadeOut(popupPanel, FADE_DURATION);
-            }
+    document.body.addEventListener('click', function(event) {
+        const isVisible = window.getComputedStyle(popupPanel).visibility !== 'hidden'
+                       && window.getComputedStyle(popupPanel).opacity    !== '0';
+        if (isVisible && !popupPanel.contains(event.target) && !avatarBtn.contains(event.target)) {
+            fadeOut(popupPanel, FADE_DUR);
         }
     });
 });
 
-// =========================================================================================
-// Tính năng Live Search - Vanilla JS (UI show/hide)
+// =====================
+// LIVE SEARCH - UI CONTROL (Thuần JS)
+// Xử lý show/hide panel tìm kiếm
+// =====================
+
 document.addEventListener('DOMContentLoaded', function() {
     const liveSearchTarget = document.getElementById('target_VT_live_search');
-    const showTrigger = document.querySelector('.show_liveSearch');
-    const closeButtons = document.querySelectorAll('.close_liveSearch, .vt-live-search-wrapper-overlay-background');
-    
+    const showTrigger      = document.querySelector('.show_liveSearch');
+    const closeButtons     = document.querySelectorAll('.close_liveSearch, .vt-live-search-wrapper-overlay-background');
+
     if (!liveSearchTarget || !showTrigger || closeButtons.length === 0) return;
-    
-    liveSearchTarget.style.display = 'none'; 
-    liveSearchTarget.style.visibility = 'hidden'; 
-    liveSearchTarget.style.opacity = '0';
-    
-    function openLiveSearch(duration = 300) {
-        liveSearchTarget.style.display = 'block';
-        fadeIn(liveSearchTarget, duration);
-    }
-    
-    function closeLiveSearch(duration = 300) {
-        fadeOut(liveSearchTarget, duration);
-    }
-    
-    showTrigger.addEventListener('click', function(event) {
-        event.preventDefault(); 
-        openLiveSearch(300);
-        event.stopPropagation(); 
-    });
-    
-    closeButtons.forEach(button => {
-        button.addEventListener('click', function(event) {
-            event.preventDefault(); 
+
+    liveSearchTarget.style.display    = 'none';
+    liveSearchTarget.style.visibility = 'hidden';
+    liveSearchTarget.style.opacity    = '0';
+
+    const openLiveSearch  = (dur = 300) => { liveSearchTarget.style.display = 'block'; fadeIn(liveSearchTarget, dur); };
+    const closeLiveSearch = (dur = 300) => fadeOut(liveSearchTarget, dur);
+
+    showTrigger.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openLiveSearch(300); });
+    closeButtons.forEach(btn => btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); closeLiveSearch(300); }));
+
+    document.addEventListener('click', (e) => {
+        const cs = window.getComputedStyle(liveSearchTarget);
+        if (cs.visibility === 'hidden' || cs.opacity === '0') return;
+        if (e.target !== liveSearchTarget && !liveSearchTarget.contains(e.target)
+            && e.target !== showTrigger && !showTrigger.contains(e.target)) {
             closeLiveSearch(300);
-            event.stopPropagation();
-        });
-    });
-    
-    document.addEventListener('click', function(event) {
-        const target = event.target;
-        const computedStyle = window.getComputedStyle(liveSearchTarget);
-        const isVisible = computedStyle.visibility !== 'hidden' && computedStyle.opacity !== '0';
-
-        if (isVisible) {
-            if (
-                target !== liveSearchTarget && 
-                !liveSearchTarget.contains(target) &&
-                target !== showTrigger &&
-                !showTrigger.contains(target) 
-            ) {
-                closeLiveSearch(300);
-            }
         }
     });
 
-    document.addEventListener('keyup', function(e) {
-        if (e.key === "Escape" || e.keyCode === 27) {
-            const computedStyle = window.getComputedStyle(liveSearchTarget);
-            const isVisible = computedStyle.visibility !== 'hidden' && computedStyle.opacity !== '0';
-            if (isVisible) closeLiveSearch(300);
-        }
+    document.addEventListener('keyup', (e) => {
+        if (e.key !== "Escape") return;
+        const cs = window.getComputedStyle(liveSearchTarget);
+        if (cs.visibility !== 'hidden' && cs.opacity !== '0') closeLiveSearch(300);
     });
 });
 
-// =========================================================================================
-// Function Live Search - Core tìm kiếm (dùng jQuery + Blogger API)
-$(document).ready(function() {
-    let isLiveSearchInitialized = false;
+// =====================
+// LIVE SEARCH - CORE SEARCH (Thuần JS, thay thế jQuery $.ajax)
+// Gọi Blogger JSON Feed API để tìm kiếm bài viết
+// =====================
 
-    $('.show_liveSearch').on('click', function() {
-        if (isLiveSearchInitialized) return;
+document.addEventListener('DOMContentLoaded', function() {
+    const showTrigger = document.querySelector('.show_liveSearch');
+    if (!showTrigger) return;
 
-        console.log('Nút tìm kiếm được click. Bắt đầu khởi tạo Live Search.');
-        
-        const searchInput = $('#vt-search-input');
-        const resultsBox = $('#vt-live-results');
+    let isInitialized = false;
+
+    showTrigger.addEventListener('click', function() {
+        if (isInitialized) return;
+        isInitialized = true;
+
+        const searchInput  = document.getElementById('vt-search-input');
+        const resultsBox   = document.getElementById('vt-live-results');
+        if (!searchInput || !resultsBox) return;
+
         let typingTimer;
-        const doneTypingInterval = 500;
-        
+        const DEBOUNCE = 500;
+
+        // Fetch kết quả từ Blogger API bằng fetch() thuần
         function fetchSearchResults(keyword) {
-            $.ajax({
-                url: '/feeds/posts/summary?alt=json&q=' + encodeURIComponent(keyword) + '&max-results=10',
-                type: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    renderResults(data);
-                },
-                error: function() {
-                    if (resultsBox.is(':visible')) {
-                        resultsBox.html('<div class="vt-search-empty">Lỗi kết nối. Vui lòng thử lại.</div>');
-                    }
-                }
-            });
+            fetch('/feeds/posts/summary?alt=json&q=' + encodeURIComponent(keyword) + '&max-results=10')
+                .then(res => res.json())
+                .then(data => renderResults(data, keyword))
+                .catch(() => {
+                    resultsBox.innerHTML = '<div class="vt-search-empty">Lỗi kết nối. Vui lòng thử lại.</div>';
+                });
         }
 
-        function renderResults(json) {
-            if (resultsBox.length === 0) return; 
-            
+        function renderResults(json, query) {
             if (!json.feed.entry) {
-                resultsBox.html('<div class="vt-search-empty"><i class="fad fa-circle-exclamation me-2"></i>Không tìm thấy kết quả nào, nhập Tiếng Việt có dấu để tìm kiếm chính xác nhất.</div>');
+                resultsBox.innerHTML = '<div class="vt-search-empty"><i class="fad fa-circle-exclamation me-2"></i>Không tìm thấy kết quả nào, nhập Tiếng Việt có dấu để tìm kiếm chính xác nhất.</div>';
                 return;
             }
 
             let html = '';
-            $.each(json.feed.entry, function(i, entry) {
-                const fullId = entry.id.$t;
-                let displayId = fullId.substring(fullId.lastIndexOf('-') + 1);    
-                let title = entry.title.$t;
-                let finalTitle = title || 'Bài viết ID: ' + displayId;
-                
-                let link = '';
-                for (let j = 0; j < entry.link.length; j++) {
-                    if (entry.link[j].rel == 'alternate') { link = entry.link[j].href; break; }
+            json.feed.entry.forEach((entry) => {
+                const fullId      = entry.id.$t;
+                const displayId   = fullId.substring(fullId.lastIndexOf('-') + 1);
+                const title       = (entry.title.$t || '').trim() || 'Bài viết ID: ' + displayId;
+                let link          = '';
+                for (const l of entry.link) {
+                    if (l.rel === 'alternate') { link = l.href; break; }
                 }
-                
-                let img = 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi1iPw_w8MsNvluVqo_hgSKU5IoxcSUNJWb-YyjgdBGNyFH9ACIQHLj8g4EXnzHTiQ8D7PiR72qCpICKpVTPhyphenhyphen1Kq6u-GmBf5eJfLY5fmPxMscEdVXzfkXtP_2AFqz2oMaxB-Zm3cysmkl2ukTlqW7dz2BaOnqxUMPdH8wdS49L0snioA/s1600/avatarVT.JPEG'; 
-                if (entry.media$thumbnail) {
-                    img = entry.media$thumbnail.url.replace('/s72-c/', '/s100/');    
-                }
+                let img = 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi1iPw_w8MsNvluVqo_hgSKU5IoxcSUNJWb-YyjgdBGNyFH9ACIQHLj8g4EXnzHTiQ8D7PiR72qCpICKpVTPhyphenhyphen1Kq6u-GmBf5eJfLY5fmPxMscEdVXzfkXtP_2AFqz2oMaxB-Zm3cysmkl2ukTlqW7dz2BaOnqxUMPdH8wdS49L0snioA/s1600/avatarVT.JPEG';
+                if (entry.media$thumbnail) img = entry.media$thumbnail.url.replace('/s72-c/', '/s100/');
+                const label = (entry.category && entry.category.length > 0) ? entry.category[0].term : '';
 
-                let label = (entry.category && entry.category.length > 0) ? entry.category[0].term : '';
-
-                html += `
-                <a href="${link}" class="vt-search-item ripple">
+                html += `<a href="${link}" class="vt-search-item ripple">
                     <div class="vt-search-info">
-                        <span class="vt-search-title">${finalTitle}</span>
+                        <span class="vt-search-title">${title}</span>
                         ${label ? `<span class="vt-search-label">#${label}</span>` : ''}
                     </div>
-                </a>
-                `;
+                </a>`;
             });
 
-            let query = searchInput.val();
-            html += `<a href="/search?q=${encodeURIComponent(query)}" class="vt-search-item" style="justify-content:center; color:#007bff; font-size:14px; font-weight:400">Xem tất cả kết quả <i class="fad fa-angle-down ms-1"/></a>`;
-
-            resultsBox.html(html);
+            html += `<a href="/search?q=${encodeURIComponent(query)}" class="vt-search-item" style="justify-content:center;color:#007bff;font-size:14px;font-weight:400">Xem tất cả kết quả <i class="fad fa-angle-down ms-1"/></a>`;
+            resultsBox.innerHTML = html;
+            resultsBox.style.display = 'block';
         }
 
-        searchInput.on('keyup input', function() {
+        // Lắng nghe input với debounce
+        searchInput.addEventListener('keyup', function() {
             clearTimeout(typingTimer);
-            const query = $(this).val().trim();
-            if (resultsBox.length === 0) return;
-            if (query.length > 1) {    
-                resultsBox.show().html('<div class="vt-search-loading text-left"><i class="fa-duotone fa-spinner-third fa-spin me-2"></i>Đang tìm kiếm...</div>');
-                typingTimer = setTimeout(function() { fetchSearchResults(query); }, doneTypingInterval);
+            const q = this.value.trim();
+            if (q.length > 1) {
+                resultsBox.style.display = 'block';
+                resultsBox.innerHTML     = '<div class="vt-search-loading text-left"><i class="fa-duotone fa-spinner-third fa-spin me-2"></i>Đang tìm kiếm...</div>';
+                typingTimer = setTimeout(() => fetchSearchResults(q), DEBOUNCE);
             } else {
-                resultsBox.hide().empty();
+                resultsBox.style.display = 'none';
+                resultsBox.innerHTML     = '';
             }
         });
 
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('.vt-live-search-wrapper').length) resultsBox.hide();
-        });
-        
-        searchInput.on('focus', function() {
-            if ($(this).val().length > 1 && resultsBox.html().trim() !== '') resultsBox.show();
+        // Đóng kết quả khi click ra ngoài
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.vt-live-search-wrapper')) {
+                resultsBox.style.display = 'none';
+            }
         });
 
-        isLiveSearchInitialized = true;
-    }); 
+        // Mở lại kết quả khi focus vào input (nếu đã có nội dung)
+        searchInput.addEventListener('focus', function() {
+            if (this.value.length > 1 && resultsBox.innerHTML.trim()) {
+                resultsBox.style.display = 'block';
+            }
+        });
+    });
 });
 
+// =====================
+// SLIDE MENU (Sidenav)
+// Class-based, thuần JS - thay thế jQuery slideToggle/fadeToggle
+// =====================
 
-// =========================================================================================
-// Function thay đổi Font chữ trên toàn BODY
-// FIX: Bọc trong IIFE để tránh ô nhiễm global scope
-(function() {
-    const FONT_STORAGE_KEY = 'blogFontPreference';
-    const GOOGLE_SANS_CLASS = 'font-google-sans';
-    const bodyElement = document.body;
-    const togglerElement = document.getElementById('font-toggler');
-    const FONT_NAME_1 = 'Roboto';
-    const FONT_NAME_2 = 'Google Sans Flex';
-
-    function toggleFont() {
-        const isGoogleSans = bodyElement.classList.contains(GOOGLE_SANS_CLASS);
-        if (isGoogleSans) {
-            bodyElement.classList.remove(GOOGLE_SANS_CLASS);
-            localStorage.setItem(FONT_STORAGE_KEY, FONT_NAME_1);
-        } else {
-            bodyElement.classList.add(GOOGLE_SANS_CLASS);
-            localStorage.setItem(FONT_STORAGE_KEY, FONT_NAME_2);
-        }
-    }
-
-    function applySavedFont() {
-        const savedFont = localStorage.getItem(FONT_STORAGE_KEY);
-        if (savedFont === FONT_NAME_2) bodyElement.classList.add(GOOGLE_SANS_CLASS);
-        if (togglerElement) togglerElement.addEventListener('click', toggleFont);
-    }
-
-    applySavedFont();
-})();
-
-
-// =========================================================================================
-// === Function Slide Menu ===
 "use strict";
 
 class Sidenav {
     constructor(element) {
-        this.el = element;
+        this.el             = element;
         this.toggleSelector = this.el.getAttribute("data-sidenav-toggle");
         this.init();
     }
 
-    init() {
-        this.initToggle();
-        this.initDropdown();
-    }
+    init() { this.initToggle(); this.initDropdown(); }
 
     initToggle() {
         document.addEventListener("click", (e) => {
-            const target = e.target;
-            const toggleBtn = this.toggleSelector ? target.closest(this.toggleSelector) : null;
-
+            const toggleBtn = this.toggleSelector ? e.target.closest(this.toggleSelector) : null;
             if (toggleBtn) {
                 this.el.classList.toggle("show");
                 document.body.classList.toggle("sidenav-no-scrolls");
                 this.toggleOverlay();
-            } else if (!target.closest('[data-sidenav]') && this.el.classList.contains("show")) {
+            } else if (!e.target.closest('[data-sidenav]') && this.el.classList.contains("show")) {
                 this.el.classList.remove("show");
                 document.body.classList.remove("sidenav-no-scrolls");
                 this.hideOverlay();
@@ -529,11 +489,9 @@ class Sidenav {
         this.el.addEventListener("click", (e) => {
             const toggle = e.target.closest("[data-sidenav-dropdown_toggle]");
             if (!toggle) return;
-
             e.preventDefault();
             const dropdown = toggle.nextElementSibling;
-            const icon = toggle.querySelector("[data-sidenav-dropdown-icon]");
-
+            const icon     = toggle.querySelector("[data-sidenav-dropdown-icon]");
             if (dropdown && dropdown.matches("[data-sidenav-dropdown]")) {
                 this.slideToggle(dropdown);
                 if (icon) icon.classList.toggle("show");
@@ -544,100 +502,84 @@ class Sidenav {
     toggleOverlay() {
         let overlay = document.querySelector("[data-sidenav-overlay]");
         if (!overlay) {
-            overlay = document.createElement("div");
+            overlay            = document.createElement("div");
             overlay.setAttribute("data-sidenav-overlay", "");
-            overlay.className = "sidenav-overlay";
+            overlay.className  = "sidenav-overlay";
             document.body.appendChild(overlay);
         }
-        const isVisible = getComputedStyle(overlay).display !== "none";
-        if (isVisible) {
-            this.fadeOut(overlay);
-        } else {
-            this.fadeIn(overlay);
-        }
+        getComputedStyle(overlay).display !== "none" ? this.fadeOut(overlay) : this.fadeIn(overlay);
     }
 
     hideOverlay() {
-        const overlay = document.querySelector("[data-sidenav-overlay]");
-        if (overlay) this.fadeOut(overlay);
+        const o = document.querySelector("[data-sidenav-overlay]");
+        if (o) this.fadeOut(o);
     }
 
-    slideToggle(element) {
-        if (window.getComputedStyle(element).display === 'none') {
-            return this.slideDown(element);
-        } else {
-            return this.slideUp(element);
-        }
+    slideToggle(el) {
+        getComputedStyle(el).display === 'none' ? this.slideDown(el) : this.slideUp(el);
     }
 
-    slideUp(element) {
-        element.style.height = element.offsetHeight + 'px';
-        element.offsetHeight;
-        element.style.height = '0px';
-        setTimeout(() => {
-            element.style.display = 'none';
-            element.style.removeProperty('height');
-        }, 300); 
+    slideUp(el) {
+        el.style.height = el.offsetHeight + 'px';
+        el.offsetHeight; // force repaint
+        el.style.height = '0px';
+        setTimeout(() => { el.style.display = 'none'; el.style.removeProperty('height'); }, 300);
     }
 
-    slideDown(element) {
-        element.style.display = 'block';
-        let height = element.scrollHeight;
-        element.style.height = '0px';
-        element.offsetHeight;
-        element.style.height = height + 'px';
-        setTimeout(() => {
-            element.style.removeProperty('height');
-        }, 300);
+    slideDown(el) {
+        el.style.display = 'block';
+        const h = el.scrollHeight;
+        el.style.height  = '0px';
+        el.offsetHeight;
+        el.style.height  = h + 'px';
+        setTimeout(() => el.style.removeProperty('height'), 300);
     }
 
-    fadeIn(element) {
-        element.style.opacity = 0;
-        element.style.display = "block";
-        requestAnimationFrame(() => {
-            element.style.transition = "opacity 0.3s";
-            element.style.opacity = 1;
-        });
+    fadeIn(el) {
+        el.style.opacity = 0;
+        el.style.display = "block";
+        requestAnimationFrame(() => { el.style.transition = "opacity 0.3s"; el.style.opacity = 1; });
     }
 
-    fadeOut(element) {
-        element.style.transition = "opacity 0.3s";
-        element.style.opacity = 0;
-        setTimeout(() => { element.style.display = "none"; }, 300);
+    fadeOut(el) {
+        el.style.transition = "opacity 0.3s";
+        el.style.opacity    = 0;
+        setTimeout(() => el.style.display = "none", 300);
     }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    const sidenavs = document.querySelectorAll("[data-sidenav]");
-    sidenavs.forEach(el => new Sidenav(el));
+    document.querySelectorAll("[data-sidenav]").forEach(el => new Sidenav(el));
 });
 
-// === End Function Slide Menu ===
+// =====================
+// AUTO SCROLL
+// Tự động cuộn đến vị trí phù hợp khi trang load
+// =====================
 
-
-// =========================================================================================
-// === Function auto scroll ===
 (function() {
-    const path = window.location.pathname;
-    const isHomePage = (path === '/' || path === '/index.html');
-    const isSearchPage = path.includes('/search');
-    const isListView = isHomePage || isSearchPage;
+    const path          = window.location.pathname;
+    const isHomePage    = (path === '/' || path === '/index.html');
+    const isSearchPage  = path.includes('/search');
+    const isListView    = isHomePage || isSearchPage;
+    const targetSel     = isListView ? '.profile-info-section' : '#mainPost';
+    const offset        = isListView ? 90 : 75;
+    const element       = document.querySelector(targetSel);
 
-    const targetSelector = isListView ? '.profile-info-section' : '#mainPost';
-    const offset = isListView ? 90 : 75;
-
-    const element = document.querySelector(targetSelector);
     if (element) {
         setTimeout(() => {
-            const elementPosition = element.getBoundingClientRect().top + window.scrollY;
-            window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' });
+            window.scrollTo({
+                top:      element.getBoundingClientRect().top + window.scrollY - offset,
+                behavior: 'smooth'
+            });
         }, 150);
     }
 })();
 
+// =====================
+// FEATURED STORIES CAROUSEL
+// =====================
 
-// =========================================================================================
-// ========= Function for Featured Story
 document.addEventListener("DOMContentLoaded", function() {
     "use strict";
 
@@ -645,103 +587,89 @@ document.addEventListener("DOMContentLoaded", function() {
         return fullUrl.replace(/\/s\d+\//, '/s250/');
     }
 
-    const track = document.getElementById('vt-carousel-track');
+    const track   = document.getElementById('vt-carousel-track');
     const btnPrev = document.getElementById('vt-btn-prev');
     const btnNext = document.getElementById('vt-btn-next');
 
     function renderCarousel() {
-        if (!track) return;
+        if (!track || typeof carouselData === 'undefined') return;
 
-        const groupedData = carouselData.reduce((acc, current) => {
-            if (!acc[current.title]) acc[current.title] = [];
-            acc[current.title].push(current);
+        const grouped = carouselData.reduce((acc, cur) => {
+            if (!acc[cur.title]) acc[cur.title] = [];
+            acc[cur.title].push(cur);
             return acc;
         }, {});
 
         let html = '';
-        Object.keys(groupedData).forEach(title => {
-            const groupItems = groupedData[title];
-            const mainItem = groupItems[0];
-            const groupId = `group-${title.replace(/[\s\W]+/g, '-')}`; 
-            const thumbnailUrl = getThumbnail(mainItem.link);
+        Object.keys(grouped).forEach(title => {
+            const items     = grouped[title];
+            const main      = items[0];
+            const groupId   = `group-${title.replace(/[\s\W]+/g, '-')}`;
+            const thumb     = getThumbnail(main.link);
 
             html += `
             <div class="vt-card-item">
-                <a href="${mainItem.link}" class="text-decoration-none d-block" data-fancybox="${groupId}">
+                <a href="${main.link}" class="text-decoration-none d-block" data-fancybox="${groupId}">
                     <div class="carousel-div-img position-relative p-0 m-0 overflow-hidden">
-                        <img src="${thumbnailUrl}" class="vt-card-img shadow-sm" alt="${title}" loading="lazy">
-                        ${groupItems.length > 1 ? `<span class="position-absolute bottom-0 start-0 m-2 bg-dark badge rounded-pill fw-normal opacity-75">+${groupItems.length - 1}</span>` : ''}
+                        <img src="${thumb}" class="vt-card-img shadow-sm" alt="${title}" loading="lazy">
+                        ${items.length > 1 ? `<span class="position-absolute bottom-0 start-0 m-2 bg-dark badge rounded-pill fw-normal opacity-75">+${items.length - 1}</span>` : ''}
                     </div>
-                    <div class="text-center fw-medium small text-truncate px-1 d-none">
-                        ${title}
-                    </div>
+                    <div class="text-center fw-medium small text-truncate px-1 d-none">${title}</div>
                 </a>
-                ${groupItems.slice(1).map(item => {
-                    return `<a class="story-item-hidden d-none" href="${item.link}" data-fancybox="${groupId}"></a>`;
-                }).join('')}
-            </div>
-            `;
+                ${items.slice(1).map(i => `<a class="story-item-hidden d-none" href="${i.link}" data-fancybox="${groupId}"></a>`).join('')}
+            </div>`;
         });
 
         track.innerHTML = html;
     }
 
-    function handleScroll(direction) {
+    function handleScroll(dir) {
         if (!track) return;
-        const scrollAmount = track.clientWidth; 
-        const currentScroll = track.scrollLeft;
-        const maxScroll = track.scrollWidth - track.clientWidth;
-
-        let target = (direction === 'next') ? currentScroll + scrollAmount : currentScroll - scrollAmount;
-
-        if (direction === 'next' && target >= maxScroll - 10) {
-            track.scrollTo({ left: maxScroll, behavior: 'smooth' });
-        } else if (direction === 'prev' && target <= 10) {
-            track.scrollTo({ left: 0, behavior: 'smooth' });
-        } else {
-            track.scrollTo({ left: target, behavior: 'smooth' });
-        }
+        const amt     = track.clientWidth;
+        const cur     = track.scrollLeft;
+        const max     = track.scrollWidth - track.clientWidth;
+        let target    = dir === 'next' ? cur + amt : cur - amt;
+        if (dir === 'next' && target >= max - 10)  track.scrollTo({ left: max,  behavior: 'smooth' });
+        else if (dir === 'prev' && target <= 10)   track.scrollTo({ left: 0,    behavior: 'smooth' });
+        else                                        track.scrollTo({ left: target, behavior: 'smooth' });
     }
 
     function updateButtons() {
         if (!track || !btnPrev || !btnNext) return;
-        const scrollLeft = track.scrollLeft;
-        const maxScroll = track.scrollWidth - track.clientWidth;
-        btnPrev.style.display = (scrollLeft <= 2) ? 'none' : 'flex';
-        btnNext.style.display = (scrollLeft >= maxScroll - 2) ? 'none' : 'flex';
+        const sl  = track.scrollLeft;
+        const max = track.scrollWidth - track.clientWidth;
+        btnPrev.style.display = sl <= 2       ? 'none' : 'flex';
+        btnNext.style.display = sl >= max - 2 ? 'none' : 'flex';
     }
 
     if (btnNext) btnNext.addEventListener('click', () => handleScroll('next'));
     if (btnPrev) btnPrev.addEventListener('click', () => handleScroll('prev'));
-
-    if (track) {
-        track.addEventListener('scroll', updateButtons);
-        window.addEventListener('resize', updateButtons);
-    }
+    if (track)   { track.addEventListener('scroll', updateButtons); window.addEventListener('resize', updateButtons); }
 
     renderCarousel();
     setTimeout(updateButtons, 100);
 });
-// === END FEATURED STORIES ===
 
+// =====================
+// PHOTO WIDGET - Post by Label
+// =====================
 
-// === Function Photo Widget - Post by Label
-// FIX: Bọc trong IIFE để tránh ô nhiễm global scope
 (function() {
     const CONFIG = {
-        blogUrl: "https://www.vutruong.vn",
-        maxResults: 9,
-        labelName: "photo",
+        blogUrl:     "https://www.vutruong.vn",
+        maxResults:  9,
+        labelName:   "photo",
         defaultThumb: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
     };
-
     let startIndex = 1;
 
     document.addEventListener("DOMContentLoaded", () => {
+        const wrapper = document.getElementById('VT_photoPostwidgetWrapper');
+        if (!wrapper) return;
         fetchPosts();
-        const loadMoreBtn = document.getElementById('VT_photoPostwidget_btnLoadMore');
-        if (loadMoreBtn) {
-            loadMoreBtn.onclick = function() {
+        const btnMore = document.getElementById('VT_photoPostwidget_btnLoadMore');
+        if (btnMore) {
+            btnMore.onclick = function() {
                 this.innerHTML = "<i class='fa-duotone fa-spinner-third fa-spin me-2'></i>";
                 fetchPosts();
             };
@@ -749,16 +677,17 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     function fetchPosts() {
-        const script = document.createElement('script');
+        const script    = document.createElement('script');
         const labelPath = CONFIG.labelName ? `/-/${encodeURIComponent(CONFIG.labelName)}` : "";
-        script.src = `${CONFIG.blogUrl}/feeds/posts/default${labelPath}?alt=json-in-script&start-index=${startIndex}&max-results=${CONFIG.maxResults}&callback=renderPosts`;
+        script.src      = `${CONFIG.blogUrl}/feeds/posts/default${labelPath}?alt=json-in-script&start-index=${startIndex}&max-results=${CONFIG.maxResults}&callback=renderPosts`;
         document.head.appendChild(script);
         script.onload = () => script.remove();
     }
 
+    // renderPosts phải là global để callback JSON-in-script gọi được
     window.renderPosts = function(json) {
         const wrapper = document.getElementById('VT_photoPostwidgetWrapper');
-        const btn = document.getElementById('VT_photoPostwidget_btnLoadMore');
+        const btn     = document.getElementById('VT_photoPostwidget_btnLoadMore');
         if (!wrapper) return;
 
         const loading = wrapper.querySelector('.VT_photoPostwidget_loadingText');
@@ -772,36 +701,31 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         const parser = new DOMParser();
-        const html = entries.map(post => {
-            const id = post.id.$t.split('-').pop();
-            const title = post.title.$t.trim();
-            const content = post.content?.$t || post.summary?.$t || "";
-            
-            const doc = parser.parseFromString(content, 'text/html');
-            const cleanText = doc.body.textContent.trim().replace(/\s+/g, ' ');
-            
-            const displayTitle = title || (cleanText ? cleanText.substring(0, 100) + "..." : `#ID: ${id}`);
-            const summary = cleanText.substring(0, 100) + (cleanText.length > 100 ? "..." : "");
-            
-            const link = post.link.find(l => l.rel === 'alternate').href;
-            
-            let thumb = CONFIG.defaultThumb;
+        const html   = entries.map(post => {
+            const id       = post.id.$t.split('-').pop();
+            const title    = post.title.$t.trim();
+            const content  = post.content?.$t || post.summary?.$t || "";
+            const doc      = parser.parseFromString(content, 'text/html');
+            const cleanTxt = doc.body.textContent.trim().replace(/\s+/g, ' ');
+            const dispTitle = title || (cleanTxt ? cleanTxt.substring(0, 100) + "..." : `#ID: ${id}`);
+            const summary  = cleanTxt.substring(0, 100) + (cleanTxt.length > 100 ? "..." : "");
+            const link     = post.link.find(l => l.rel === 'alternate').href;
+            let thumb      = CONFIG.defaultThumb;
             if (post.media$thumbnail) {
                 thumb = post.media$thumbnail.url.replace(/\/s72\-c/, "/s200-c");
             } else {
                 const firstImg = doc.querySelector('img');
                 if (firstImg) thumb = firstImg.src;
             }
-
             const date = new Date(post.published.$t).toLocaleDateString('vi-VN');
 
             return `
                 <div class="vtFeed_postItem custom-post-item position-relative">
-                    <a class="d-block overflow-hidden w-100 h-100 rounded-3" href="${link}" title="${displayTitle}">
-                    	<img class="vtFeed_postThumbnail post-thumb rounded-3 m-0 w-100 h-100" loading="lazy" src="${thumb}" alt="thumb" onerror="this.src='${CONFIG.defaultThumb}'">
+                    <a class="d-block overflow-hidden w-100 h-100 rounded-3" href="${link}" title="${dispTitle}">
+                        <img class="vtFeed_postThumbnail post-thumb rounded-3 m-0 w-100 h-100" loading="lazy" src="${thumb}" alt="thumb" onerror="this.src='${CONFIG.defaultThumb}'">
                     </a>
                     <div class="vtFeed_postInfo post-content-right rounded-3">
-                        <h1 class="vtFeed_postTitle small m-0 px-2"><a class="text-decoration-none text-light fw-normal" href="${link}" title="${displayTitle}">${displayTitle}</a></h1>
+                        <h1 class="vtFeed_postTitle small m-0 px-2"><a class="text-decoration-none text-light fw-normal" href="${link}" title="${dispTitle}">${dispTitle}</a></h1>
                         <small class="vtFeed_postPublish d-none opacity-50">${date}</small>
                         <div class="vtFeed_postSnippet d-none post-summary">${summary}</div>
                     </div>
@@ -813,90 +737,72 @@ document.addEventListener("DOMContentLoaded", function() {
         const hasMore = entries.length === CONFIG.maxResults;
         if (btn) {
             btn.style.display = hasMore ? "inline-block" : "none";
-            btn.innerHTML = "Xem thêm";
+            btn.innerHTML     = "Xem thêm";
         }
         if (hasMore) startIndex += CONFIG.maxResults;
     };
 })();
 
-// === END ===
+// =====================
+// ADMIN SYSTEM
+// Hiển thị .VT-admin-tools theo UID, không cần reload trang
+// Logic chính đã được tích hợp vào firebase.js (applyAdminToolsUI trong updateAuthUI)
+// Giữ lại VT_InitAdminSystem và VT_ApplyAdminUI để tương thích với multiple-items.js
+// =====================
 
-
-// ===============================================================
-// Quyền ADMIN
 const VT_ADMIN_UID = 'u9U3j9O63jbipOgai3o88X4008q2';
 
-window.VT_ApplyAdminUI = () => {
-    const isAdmin = sessionStorage.getItem('VT_AdminLogged') === 'true';
-    const VT_adminTools = document.querySelectorAll('.VT-admin-tools');
+// VT_ApplyAdminUI: được khai báo trong firebase.js (window.VT_ApplyAdminUI)
+// Đây chỉ là fallback nếu firebase.js chưa load
 
-    if (isAdmin) {
-        VT_adminTools.forEach(el => el.classList.remove('d-none'));
-    } else {
-        VT_adminTools.forEach(el => el.remove());
+if (typeof window.VT_ApplyAdminUI === 'undefined') {
+    window.VT_ApplyAdminUI = () => {
+        const isAdmin    = sessionStorage.getItem('VT_AdminLogged') === 'true';
+        const adminTools = document.querySelectorAll('.VT-admin-tools');
+        if (isAdmin) {
+            adminTools.forEach(el => el.classList.remove('d-none'));
+        } else {
+            adminTools.forEach(el => el.remove());
+        }
+    };
+}
+
+// VT_InitAdminSystem: tương thích với multiple-items.js (gọi sau AJAX load more)
+// firebase.js đã xử lý toàn bộ logic - hàm này chỉ áp dụng lại UI
+window.VT_InitAdminSystem = function() {
+    if (typeof window.VT_ApplyAdminUI === 'function') {
+        window.VT_ApplyAdminUI();
     }
 };
 
-const VT_InitAdminSystem = () => {
-    firebase.auth().onAuthStateChanged((user) => {
-        const VT_isAdmin = user && user.uid === VT_ADMIN_UID;
-        const VT_wasAdmin = sessionStorage.getItem('VT_AdminLogged') === 'true';
-
-        if (VT_isAdmin && !VT_wasAdmin) {
-            sessionStorage.setItem('VT_AdminLogged', 'true');
-            window.location.reload();
-            return;
-        } 
-        if (!VT_isAdmin && VT_wasAdmin) {
-            sessionStorage.removeItem('VT_AdminLogged');
-            window.location.reload();
-            return;
-        }
-
-        window.VT_ApplyAdminUI();
-    });
-};
-
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', VT_InitAdminSystem);
+    document.addEventListener('DOMContentLoaded', window.VT_InitAdminSystem);
 } else {
-    VT_InitAdminSystem();
+    window.VT_InitAdminSystem();
 }
-// ===============================================================
 
+// =====================
+// CONVERT ẢNH SANG .WEBP
+// Tự động chuyển đổi URL ảnh Blogger sang định dạng WebP
+// =====================
 
-// ================================================ VT ================================================
-// FUNCTION CONVERT ẢNH SANG .WEBP
 document.addEventListener("DOMContentLoaded", function() {
     const processUrl = (url) => {
         if (!url || url.includes('-rw') || !url.match(/bp\.blogspot\.com|googleusercontent\.com/)) return url;
-        
-        let newUrl = url;
-        if (url.includes('=')) {
-            newUrl = url.replace(/=([^]*)$/, "=$1-rw");
-        } else {
-            newUrl = url.replace(/\/(s|w)(\d+)(-[^/]+)?\//, "/$1$2$3-rw/");
-        }
-        return newUrl;
+        if (url.includes('=')) return url.replace(/=([^]*)$/, "=$1-rw");
+        return url.replace(/\/(s|w)(\d+)(-[^/]+)?\//, "/$1$2$3-rw/");
     };
 
     const convertAll = (container) => {
-        const elements = container.querySelectorAll('img, a[data-fancybox]');
-        elements.forEach(el => {
+        container.querySelectorAll('img, a[data-fancybox]').forEach(el => {
             if (el.tagName === 'IMG') {
-                const oldSrc = el.getAttribute('src');
-                const newSrc = processUrl(oldSrc);
-                if (newSrc !== oldSrc) {
-                    el.onerror = function() { this.src = oldSrc; this.onerror = null; };
-                    el.src = newSrc;
-                }
-            } else if (el.tagName === 'A') {
-                const oldHref = el.getAttribute('href');
-                const newHref = processUrl(oldHref);
-                if (newHref !== oldHref) {
-                    el.href = newHref;
-                    el.setAttribute('data-src', newHref);
-                }
+                const old = el.getAttribute('src');
+                const n   = processUrl(old);
+                if (n !== old) { el.onerror = function() { this.src = old; this.onerror = null; }; el.src = n; }
+            } else {
+                const old = el.getAttribute('href');
+                const n   = processUrl(old);
+                if (n !== old) { el.href = n; el.setAttribute('data-src', n); }
             }
         });
     };
@@ -904,116 +810,92 @@ document.addEventListener("DOMContentLoaded", function() {
     convertAll(document);
 
     const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            mutation.addedNodes.forEach((node) => {
-                if (node.nodeType === 1) {
-                    if (node.tagName === 'IMG') {
-                        const old = node.src; node.src = processUrl(old);
-                    } else if (node.tagName === 'A' && node.hasAttribute('data-fancybox')) {
-                        const old = node.href; node.href = processUrl(old);
-                    }
-                    convertAll(node);
+        mutations.forEach((m) => {
+            m.addedNodes.forEach((node) => {
+                if (node.nodeType !== 1) return;
+                if (node.tagName === 'IMG') {
+                    const old = node.src; node.src = processUrl(old);
+                } else if (node.tagName === 'A' && node.hasAttribute('data-fancybox')) {
+                    const old = node.href; node.href = processUrl(old);
                 }
+                convertAll(node);
             });
         });
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
 });
-// ================================================ END ================================================
 
-
-// =========================================================================================
+// =====================
 // SIDEBAR STICKY
+// Chỉ hoạt động trên desktop >= 992px
+// =====================
+
 document.addEventListener("DOMContentLoaded", (() => {
     const sidebar = document.querySelector("#sidebar");
-    if (!sidebar) {
-        console.log('%c⚠️ Sidebar', 'color: #FBBC04;', 'Không tìm thấy #sidebar');
-        return;
-    }
-    
-    console.log('%c✅ Sidebar Sticky', 'color: #34A853;', 'Đã khởi tạo');
-    
+    if (!sidebar) return;
+
     let lastScrollY = window.pageYOffset;
     let sidebarOffset = 0;
-    let isTicking = false;
-    
-    function updateSidebarPosition() {
+    let isTicking     = false;
+
+    function updateSidebar() {
         if (window.innerWidth < 992) {
             sidebar.style.position = '';
-            sidebar.style.top = '';
-            sidebar.style.width = '';
+            sidebar.style.top      = '';
+            sidebar.style.width    = '';
             return;
         }
-        
-        const currentScrollY = window.pageYOffset;
-        const viewportHeight = window.innerHeight;
-        const sidebarHeight = sidebar.offsetHeight;
-        const scrollDelta = currentScrollY - lastScrollY;
-        
-        sidebarOffset -= scrollDelta;
-        
-        const maxOffset = viewportHeight - sidebarHeight - 20;
-        const minOffset = 80;
-        
-        if (sidebarOffset > minOffset) {
-            sidebarOffset = minOffset;
-        } else if (sidebarOffset < maxOffset) {
-            sidebarOffset = maxOffset;
-        }
-        
+        const curr          = window.pageYOffset;
+        const viewH         = window.innerHeight;
+        const sideH         = sidebar.offsetHeight;
+        sidebarOffset      -= curr - lastScrollY;
+        const maxOff        = viewH - sideH - 20;
+        const minOff        = 80;
+        sidebarOffset       = Math.min(minOff, Math.max(maxOff, sidebarOffset));
         sidebar.style.position = 'sticky';
-        sidebar.style.top = (sidebarHeight <= viewportHeight) ? '80px' : sidebarOffset + 'px';
-        
-        lastScrollY = currentScrollY;
+        sidebar.style.top      = (sideH <= viewH) ? '80px' : sidebarOffset + 'px';
+        lastScrollY = curr;
     }
-    
-    const requestSidebarTick = () => {
+
+    const tick = () => {
         if (!isTicking) {
-            window.requestAnimationFrame(() => {
-                updateSidebarPosition();
-                isTicking = false;
-            });
+            window.requestAnimationFrame(() => { updateSidebar(); isTicking = false; });
             isTicking = true;
         }
     };
-    
-    window.addEventListener('scroll', requestSidebarTick, { passive: true });
-    window.addEventListener('resize', requestSidebarTick, { passive: true });
-    updateSidebarPosition();
+
+    window.addEventListener('scroll', tick, { passive: true });
+    window.addEventListener('resize', tick, { passive: true });
+    updateSidebar();
 }));
 
+// =====================
+// RIPPLE EFFECT
+// Hiệu ứng Material Design khi click .ripple
+// =====================
 
-// =========================================================================================
-// HIỆU ỨNG MATERIAL DESIGN KHI CLICK .ripple
 document.addEventListener("DOMContentLoaded", () => {
-    document.body.addEventListener("click", (event) => {
-        const target = event.target.closest(".ripple");
+    document.body.addEventListener("click", (e) => {
+        const target = e.target.closest(".ripple");
         if (!target) return;
 
-        const button = target;
-        const circle = document.createElement("span");
-        const diameter = Math.max(button.clientWidth, button.clientHeight);
-        const radius = diameter / 2;
-        const rect = button.getBoundingClientRect();
+        const circle   = document.createElement("span");
+        const diameter = Math.max(target.clientWidth, target.clientHeight);
+        const radius   = diameter / 2;
+        const rect     = target.getBoundingClientRect();
 
-        circle.style.width = circle.style.height = `${diameter}px`;
-        circle.style.left = `${event.clientX - rect.left - radius}px`;
-        circle.style.top = `${event.clientY - rect.top - radius}px`;
+        circle.style.width  = circle.style.height = `${diameter}px`;
+        circle.style.left   = `${e.clientX - rect.left - radius}px`;
+        circle.style.top    = `${e.clientY - rect.top  - radius}px`;
         circle.classList.add("ripple-effect");
 
-        const oldRipple = button.querySelector(".ripple-effect");
-        if (oldRipple) oldRipple.remove();
-
-        button.appendChild(circle);
-
-        circle.addEventListener("animationend", () => {
-            circle.remove();
-        }, { once: true });
+        target.querySelector(".ripple-effect")?.remove();
+        target.appendChild(circle);
+        circle.addEventListener("animationend", () => circle.remove(), { once: true });
     });
 });
 
-
 // =========================================================================================
-// VT ZONE - VUTRUONG.VN
+// VT Zone Body Scripts v5.0.0 - Ready
 // =========================================================================================
