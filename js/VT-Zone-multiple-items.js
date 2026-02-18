@@ -6,27 +6,6 @@
 
 console.log('%c📄 Multiple Items Scripts', 'color: #4285F4; font-weight: bold; font-size: 14px;', 'Đang khởi tạo...');
 
-// FULL CODE SCRIPT OPTIMIZED for INDEX - MULTIPLE ITEMS
-// VT Zone === vutruong.vn ===
-
-// Kiểm tra và lấy instance Firebase đã có hoặc khởi tạo mới an toàn
-(function() {
-    try {
-        const { getApp, getApps, initializeApp } = window.FirebaseApp || {}; // Giả sử ní dùng SDK global
-        const { getFirestore, initializeFirestore } = window.FirebaseFirestore || {};
-
-        if (typeof window.db === 'undefined') {
-            const app = (window.getApps && window.getApps().length) ? window.getApp() : null;
-            if (app) {
-                // Nếu đã có App rồi thì chỉ lấy db ra dùng, không khởi tạo lại để tránh lỗi
-                window.db = window.getFirestore ? window.getFirestore(app) : undefined;
-            }
-        }
-    } catch (err) {
-        console.warn("Lưu ý: Firebase chưa sẵn sàng trong multiple-items:", err);
-    }
-})();
-
 // Function hiển thị comments bên dưới mỗi bài viết trang Index
 const VT_PostComments = {
     // 1. Cấu hình
@@ -34,62 +13,43 @@ const VT_PostComments = {
         defaultAvatar: 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi-KgeTskqBUEMrGKXdyXDY-UoKDfmGAnlIITmiGc0bWYAcmkKlJuM1GacV-7OjlKUaIN8dK7WhkhRI3Z2NtgnfdJw3bDQtsMu7FOCnezYZYnoRxoTZhNtJ-WGY54pILgR8K6HsqhaWdXpkoD4l4Uoex11TA8yoEXY71MqG1e_8OiqXAEHhlGBJX1RyHEw/s40/vtzone-default-avatar.jpg',
         adminId: '06242775367226739172',
         verifiedIcon: `<svg class='Admin_verifiedIcon' data-bs-placement='right' data-bs-toggle='tooltip' fill='none' height='1rem' title='Admin' viewBox='0 0 24 24' width='16px' xmlns='http://www.w3.org/2000/svg'><g><path clip-rule='evenodd' d='M9.5924 3.20027C9.34888 3.4078 9.22711 3.51158 9.09706 3.59874C8.79896 3.79854 8.46417 3.93721 8.1121 4.00672C7.95851 4.03705 7.79903 4.04977 7.48008 4.07522C6.6787 4.13918 6.278 4.17115 5.94371 4.28923C5.17051 4.56233 4.56233 5.17051 4.28923 5.94371C4.17115 6.278 4.13918 6.6787 4.07522 7.48008C4.04977 7.79903 4.03705 7.95851 4.00672 8.1121C3.93721 8.46417 3.79854 8.79896 3.59874 9.09706C3.51158 9.22711 3.40781 9.34887 3.20027 9.5924C2.67883 10.2043 2.4181 10.5102 2.26522 10.8301C1.91159 11.57 1.91159 12.43 2.26522 13.1699C2.41811 13.4898 2.67883 13.7957 3.20027 14.4076C3.40778 14.6511 3.51158 14.7729 3.59874 14.9029C3.79854 15.201 3.93721 15.5358 4.00672 15.8879C4.03705 16.0415 4.04977 16.201 4.07522 16.5199C4.13918 17.3213 4.17115 17.722 4.28923 18.0563C4.56233 18.8295 5.17051 19.4377 5.94371 19.7108C6.278 19.8288 6.6787 19.8608 7.48008 19.9248C7.79903 19.9502 7.95851 19.963 8.1121 19.9933C8.46417 20.0628 8.79896 20.2015 9.09706 20.4013C9.22711 20.4884 9.34887 20.5922 9.5924 20.7997C10.2043 21.3212 10.5102 21.5819 10.8301 21.7348C11.57 22.0884 12.43 22.0884 13.1699 21.7348C13.4898 21.5819 13.7957 21.3212 14.4076 20.7997C14.6511 20.5922 14.7729 20.4884 14.9029 20.4013C15.201 20.2015 15.5358 20.0628 15.8879 19.9933C16.0415 19.963 16.201 19.9502 16.5199 19.9248C17.3213 19.8608 17.722 19.8288 18.0563 19.7108C18.8295 19.4377 19.4377 18.8295 19.7108 18.0563C19.8288 17.722 19.8608 17.3213 19.9248 16.5199C19.9502 16.201 19.963 16.0415 19.9933 15.8879C20.0628 15.5358 20.2015 15.201 20.4013 14.9029C20.4884 14.7729 20.5922 14.6511 20.7997 14.4076C21.3212 13.7957 21.5819 13.4898 21.7348 13.1699C22.0884 12.43 22.0884 11.57 21.7348 10.8301C21.5819 10.5102 21.3212 10.2043 20.7997 9.5924C20.5922 9.34887 20.4884 9.22711 20.4013 9.09706C20.2015 8.79896 20.0628 8.46417 19.9933 8.1121C19.963 7.95851 19.9502 7.79903 19.9248 7.48008C19.8608 6.6787 19.8288 6.278 19.7108 5.94371C19.4377 5.17051 18.8295 4.56233 18.0563 4.28923C17.722 4.17115 17.3213 4.13918 16.5199 4.07522C16.201 4.04977 16.0415 4.03705 15.8879 4.00672C15.5358 3.93721 15.201 3.79854 14.9029 3.59874C14.7729 3.51158 14.6511 3.40781 14.4076 3.20027C13.7957 2.67883 13.4898 2.41811 13.1699 2.26522C12.43 1.91159 11.57 1.91159 10.8301 2.26522C10.5102 2.4181 10.2043 2.67883 9.5924 3.20027ZM16.3735 9.86314C16.6913 9.5453 16.6913 9.03 16.3735 8.71216C16.0557 8.39433 15.5403 8.39433 15.2225 8.71216L10.3723 13.5624L8.77746 11.9676C8.45963 11.6498 7.94432 11.6498 7.62649 11.9676C7.30866 12.2854 7.30866 12.8007 7.62649 13.1186L9.79678 15.2889C10.1146 15.6067 10.6299 15.6067 10.9478 15.2889L16.3735 9.86314Z' fill='#4285F4' fill-rule='evenodd'/></g></svg>`,
-        // Danh sách tên random cho người ẩn danh
         anonymousNames: [
-            'Binz',
-            'M-TP',
-            'HIEUTHUHAI',
-            'Trịnh Trần Phương Tuấn',
-            'Nguyễn Thanh Tùng',
-            'Phan Mạnh Quỳnh',
-            'Jack - J97',
-            'Trấn Thành',
-            'Mono'
+            'Binz', 'M-TP', 'HIEUTHUHAI', 'Trịnh Trần Phương Tuấn',
+            'Nguyễn Thanh Tùng', 'Phan Mạnh Quỳnh', 'Jack - J97', 'Trấn Thành', 'Mono'
         ]
     },
 
-    // 2. Xử lý ảnh đại diện
     resizeAvatar(url, size) {
         if (!url || url.includes('blank.gif')) return this.config.defaultAvatar;
         return url.replace(/\/s\d+(-c)?\//g, `/s${size}-c/`);
     },
 
-    // Hàm đổi tên người ẩn danh Random
     renameAnonymous(name) {
         const checkNames = ['Anonymous', 'Ẩn danh'];
         if (checkNames.includes(name)) {
             const names = this.config.anonymousNames;
-            // Tính toán vị trí ngẫu nhiên trong mảng
-            const randomIndex = Math.floor(Math.random() * names.length);
-            return names[randomIndex];
+            return names[Math.floor(Math.random() * names.length)];
         }
         return name;
     },
     
-    // Hàm tính khoảng thời gian
     timeAgo(dateString) {
         const now = new Date();
         const past = new Date(dateString);
         const diffInSeconds = Math.floor((now - past) / 1000);
 
         if (diffInSeconds < 60) return 'vừa xong';
-        
         const minutes = Math.floor(diffInSeconds / 60);
         if (minutes < 60) return `${minutes} phút`;
-        
         const hours = Math.floor(minutes / 60);
         if (hours < 24) return `${hours} giờ`;
-        
         const days = Math.floor(hours / 24);
         if (days < 30) return `${days} ngày`;
-        
         return past.toLocaleDateString('vi-VN');
     },
 
-    // 3. Render HTML từng mục
     renderItem(entry) {
         const author = entry.author[0];
-        // Sử dụng hàm renameAnonymous tại đây
         const authorName = this.renameAnonymous(author.name.$t);
         const authorUri = author.uri?.$t || '';
         const isAdmin = authorUri.includes(this.config.adminId);
@@ -121,7 +81,6 @@ const VT_PostComments = {
             </li>`;
     },
 
-    // 4. Hàm fetch và đổ dữ liệu
     async load(container) {
         const postId = container.getAttribute('data-post-id');
         if (!postId || container.classList.contains('loaded')) return;
@@ -149,7 +108,6 @@ const VT_PostComments = {
         }
     },
 
-    // 5. Hàm khởi tạo
     init() {
         const containers = document.querySelectorAll('.multipleItems-rc:not(.loaded)');
         console.log('%c💬 Post Comments', 'color: #34A853;', `Đang tải ${containers.length} bình luận...`);
@@ -160,16 +118,13 @@ document.addEventListener('DOMContentLoaded', () => VT_PostComments.init());
 
 
 /** =====================================================
- * JS TỔNG HỢP CHO HỆ THỐNG BÌNH LUẬN BLOGGER ở trang MULTIPLE ITEMS - vutruong.vn
+ * JS TỔNG HỢP CHO HỆ THỐNG BÌNH LUẬN BLOGGER ở trang MULTIPLE ITEMS
  * Phiên bản: 2.0
  * ===================================================== */
 
 const VT_CommentManager = (() => {
     const BLOG_ID = '3049740051705190505';
 
-    /**
-     * 1. HÀM KHỞI TẠO LAZY LOAD IFRAME
-     */
     const VT_InitLazyLoad = () => {
         const commentContainers = document.querySelectorAll('[id^="comment-box-"]:not(.vt-initialized)');
         const observerOptions = { root: null, rootMargin: '10px 0px', threshold: 0.01 };
@@ -189,12 +144,7 @@ const VT_CommentManager = (() => {
             iframe.height = '70px'; 
             iframe.frameBorder = '0';
             iframe.scrolling = 'auto';
-            iframe.style.display = 'block';
-            iframe.style.border = '1px solid #eee';
-            iframe.style.borderRadius = '12px';
-            iframe.style.margin = '1rem 0 0';
-            iframe.style.opacity = '0';
-            iframe.style.transition = 'opacity 0.5s ease, height 0.5s ease';
+            iframe.style.cssText = 'display:block; border:1px solid #eee; border-radius:12px; margin:1rem 0 0; opacity:0; transition:opacity 0.5s ease, height 0.5s ease;';
 
             iframe.onload = function() {
                 const loader = container.querySelector('.loading-status');
@@ -217,11 +167,7 @@ const VT_CommentManager = (() => {
         commentContainers.forEach(container => VT_Observer.observe(container));
     };
 
-    /**
-     * 2. HÀM TỰ ĐỘNG MỞ RỘNG (FIX LỖI CLICK 2 LẦN)
-     */
     const VT_InitAutoExpand = () => {
-        // Cách 1: Sử dụng PointerDown trên toàn bộ vùng chứa (Nhanh và nhạy nhất)
         document.addEventListener('pointerdown', (e) => {
             const container = e.target.closest('.VTmultipleItems_postCommentWrapper_commentContainer');
             if (container && !container.classList.contains('is-expanded')) {
@@ -229,7 +175,6 @@ const VT_CommentManager = (() => {
             }
         });
 
-        // Cách 2: Dự phòng cho việc người dùng dùng phím Tab để focus
         window.addEventListener('blur', () => {
             setTimeout(() => {
                 const activeEl = document.activeElement;
@@ -241,16 +186,10 @@ const VT_CommentManager = (() => {
         });
     };
 
-    /**
-     * Hàm thực thi mở rộng chiều cao
-     * @param {HTMLElement} container 
-     */
     const VT_Expand = (container) => {
         const iframe = container.querySelector('iframe');
         container.classList.add('is-expanded');
-        if (iframe) {
-            iframe.style.height = '200px'; // Chiều cao khi bung
-        }
+        if (iframe) iframe.style.height = '200px';
     };
 
     return {
@@ -262,7 +201,6 @@ const VT_CommentManager = (() => {
     };
 })();
 
-// Khởi chạy
 document.addEventListener('DOMContentLoaded', () => {
     VT_CommentManager.init();
 });
@@ -271,7 +209,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ============== PHẦN 1: CÁC HÀM HỖ TRỢ (TIME, SLUG, TOOLTIP) ==============
 
-// 1. Skeleton loading template
 const SKELETON_TEMPLATE = "<div class='VT-timeline-loading-animation vt-temp-ske'>" +
   "<div class='vt-loading-effect-header-wrap'>" +
     "<div class='vt-loading-effect-avatar'></div>" +
@@ -293,7 +230,6 @@ const SKELETON_TEMPLATE = "<div class='VT-timeline-loading-animation vt-temp-ske
   "</div>" +
 "</div>";
 
-// 2. Tính toán thời gian tương đối
 const TIME_UNITS = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 };
 
 function timeSince(date) {
@@ -311,36 +247,35 @@ function timeSince(date) {
     return seconds <= 50 ? "Vừa xong" : Math.floor(seconds) + " giây";
 }
 
-// 3. Chuyển đổi slug cho Hashtag
 function toSlug(str) {
     return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/\s+/g, '-').replace(/^-+|-+$/g, '');
 }
 
-// 4. Khởi tạo Bootstrap Tooltips (Tính năng mới thêm vào)
 function initBootstrapTooltips() {
     if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
         const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]:not([data-bs-initialized])');
         tooltipTriggerList.forEach(el => {
             new bootstrap.Tooltip(el);
-            el.setAttribute('data-bs-initialized', 'true'); // Đánh dấu để không khởi tạo trùng lặp
+            el.setAttribute('data-bs-initialized', 'true');
         });
     }
 }
 
 // ============== PHẦN 2: CÁC CHỨC NĂNG TƯƠNG TÁC ==============
 
-let isPopupShowing = false;
+// FIX: Đổi tên biến để tránh xung đột với isPopupShowing trong firebase.js
+let _multiItemsPopupShowing = false;
+
 function initNewLikeButtons() {
-    if (typeof db === 'undefined' || typeof auth === 'undefined') return;
+    if (typeof window.db === 'undefined' || typeof window.auth === 'undefined') return;
     const likeBtns = document.querySelectorAll('.likePost:not(.firebase-like-btn)');
     if (likeBtns.length === 0) return;
 
-    // 1. Kiểm tra và tự động tạo HTML cho Toast nếu chưa có
     let toastEl = document.getElementById('loginToast');
     if (!toastEl) {
         const toastContainer = document.createElement('div');
         toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-        toastContainer.style.zIndex = '1060'; // Đảm bảo nằm trên các layer khác
+        toastContainer.style.zIndex = '1060';
         toastContainer.innerHTML = `
             <div id="loginToast" class="toast align-items-center text-white bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
                 <div class="d-flex">
@@ -354,19 +289,16 @@ function initNewLikeButtons() {
         toastEl = document.getElementById('loginToast');
     }
 
-    // 2. Khởi tạo Bootstrap Toast instance
     const loginToast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3000 });
 
-    auth.onAuthStateChanged((user) => {
+    window.auth.onAuthStateChanged((user) => {
         likeBtns.forEach(btn => {
             if (user) {
-                if (typeof initSingleLikeButton === 'function') initSingleLikeButton(btn, user);
+                if (typeof window.initSingleLikeButton === 'function') window.initSingleLikeButton(btn, user);
             } else {
-                if (typeof updateLikeUI === 'function') updateLikeUI(btn, false);
-                
+                if (typeof window.updateLikeUI === 'function') window.updateLikeUI(btn, false);
                 btn.onclick = (e) => {
                     e.preventDefault();
-                    // Hiển thị Toast
                     loginToast.show();
                 };
             }
@@ -374,8 +306,8 @@ function initNewLikeButtons() {
         });
     });
 }
+
 function applyPostLogic() {
-    // Xử lý ngày tháng
     document.querySelectorAll('.post-date-iso:not([data-relative-applied])').forEach(el => {
         const isoDate = el.getAttribute('datetime');
         if (isoDate) {
@@ -385,17 +317,14 @@ function applyPostLogic() {
         }
     });
 
-    // Xử lý Hashtag
     document.querySelectorAll('.home_hashtagPost a:not([data-slug-converted])').forEach(link => {
         link.innerText = toSlug(link.innerText);
         link.setAttribute('data-slug-converted', 'true');
     });
     
-    // Kích hoạt Tooltip cho các bài viết (Cả cũ và mới)
     initBootstrapTooltips();
     
-    // Kiểm tra biến Global an toàn trước khi gọi
-    if (typeof auth !== 'undefined') initNewLikeButtons();
+    if (typeof window.auth !== 'undefined') initNewLikeButtons();
     
     if (typeof initLikeCountDisplay === 'function') {
         initLikeCountDisplay(document.querySelector('div.blog-posts'));
@@ -445,7 +374,6 @@ function applyPostLogic() {
             const nextLinkEl = doc.querySelector("a.blog-pager-older-link");
             nextUrl = nextLinkEl ? nextLinkEl.getAttribute("href") : "";
 
-            // Sau khi thêm bài mới, gọi hàm này để xử lý logic và Tooltip cho các phần tử mới
             applyPostLogic();
             updateButtonState();
             VT_PostComments.init();
@@ -453,11 +381,10 @@ function applyPostLogic() {
             VT_checkReadMore();
             VT_LazyLoad();
 			VT_CommentManager.init();
-			window.VT_InitCommentSystem(); // Module Comments Google Firestore Database
-			VT_InitAdminSystem(); // admin panel
-			if (typeof window.VT_ApplyAdminUI === 'function') {
-    			window.VT_ApplyAdminUI();
-			}
+			window.VT_InitCommentSystem();
+            // FIX: Guard an toàn trước khi gọi VT_InitAdminSystem (định nghĩa trong body.js)
+			if (typeof VT_InitAdminSystem === 'function') VT_InitAdminSystem();
+			if (typeof window.VT_ApplyAdminUI === 'function') window.VT_ApplyAdminUI();
 			
         } catch (error) {
             console.error("Lỗi khi tải bài viết:", error);
@@ -511,68 +438,47 @@ function applyPostLogic() {
             loadMoreBtn.addEventListener('click', loadMorePosts);
 
             const observer = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting && !isLoading && nextUrl) {
-                    loadMorePosts();
-                }
+                if (entries[0].isIntersecting && !isLoading && nextUrl) loadMorePosts();
             }, { 
-    			root: null, // Theo dõi dựa trên khung hình trình duyệt
-    			rootMargin: '0px 0px 1000px 0px', // Đón đầu 300px từ phía dưới
-    			threshold: 0.01 // Chỉ cần chớm xuất hiện 1% là kích hoạt
+    			root: null,
+    			rootMargin: '0px 0px 1000px 0px',
+    			threshold: 0.01
 			});
 
             observer.observe(btnContainer);
             
-            // Lần đầu khởi chạy khi load trang
             applyPostLogic();
             VT_homePostLayout();
             VT_checkReadMore();
-			VT_InitAdminSystem();
+            if (typeof VT_InitAdminSystem === 'function') VT_InitAdminSystem();
         }
     });
 })();
 
-// Function bấm nút xem thêm v-fullPost trang index show full bài viết
+// Function bấm nút xem thêm v-fullPost trang index
 document.addEventListener('click', function (e) {
-    // 1. Kiểm tra click vào nút "Xem thêm"
     if (e.target && e.target.classList.contains('v-fullPost')) {
         e.preventDefault();
 
         const btn = e.target;
-        const postBody = btn.previousElementSibling; // Nội dung bài viết
-        const featuredImg = btn.nextElementSibling;  // Ảnh featured bên ngoài
+        const postBody = btn.previousElementSibling;
+        const featuredImg = btn.nextElementSibling;
 
         if (postBody && postBody.classList.contains('postBodyLimited')) {
-            // A. Xóa class giới hạn để bung nội dung
             postBody.classList.remove('postBodyLimited');
 
-            // ============================================================
-            // B. LOGIC MỚI: TỰ ĐỘNG THÊM DATA-FANCYBOX CHO ẢNH
-            // ============================================================
-            
-            // Tạo một ID ngẫu nhiên cho nhóm ảnh của bài viết này 
-            // (Giúp Fancybox hiểu các ảnh này thuộc cùng 1 album, ko lẫn sang bài khác)
             const galleryId = 'gallery-' + Math.floor(Math.random() * 1000000);
-
-            // Tìm tất cả các thẻ <a> liên kết đến file ảnh (jpg, png, webp, jpeg, gif)
             const imageLinks = postBody.querySelectorAll('a[href$=".jpg"], a[href$=".png"], a[href$=".jpeg"], a[href$=".webp"], a[href$=".gif"]');
 
             imageLinks.forEach(link => {
-                // 1. Thêm data-fancybox với ID nhóm
                 link.setAttribute('data-fancybox', galleryId);
-                
-                // 2. (Tùy chọn) Thêm caption cho Fancybox từ thẻ img bên trong
                 const imgChild = link.querySelector('img');
-                if (imgChild && imgChild.alt) {
-                    link.setAttribute('data-caption', imgChild.alt);
-                }
+                if (imgChild && imgChild.alt) link.setAttribute('data-caption', imgChild.alt);
             });
-            // ============================================================
         }
 
-        // 3. Ẩn nút "Xem thêm"
         btn.classList.add('d-none');
 
-        // 4. Ẩn ảnh Featured bên ngoài (nếu có)
         if (featuredImg && featuredImg.classList.contains('postFeaturedImage')) {
             featuredImg.classList.add('d-none');
         }
@@ -580,109 +486,68 @@ document.addEventListener('click', function (e) {
 });
 
 
-// Thông báo lần đầu truy cập Blog và Ghim ra màn hình chính (chỉ xuất hiện lần đầu truy cập)
-// VT Zone
-// vutruong.vn
-
-    // 1. Tên biến dùng để lưu trạng thái trong trình duyệt
+// Thông báo lần đầu truy cập Blog
+(function() {
     const storageKey = 'hasVisitedBlog';
-    // 2. Tham chiếu đến phần tử thông báo HTML
     const welcomeMessage = document.getElementById('first-visit-message');
 
-    /**
-     * Hàm kiểm tra và hiển thị thông báo
-     */
     function checkFirstVisit() {
-        // Kiểm tra xem đã có biến 'hasVisitedBlog' trong localStorage chưa
         if (localStorage.getItem(storageKey) === null) {
-            // Nếu chưa có (Đây là lần đầu truy cập)
-            
-            // Hiển thị thông báo
-            if (welcomeMessage) {
-                welcomeMessage.style.display = 'block';
-            }
-            
-            // Đặt biến vào localStorage để những lần sau không hiện nữa
+            if (welcomeMessage) welcomeMessage.style.display = 'block';
             localStorage.setItem(storageKey, 'true');
         }
-        // Nếu đã có, không làm gì cả (Không hiển thị thông báo)
     }
     
-    /**
-     * Hàm đóng thông báo khi người dùng nhấn nút
-     */
     function closeWelcomeMessage() {
-        if (welcomeMessage) {
-            welcomeMessage.style.display = 'none';
-        }
+        if (welcomeMessage) welcomeMessage.style.display = 'none';
     }
 
-    // Chạy hàm kiểm tra ngay khi trang tải xong
     document.addEventListener('DOMContentLoaded', checkFirstVisit);
+    // Export để HTML có thể gọi nếu cần
+    window.closeWelcomeMessage = closeWelcomeMessage;
+})();
 
 /* =========================================
- * VT_LazyLoad v2.0 - Tối ưu cho vutruong.vn
- * Đã cấu hình tải trước 300px
+ * VT_LazyLoad v2.0
  ========================================= */
 
 const imageObserver = new IntersectionObserver((entries, observer) => {
     entries.forEach(entry => {
-        // Khi ảnh chạm vào vùng đệm 300px bên dưới màn hình
         if (entry.isIntersecting) {
             const img = entry.target;
             const src = img.getAttribute('data-src');
-
             if (src) {
                 img.src = src;
                 img.removeAttribute('data-src');
-                // Khi ảnh thật tải xong thì hiện ra
-                img.onload = () => {
-                    img.style.opacity = '1';
-                };
+                img.onload = () => { img.style.opacity = '1'; };
             }
-            
-            // Dừng theo dõi ảnh này vì đã xử lý xong
             observer.unobserve(img);
         }
     });
 }, { 
-    root: null, // Theo dõi dựa trên khung hình trình duyệt
-    rootMargin: '0px 0px 300px 0px', // Đón đầu 300px từ phía dưới
-    threshold: 0.01 // Chỉ cần chớm xuất hiện 1% là kích hoạt
+    root: null,
+    rootMargin: '0px 0px 300px 0px',
+    threshold: 0.01
 });
 
-
-
 function VT_LazyLoad() {
-    // Chỉ xử lý ảnh trong #centerMain và chưa được đánh dấu lazy
     const images = document.querySelectorAll('.VT_homePostGallery img:not(.lazy-processed)');
 
     images.forEach(img => {
         const currentSrc = img.getAttribute('src');
-
-        // Bỏ qua nếu không có src hoặc đã là ảnh base64
         if (!currentSrc || currentSrc.startsWith('data:') || img.classList.contains('no-lazy')) return;
 
-        // Đánh dấu để không quét lại ảnh này lần sau
         img.classList.add('lazy-processed');
-
-        // Chuyển src thật sang data-src
         img.setAttribute('data-src', currentSrc);
-        
-        // Gán placeholder (ảnh trắng siêu nhẹ)
         img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
-        
-        // Thiết lập hiệu ứng mượt mà
         img.style.opacity = '0';
         img.style.transition = 'transform .3s ease, opacity 1s ease';
         img.style.backgroundColor = '#f2f3f5';
 
-        // Bắt đầu theo dõi
         imageObserver.observe(img);
     });
 }
 
-// Chạy khi DOM sẵn sàng
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', VT_LazyLoad);
 } else {
