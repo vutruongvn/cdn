@@ -2,14 +2,14 @@
 /**
  * VUTRUONG.VN - HỆ THỐNG FIREBASE TỔNG HỢP
  * Các tính năng: Auth, Like, View, History...
- * Phiên bản: 3.0.0 (Firebase v10 + Fixed Compatibility + No jQuery)
- * Cập nhật: 15/2/2026
+ * Phiên bản: 4.0.0 (Firebase v10 + Session Cache + No jQuery)
+ * Cập nhật: 18/2/2026
  * VT Zone - vutruong.vn
  */
 // =========================================================================================
 
 console.log('%c🚀 VT-Zone Firebase System', 'color: #4285F4; font-weight: bold; font-size: 14px;');
-console.log('%c📦 Đang khởi tạo Firebase v10...', 'color: #666;');
+console.log('%c📦 Đang khởi tạo Firebase v10 + Session Cache...', 'color: #666;');
 
 // --- IMPORT FIREBASE v10 MODULES ---
 import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -116,6 +116,60 @@ window.auth = auth;
 
 console.log('%c✅ Firebase App, Firestore và Auth đã sẵn sàng (v10)', 'color: #4285F4; font-weight: bold;');
 
+// =========================================================================================
+// SESSION CACHE - LƯU PHIÊN ĐĂNG NHẬP VÀO LOCALSTORAGE
+// Mục đích: Render UI ngay lập tức khi load trang, không chờ Firebase resolve
+// =========================================================================================
+
+const SESSION_KEY = 'vt_user_session';
+const SESSION_TTL = 30 * 24 * 60 * 60 * 1000; // 30 ngày
+
+function saveUserSession(user) {
+    if (!user) return;
+    try {
+        const sessionData = {
+            uid: user.uid,
+            displayName: user.displayName || '',
+            email: user.email || '',
+            photoURL: user.photoURL || '',
+            cachedAt: Date.now()
+        };
+        localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+        console.log('%c💾 [Session] Phiên đăng nhập đã được lưu', 'color: #34A853;');
+    } catch (e) {
+        console.warn('%c⚠️ [Session] Không thể lưu session:', 'color: #FBBC04;', e);
+    }
+}
+
+function getCachedUser() {
+    try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        if (!data.cachedAt || Date.now() - data.cachedAt > SESSION_TTL) {
+            localStorage.removeItem(SESSION_KEY);
+            console.log('%c⏰ [Session] Cache hết hạn, đã xóa', 'color: #FBBC04;');
+            return null;
+        }
+        return data;
+    } catch (e) {
+        return null;
+    }
+}
+
+function clearUserSession() {
+    localStorage.removeItem(SESSION_KEY);
+    console.log('%c🗑️ [Session] Đã xóa phiên đăng nhập', 'color: #EA4335;');
+}
+
+// Đọc cache ngay lập tức - trước khi Firebase resolve
+const _cachedUser = getCachedUser();
+if (_cachedUser) {
+    console.log(`%c⚡ [Session] Phát hiện phiên cache: ${_cachedUser.displayName}`, 'color: #34A853; font-weight: bold;');
+}
+
+// =========================================================================================
+
 // --- BIẾN KIỂM TRA TRANG ---
 const isPostPage = window.location.pathname.indexOf(".html") > -1;
 const isItemPageByBlogger = typeof _WidgetManager !== 'undefined' && _WidgetManager._GetAllData().blog.pageType === "item";
@@ -148,6 +202,9 @@ function signInWithGoogle() {
 
 function signOut() {
     console.log('%c🚪 [Auth] Signing out...', 'color: #EA4335;');
+    
+    // Xóa cache ngay lập tức - không chờ Firebase
+    clearUserSession();
     
     firebaseSignOut(auth)
         .then(() => {
@@ -487,6 +544,13 @@ document.addEventListener('DOMContentLoaded', () => {
         userPhotoDisplays: userPhotoDisplays.length
     });
 
+    // ⚡ RENDER UI NGAY LẬP TỨC TỪ CACHE - không chờ Firebase
+    // Giúp tránh "flash" giao diện khi trang load
+    if (_cachedUser) {
+        console.log('%c⚡ [Session] Render UI từ cache ngay lập tức', 'color: #34A853; font-weight: bold;');
+        updateAuthUI(_cachedUser);
+    }
+
     // Gắn sự kiện đăng nhập
     signInLinks.forEach(link => {
         link.addEventListener('click', (e) => {
@@ -531,7 +595,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log(`%c👤 [Auth] Display Name: ${user.displayName}`, 'color: #34A853;');
                 console.log(`%c👤 [Auth] Photo URL: ${user.photoURL}`, 'color: #34A853;');
                 
-                // Cập nhật UI
+                // Lưu phiên đăng nhập vào cache
+                saveUserSession(user);
+                
+                // Cập nhật UI (chỉ cần nếu khác với cache đã render)
                 updateAuthUI(user);
                 
                 // Khởi tạo like buttons
@@ -540,6 +607,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             } else {
                 console.log('%c⚠️ [Auth] No user logged in', 'color: #FBBC04;');
+                
+                // Xóa cache phiên đăng nhập
+                clearUserSession();
                 
                 // Cập nhật UI
                 updateAuthUI(null);
@@ -638,7 +708,10 @@ window.handleCredentialResponse = async function(response) {
             console.log('%c✅ [One Tap] Profile updated', 'color: #34A853;');
         }
 
-        // Lưu vào localStorage để sync
+        // Lưu phiên đăng nhập vào cache session
+        saveUserSession(result.user);
+        
+        // Lưu vào localStorage để sync (giữ nguyên logic cũ)
         localStorage.setItem('vutruong_sync_name', googleName);
         localStorage.setItem('vutruong_sync_avatar', googlePicture);
         
@@ -710,5 +783,5 @@ var checkAuthInterval = setInterval(function() {
 
 // =========================================================================================
 console.log('%c🎉 VT-Zone Firebase System Ready!', 'color: #4285F4; font-weight: bold; font-size: 16px;');
-console.log('%c📦 Version: 3.0.0 (Firebase v10 + No jQuery + Fixed)', 'color: #666;');
+console.log('%c📦 Version: 4.0.0 (Firebase v10 + Session Cache + No jQuery)', 'color: #666;');
 // =========================================================================================
