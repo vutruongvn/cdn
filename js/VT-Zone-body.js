@@ -1,6 +1,6 @@
 // =========================================================================================
 // VT ZONE - ALL PAGE SCRIPTS
-// Chạy trên toàn hệ thống - vutruong.vn
+// Chạy trên toàn hệ thống - vutruong.vn -
 // =========================================================================================
 
 console.log('%c🚀 VT Zone Scripts', 'color: #4285F4; font-weight: bold; font-size: 14px;', 'Đang khởi tạo...');
