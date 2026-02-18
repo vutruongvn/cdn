@@ -134,8 +134,6 @@ window.VT_InitCommentSystem = function() {
                 el.style.setProperty('display', 'none', 'important');
             });
 
-            console.log(`[Comments] Bài ${postId}: đã tắt bình luận`);
-
         } else {
             // 1. Xóa thông báo
             appBox.querySelector('.VT-disabled-notice')?.remove();
@@ -159,10 +157,13 @@ window.VT_InitCommentSystem = function() {
                 if (restoredSend) restoredSend.style.display   = user ? '' : 'none';
             }
 
-            // 3. Force re-render để khôi phục đầy đủ nút Trả lời/Chỉnh sửa trên các comment
-            startListening(appBox, true);
+            // 3. Xóa sạch comment list để force re-render đầy đủ (kể cả nút Trả lời/Chỉnh sửa)
+            // Không thể chỉ gọi startListening vì onSnapshot chỉ update timestamp cho element đã có sẵn
+            const list = appBox.querySelector('.VT-comment-list');
+            if (list) list.innerHTML = '';
 
-            console.log(`[Comments] Bài ${postId}: đã bật bình luận`);
+            // 4. Force re-render để khôi phục đầy đủ nút Trả lời/Chỉnh sửa trên các comment
+            startListening(appBox, true);
         }
     };
 
@@ -176,15 +177,23 @@ window.VT_InitCommentSystem = function() {
         if (!postId || settingsUnsubMap[postId]) return;
 
         const settingsRef      = doc(db, POST_SETTINGS_COL, postId);
+        let _isFirstSnapshot   = true;  // Flag phân biệt lần đầu load vs admin toggle thực sự
         settingsUnsubMap[postId] = onSnapshot(
             settingsRef,
             (snap) => {
-                const disabled = snap.exists() && snap.data().commentsDisabled === true;
+                const disabled   = snap.exists() && snap.data().commentsDisabled === true;
+                const wasFirst   = _isFirstSnapshot;
+                _isFirstSnapshot = false;
 
                 // Chỉ áp dụng khi trạng thái thực sự thay đổi
                 if (commentDisabledCache[postId] === disabled) return;
 
                 applyCommentDisabledState(appBox, disabled);
+
+                // Chỉ log khi admin thực sự toggle - không log lần đầu tải trang
+                if (!wasFirst) {
+                    console.log(`[Comments] Bài ${postId}: đã ${disabled ? 'tắt' : 'bật'} bình luận`);
+                }
 
                 // Cập nhật text nút .VT_offComment
                 const postCont = appBox.closest('.post');
@@ -1028,4 +1037,4 @@ if (document.readyState === 'loading') {
 } else {
     window.VT_InitCommentSystem();
 }
-// ========================================================================================
+// ===================================== OK ===========================================
