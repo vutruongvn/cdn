@@ -13,6 +13,7 @@
 // =====================
 import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import {
+    getFirestore,
     initializeFirestore,
     persistentLocalCache,
     persistentMultipleTabManager,
@@ -38,11 +39,17 @@ const firebaseConfig = {
 const app  = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 // Khởi tạo Firestore với persistent cache - hỗ trợ đa tab, offline
-const db   = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-    })
-});
+// Fallback sang getFirestore() nếu đã được khởi tạo với options khác (ví dụ firebase.js chạy trước)
+let db;
+try {
+    db = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+            tabManager: persistentMultipleTabManager()
+        })
+    });
+} catch(e) {
+    db = getFirestore(app);
+}
 const auth = getAuth(app);
 
 // =====================
@@ -1037,4 +1044,4 @@ if (document.readyState === 'loading') {
 } else {
     window.VT_InitCommentSystem();
 }
-// ===================================== OK ===========================================
+// =========================================================================================
