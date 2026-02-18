@@ -124,6 +124,16 @@ window.VT_InitCommentSystem = function() {
             // 4. Xóa reply box đang mở nếu có
             appBox.querySelectorAll('.VT-dynamic-reply-box').forEach(box => box.remove());
 
+            // 5. Đóng các khung chỉnh sửa đang mở - tắt luôn nút Lưu/Hủy (realtime)
+            appBox.querySelectorAll('.VT-comment-text[contenteditable="true"]').forEach(txt => {
+                txt.contentEditable = 'false';
+                if (txt._vtEditCleanup) { txt._vtEditCleanup(); delete txt._vtEditCleanup; }
+                txt.innerText = txt.dataset.oldContent || txt.innerText;
+            });
+            appBox.querySelectorAll('.VT-edit-btns').forEach(el => {
+                el.style.setProperty('display', 'none', 'important');
+            });
+
             console.log(`[Comments] Bài ${postId}: đã tắt bình luận`);
 
         } else {
@@ -135,17 +145,22 @@ window.VT_InitCommentSystem = function() {
                 appBox.insertBefore(appBox._vtSavedInputNode, appBox.firstChild);
                 appBox._vtSavedInputNode = null;
 
-                // Đồng bộ avatar và placeholder với trạng thái user hiện tại
+                // Đồng bộ avatar, placeholder và nút gửi với trạng thái user hiện tại
                 const user         = auth.currentUser;
                 const restoredImg  = appBox.querySelector('.VT-user-avatar');
                 const restoredIn   = appBox.querySelector('.VT-comment-input');
                 const restoredPh   = appBox.querySelector('.VT-placeholder');
-                if (restoredImg) restoredImg.src              = user?.photoURL || DEFAULT_AVATAR;
-                if (restoredIn)  restoredIn.contentEditable   = String(!!user);
-                if (restoredPh)  restoredPh.innerText         = user
+                const restoredSend = appBox.querySelector('.VT-input-area button[onclick*="VT_SendComment"]');
+                if (restoredImg)  restoredImg.src              = user?.photoURL || DEFAULT_AVATAR;
+                if (restoredIn)   restoredIn.contentEditable   = String(!!user);
+                if (restoredPh)   restoredPh.innerText         = user
                     ? `Bình luận bằng tên ${user.displayName}`
                     : 'Đăng nhập để thích hoặc bình luận';
+                if (restoredSend) restoredSend.style.display   = user ? '' : 'none';
             }
+
+            // 3. Force re-render để khôi phục đầy đủ nút Trả lời/Chỉnh sửa trên các comment
+            startListening(appBox, true);
 
             console.log(`[Comments] Bài ${postId}: đã bật bình luận`);
         }
@@ -807,8 +822,9 @@ window.VT_InitCommentSystem = function() {
         document.querySelectorAll('.VT-comment-app').forEach(app => {
             // Bỏ qua nếu bình luận đang bị tắt
             if (app.dataset.commentDisabled === 'true') return;
-            const input = app.querySelector('.VT-comment-input');
-            const ph    = app.querySelector('.VT-placeholder');
+            const input   = app.querySelector('.VT-comment-input');
+            const ph      = app.querySelector('.VT-placeholder');
+            const sendBtn = app.querySelector('.VT-input-area button[onclick*="VT_SendComment"]');
             if (input) {
                 input.contentEditable = String(!!user);
                 if (!user) { input.innerText = ""; VT_HandlePlaceholder(input); }
@@ -816,6 +832,8 @@ window.VT_InitCommentSystem = function() {
                     ? `Bình luận bằng tên ${user.displayName}`
                     : "Đăng nhập để thích hoặc bình luận";
             }
+            // Ẩn nút Đăng bình luận (icon máy bay) khi chưa đăng nhập
+            if (sendBtn) sendBtn.style.display = user ? '' : 'none';
         });
 
         // Xóa hết reply box đang mở khi login/logout tránh hiện sai avatar/tên
@@ -1010,4 +1028,4 @@ if (document.readyState === 'loading') {
 } else {
     window.VT_InitCommentSystem();
 }
-// =========================================================================================
+// ========================================================================================
