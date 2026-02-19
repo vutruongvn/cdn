@@ -159,8 +159,8 @@ window.VT_InitCommentSystem = function() {
                 if (restoredImg)  restoredImg.src              = user?.photoURL || DEFAULT_AVATAR;
                 if (restoredIn)   restoredIn.contentEditable   = String(!!user);
                 if (restoredPh)   restoredPh.innerText         = user
-                    ? `Bình luận bằng tên ${user.displayName}`
-                    : 'Đăng nhập để thích hoặc bình luận';
+                    ? `Bình luận dưới tên ${user.displayName}`
+                    : 'Đăng nhập để bình luận';
                 if (restoredSend) restoredSend.style.display   = user ? '' : 'none';
             }
 
@@ -845,8 +845,8 @@ window.VT_InitCommentSystem = function() {
                 input.contentEditable = String(!!user);
                 if (!user) { input.innerText = ""; VT_HandlePlaceholder(input); }
                 if (ph) ph.innerText = user
-                    ? `Bình luận bằng tên ${user.displayName}`
-                    : "Đăng nhập để thích hoặc bình luận";
+                    ? `Bình luận dưới tên ${user.displayName}`
+                    : "Đăng nhập để bình luận";
             }
             // Ẩn nút Đăng bình luận (icon máy bay) khi chưa đăng nhập
             if (sendBtn) sendBtn.style.display = user ? '' : 'none';
@@ -1045,3 +1045,4 @@ if (document.readyState === 'loading') {
     window.VT_InitCommentSystem();
 }
 // =========================================================================================
+
