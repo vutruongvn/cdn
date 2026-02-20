@@ -3,7 +3,7 @@
  * VUTRUONG.VN - HỆ THỐNG FIREBASE TỔNG HỢP
  * Tính năng: Auth, Like, View History, Session Cache, Admin Tools
  * Phiên bản: 5.0.1
- * Cập nhật: 18/2/2026
+ * Cập nhật: 20/2/2026
  */
 // =========================================================================================
 
@@ -146,11 +146,14 @@ let userNullContainers, userTrueContainers, signInLinks, signOutButtons,
 // Hiển thị/Ẩn .VT-admin-tools dựa trên UID - không reload trang
 // =====================
 
-// Danh sách UID admin - thêm/bớt tại đây khi cần
+// ⚠️  NGUỒN GỐC DUY NHẤT cho danh sách UID admin
+// Thêm/bớt admin tại đây - tự động áp dụng cho toàn bộ hệ thống
+// Xuất ra window.VT_ADMIN_UIDS để comments.js và body.js dùng chung
 const VT_ADMIN_UIDS = [
-    'u9U3j9O63jbipOgai3o88X4008q2',  // chính
+    'u9U3j9O63jbipOgai3o88X4008q2',  // Google account chính
     'KZuVkr6O2uUFVxdrbdU9eL84bXk2',  // admin@vutruong.vn
 ];
+window.VT_ADMIN_UIDS = VT_ADMIN_UIDS;  // Export toàn cục
 
 // Flag: Firebase onAuthStateChanged đã resolve ít nhất 1 lần chưa
 // Nếu chưa resolve, không xóa admin-tools khỏi DOM (tránh mất element trước khi biết user thực sự)
@@ -203,9 +206,11 @@ function updateAuthUI(user) {
     userNameDisplays.forEach(el  => { el.innerText = name; });
     userPhotoDisplays.forEach(el => { el.src = photo; });
 
+    // Export uid hiện tại ra window để body.js fallback dùng khi cần
+    window._vtCurrentUid = user ? user.uid : null;
+
     // Áp dụng admin tools theo uid của user
-    const uid = user ? user.uid : null;
-    applyAdminToolsUI(uid);
+    applyAdminToolsUI(window._vtCurrentUid);
 }
 
 // =====================
