@@ -2,7 +2,7 @@
 /**
  * VUTRUONG.VN - HỆ THỐNG FIREBASE TỔNG HỢP
  * Tính năng: Auth, Like, View History, Session Cache, Admin Tools
- * Phiên bản: 5.0.0
+ * Phiên bản: 5.0.1
  * Cập nhật: 18/2/2026
  */
 // =========================================================================================
@@ -146,14 +146,18 @@ let userNullContainers, userTrueContainers, signInLinks, signOutButtons,
 // Hiển thị/Ẩn .VT-admin-tools dựa trên UID - không reload trang
 // =====================
 
-const VT_ADMIN_UID = 'u9U3j9O63jbipOgai3o88X4008q2';
+// Danh sách UID admin - thêm/bớt tại đây khi cần
+const VT_ADMIN_UIDS = [
+    'u9U3j9O63jbipOgai3o88X4008q2',  // chính
+    'KZuVkr6O2uUFVxdrbdU9eL84bXk2',  // admin@vutruong.vn
+];
 
 // Flag: Firebase onAuthStateChanged đã resolve ít nhất 1 lần chưa
 // Nếu chưa resolve, không xóa admin-tools khỏi DOM (tránh mất element trước khi biết user thực sự)
 let _firebaseAuthResolved = false;
 
 function applyAdminToolsUI(uid) {
-    const isAdmin    = uid === VT_ADMIN_UID;
+    const isAdmin    = VT_ADMIN_UIDS.includes(uid);
     const adminTools = document.querySelectorAll('.VT-admin-tools');
 
     if (isAdmin) {
