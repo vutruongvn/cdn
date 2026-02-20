@@ -92,8 +92,8 @@ window.VT_InitCommentSystem = function() {
                  class="VT-user-avatar rounded-circle m-0 pe-none"
                  loading="lazy" width="44" height="44"
                  style="object-fit:cover; flex-shrink:0;">
-            <div class="VT-comment-input VT-comment-disabled-noty flex-grow-1 d-flex align-items-center opacity-75 text-nowrap" style="cursor:not-allowed;user-select:none">
-                Quản trị viên đã tắt bình luận
+            <div class="VT-comment-input VT-comment-disabled-noty flex-grow-1 d-flex align-items-center opacity-50 text-nowrap" style="cursor:not-allowed;user-select:none">
+                Vũ Trường đã giới hạn ai có thể bình luận về bài viết này.
             </div>
         </div>`;
 
@@ -1054,3 +1054,4 @@ if (document.readyState === 'loading') {
     window.VT_InitCommentSystem();
 }
 // =========================================================================================
+
