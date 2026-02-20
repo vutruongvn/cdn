@@ -1002,46 +1002,7 @@ function initBootstrapTooltips() {
     });
 }
 
-// =====================
-// LIKE BUTTONS TRANG INDEX
-// Dùng window.auth và window.initSingleLikeButton từ firebase-system.js
-// ─────────────────────────────────────────────────────────────────────
-// Lý do giữ lại window.auth.onAuthStateChanged ở đây:
-//   firebase-system.js chỉ khởi tạo .likePost có sẵn khi DOMContentLoaded.
-//   Sau AJAX load thêm bài viết, cần hàm này để khởi tạo nút Like mới.
-//   Đây là gọi proxy window.auth (export từ firebase-system.js),
-//   KHÔNG phải import Firebase SDK trực tiếp.
-// Toast #loginToast được tạo và quản lý bởi firebase-system.js.
-// =====================
 
-function initNewLikeButtons() {
-    // Guard: firebase-system.js phải load trước
-    if (typeof window.db === 'undefined' || typeof window.auth === 'undefined') return;
-
-    const likeBtns = document.querySelectorAll('.likePost:not(.firebase-like-btn)');
-    if (!likeBtns.length) return;
-
-    window.auth.onAuthStateChanged((user) => {
-        likeBtns.forEach(btn => {
-            if (user) {
-                if (typeof window.initSingleLikeButton === 'function') {
-                    window.initSingleLikeButton(btn, user);
-                }
-            } else {
-                if (typeof window.updateLikeUI === 'function') window.updateLikeUI(btn, false);
-                // Reuse toast #loginToast đã được tạo và quản lý bởi firebase-system.js
-                btn.onclick = (e) => {
-                    e.preventDefault();
-                    const toastEl = document.getElementById('loginToast');
-                    if (toastEl && typeof bootstrap !== 'undefined') {
-                        bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3000 }).show();
-                    }
-                };
-            }
-            btn.classList.add('firebase-like-btn');
-        });
-    });
-}
 
 // =====================
 // ÁP DỤNG LOGIC SAU KHI THÊM BÀI VIẾT (CÀ KHI LOAD TRANG LẪN SAU AJAX)
@@ -1306,3 +1267,4 @@ if (document.readyState === 'loading') {
 // =========================================================================================
 // VT Zone Body + Multiple Items Scripts v5.1.0 - Ready
 // =========================================================================================
+
