@@ -2,8 +2,8 @@
 /**
  * VUTRUONG.VN - HỆ THỐNG BÌNH LUẬN REALTIME
  * Tính năng: Đăng/Trả lời/Xóa/Chỉnh sửa bình luận, Bật/Tắt bình luận, Đếm realtime
- * Phiên bản: 5.0.0
- * Cập nhật: 18/2/2026
+ * Phiên bản: 5.0.1
+ * Cập nhật: 20/2/2026
  */
 // =========================================================================================
 
@@ -21,7 +21,7 @@ import {
     query, where, orderBy, onSnapshot, serverTimestamp, getDocs,
     writeBatch, increment
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, updateProfile, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // =====================
 // CẤU HÌNH FIREBASE
@@ -628,12 +628,17 @@ window.VT_InitCommentSystem = function() {
 
     // =====================
     // ĐẾM SỐ LƯỢNG BÌNH LUẬN - REALTIME
-    // Dùng onSnapshot để đếm realtime tổng bình luận của postId
+    // 1 listener duy nhất / postId - có guard chống leak
     // =====================
 
+    const _countUnsubMap = {};  // Guard: chỉ tạo 1 listener đếm mỗi postId
+
     const updateCommentCount = (postId) => {
+        // Nếu listener đã tồn tại thì bỏ qua - không tạo thêm
+        if (_countUnsubMap[postId]) return;
+
         const q = query(collection(db, "comments"), where("postId", "==", postId));
-        onSnapshot(q, (snap) => {
+        _countUnsubMap[postId] = onSnapshot(q, (snap) => {
             document.querySelectorAll(`.VT-comment-count[data-post-id="${postId}"] .count-number`)
                     .forEach(el => el.innerText = snap.size);
         }, err => console.error("[Comments] Lỗi đếm comment:", err));
@@ -653,6 +658,9 @@ window.VT_InitCommentSystem = function() {
         // Lắng nghe trạng thái bật/tắt bình luận (1 lần/postId)
         listenPostSettings(appBox);
 
+        // Khởi động đếm comment - chỉ 1 lần/postId (guard bên trong updateCommentCount)
+        updateCommentCount(postId);
+
         const q = query(
             collection(db, "comments"),
             where("postId", "==", postId),
@@ -669,10 +677,14 @@ window.VT_InitCommentSystem = function() {
             const list         = appBox.querySelector('.VT-comment-list');
 
             if (list) {
+                let hasNewElement = false; // Flag: chỉ refresh tooltip khi thực sự có element mới
+
                 const dataToShow = parents.slice(0, limitCount);
                 dataToShow.forEach((p, index) => {
                     let existing = list.querySelector(`#VT-cmt-${p.id}`);
                     if (!existing) {
+                        // Element mới → render và đánh dấu cần refresh tooltip
+                        hasNewElement = true;
                         const html = createHtml(p, auth.currentUser?.uid === p.uid, false, p.childCount || 0);
                         if (index === 0 && list.children.length > 0) {
                             list.insertAdjacentHTML('afterbegin', html);
@@ -680,7 +692,7 @@ window.VT_InitCommentSystem = function() {
                             list.insertAdjacentHTML('beforeend', html);
                         }
                     } else {
-                        // Chỉ cập nhật thời gian (tránh re-render toàn bộ)
+                        // Element đã có → chỉ cập nhật thời gian, không re-render
                         const timeEl = existing.querySelector('.VT-cmt-time');
                         if (timeEl) {
                             timeEl.innerHTML = `${timeAgo(p.createdAt)}${p.lastEdited ? ' (đã chỉnh sửa)' : ''}`;
@@ -693,14 +705,15 @@ window.VT_InitCommentSystem = function() {
                 Array.from(list.children).forEach(el => {
                     if (el.id?.startsWith('VT-cmt-') && !currentIds.includes(el.id)) el.remove();
                 });
+
+                // Chỉ rebuild tooltip khi có element mới thực sự được thêm vào DOM
+                if (hasNewElement) window.VT_RefreshTooltips();
             }
 
             const loadMoreBox = appBox.querySelector('.VT-load-more-box');
             if (loadMoreBox) toggleEl(loadMoreBox, parents.length > limitCount);
 
-            updateCommentCount(postId);
-            window.VT_RefreshTooltips();
-            window.VT_FocusComment();
+            // updateCommentCount đã được khởi động riêng - không gọi lại ở đây
         });
     };
 
@@ -858,7 +871,8 @@ window.VT_InitCommentSystem = function() {
 
     // =====================
     // AUTH STATE LISTENER
-    // Mỗi khi auth thay đổi: reset + reinit toàn bộ comment apps
+    // onAuthStateChanged luôn fire 1 lần ngay khi trang load (kể cả guest)
+    // → là initializer duy nhất, không cần initApps() riêng
     // =====================
 
     onAuthStateChanged(auth, (user) => {
@@ -988,28 +1002,19 @@ window.VT_InitCommentSystem = function() {
 
     // =====================
     // XỬ LÝ PASTE - Chỉ dán text thuần, không cho dán HTML
+    // Guard: chỉ đăng ký 1 lần dù VT_InitCommentSystem bị gọi nhiều lần (AJAX)
     // =====================
 
-    document.addEventListener('paste', (e) => {
-        const target = e.target.closest('[contenteditable="true"]');
-        if (!target) return;
-        e.preventDefault();
-        const text = (e.originalEvent || e).clipboardData.getData('text/plain');
-        document.execCommand("insertHTML", false, text);
-    });
-
-    // =====================
-    // KHỞI TẠO CÁC COMMENT APP
-    // =====================
-
-    const initApps = () => {
-        document.querySelectorAll('.VT-comment-app').forEach(app => {
-            if (app.dataset.loaded !== "true") startListening(app);
+    if (!window._vtPasteHandlerRegistered) {
+        window._vtPasteHandlerRegistered = true;
+        document.addEventListener('paste', (e) => {
+            const target = e.target.closest('[contenteditable="true"]');
+            if (!target) return;
+            e.preventDefault();
+            const text = (e.originalEvent || e).clipboardData.getData('text/plain');
+            document.execCommand("insertHTML", false, text);
         });
-        VT_SyncUserUI(auth.currentUser);
-    };
-
-    initApps();
+    }
 
     // =====================
     // MUTATION OBSERVER
@@ -1034,6 +1039,10 @@ window.VT_InitCommentSystem = function() {
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // VT_FocusComment gọi 1 lần sau khi khởi tạo xong
+    // setTimeout bên trong nó (500ms) đủ thời gian cho onSnapshot render lần đầu
+    window.VT_FocusComment();
 };
 
 // =====================
@@ -1045,4 +1054,3 @@ if (document.readyState === 'loading') {
     window.VT_InitCommentSystem();
 }
 // =========================================================================================
-
