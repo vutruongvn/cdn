@@ -2,8 +2,8 @@
 /**
  * VUTRUONG.VN - ALL PAGE SCRIPTS
  * Chạy trên toàn hệ thống - vutruong.vn
- * Phiên bản: 5.0.1
- * Cập nhật: 20/2/2026
+ * Phiên bản: 5.0.0
+ * Cập nhật: 18/2/2026
  */
 // =========================================================================================
 
@@ -459,6 +459,8 @@ document.addEventListener('DOMContentLoaded', function() {
 // Class-based, thuần JS - thay thế jQuery slideToggle/fadeToggle
 // =====================
 
+"use strict";
+
 class Sidenav {
     constructor(element) {
         this.el             = element;
@@ -579,6 +581,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // =====================
 
 document.addEventListener("DOMContentLoaded", function() {
+    "use strict";
 
     function getThumbnail(fullUrl) {
         return fullUrl.replace(/\/s\d+\//, '/s250/');
@@ -747,23 +750,20 @@ document.addEventListener("DOMContentLoaded", function() {
 // Giữ lại VT_InitAdminSystem và VT_ApplyAdminUI để tương thích với multiple-items.js
 // =====================
 
+const VT_ADMIN_UID = 'u9U3j9O63jbipOgai3o88X4008q2';
+
 // VT_ApplyAdminUI: được khai báo trong firebase.js (window.VT_ApplyAdminUI)
 // Đây chỉ là fallback nếu firebase.js chưa load
-// UID Admin: dùng window.VT_ADMIN_UIDS từ firebase.js (nguồn gốc duy nhất)
 
 if (typeof window.VT_ApplyAdminUI === 'undefined') {
     window.VT_ApplyAdminUI = () => {
-        // Ưu tiên sessionStorage (do firebase.js set khi xác thực xong)
-        const isAdminSession = sessionStorage.getItem('VT_AdminLogged') === 'true';
-        // Fallback: kiểm tra uid hiện tại trong window.VT_ADMIN_UIDS nếu có
-        const uid    = window._vtCurrentUid;
-        const admins = window.VT_ADMIN_UIDS || [];
-        const isAdmin = isAdminSession || (uid && admins.includes(uid));
-
-        document.querySelectorAll('.VT-admin-tools').forEach(el => {
-            if (isAdmin) el.classList.remove('d-none');
-            else         el.remove();
-        });
+        const isAdmin    = sessionStorage.getItem('VT_AdminLogged') === 'true';
+        const adminTools = document.querySelectorAll('.VT-admin-tools');
+        if (isAdmin) {
+            adminTools.forEach(el => el.classList.remove('d-none'));
+        } else {
+            adminTools.forEach(el => el.remove());
+        }
     };
 }
 
@@ -897,5 +897,5 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // =========================================================================================
-// VT Zone Body Scripts v5.0.1 - Ready
+// VT Zone Body Scripts v5.0.0 - Ready
 // =========================================================================================
