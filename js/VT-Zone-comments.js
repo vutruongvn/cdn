@@ -55,7 +55,10 @@ const auth = getAuth(app);
 // =====================
 // HẰNG SỐ
 // =====================
-const ADMIN_UIDS     = ["u9U3j9O63jbipOgai3o88X4008q2"];
+const ADMIN_UIDS = [
+    "u9U3j9O63jbipOgai3o88X4008q2",  // Google account chính
+    "KZuVkr6O2uUFVxdrbdU9eL84bXk2",  // admin@vutruong.vn
+];
 const DEFAULT_AVATAR = 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhS34MMIbvh9P6obSup4qu4xfE2LrXkhY8rAXLJGX3PzwvolCMWTeXSU0hgm3fETQnfGbcEd0jklsAzNV9NIA-v3XQblgT6DTLHsC9zVuTrEuifK3h9P1Fq7PIAha8Z9TER64RIcfAzSgtq7uHbZL4iLJuR5XGhqn3ju4ZXoTHYjXCclA/s44/vtzone-default-avatar.jpg';
 
 // =========================================================================================
@@ -92,8 +95,8 @@ window.VT_InitCommentSystem = function() {
                  class="VT-user-avatar rounded-circle m-0 pe-none"
                  loading="lazy" width="44" height="44"
                  style="object-fit:cover; flex-shrink:0;">
-            <div class="VT-comment-input VT-comment-disabled-noty flex-grow-1 d-flex align-items-center text-nowrap" style="cursor:not-allowed;user-select:none">
-                <span class="opacity-50">Vũ Trường đã giới hạn ai có thể bình luận về bài viết này.</span>
+            <div class="VT-comment-input VT-comment-disabled-noty flex-grow-1 d-flex align-items-center opacity-75 text-nowrap" style="cursor:not-allowed;user-select:none">
+                Quản trị viên đã tắt bình luận
             </div>
         </div>`;
 
@@ -1054,5 +1057,3 @@ if (document.readyState === 'loading') {
     window.VT_InitCommentSystem();
 }
 // =========================================================================================
-
-
