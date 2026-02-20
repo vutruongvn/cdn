@@ -410,10 +410,10 @@ document.addEventListener('DOMContentLoaded', () => {
             container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
             container.style.zIndex = '1060';
             container.innerHTML = `
-                <div id="loginToast" class="toast align-items-center text-white bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div id="loginToast" class="toast align-items-center text-white bg-warning border-0" role="alert" aria-live="assertive" aria-atomic="true">
                     <div class="d-flex">
                         <div class="toast-body">
-                            <i class="fa-solid fa-circle-info me-2"></i>Đăng nhập để Thích bài viết này!
+                            <i class="fad fa-exclamation me-2"></i>Đăng nhập để Thích bài viết này.
                         </div>
                         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
                     </div>
