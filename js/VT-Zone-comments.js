@@ -2,7 +2,7 @@
 /**
  * VUTRUONG.VN - HỆ THỐNG BÌNH LUẬN REALTIME
  * Tính năng: Đăng/Trả lời/Xóa/Chỉnh sửa bình luận, Bật/Tắt bình luận, Đếm realtime
- * Phiên bản: 5.0.1
+ * Phiên bản: 5.0.2
  * Cập nhật: 20/2/2026
  */
 // =========================================================================================
@@ -55,9 +55,11 @@ const auth = getAuth(app);
 // =====================
 // HẰNG SỐ
 // =====================
-const ADMIN_UIDS = [
-    "u9U3j9O63jbipOgai3o88X4008q2",  // Google account chính
-    "KZuVkr6O2uUFVxdrbdU9eL84bXk2",  // admin@vutruong.vn
+// Dùng chung danh sách admin từ firebase.js (window.VT_ADMIN_UIDS)
+// Fallback hardcode phòng trường hợp firebase.js chưa load kịp
+const ADMIN_UIDS = window.VT_ADMIN_UIDS || [
+    "u9U3j9O63jbipOgai3o88X4008q2",
+    "KZuVkr6O2uUFVxdrbdU9eL84bXk2",
 ];
 const DEFAULT_AVATAR = 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhS34MMIbvh9P6obSup4qu4xfE2LrXkhY8rAXLJGX3PzwvolCMWTeXSU0hgm3fETQnfGbcEd0jklsAzNV9NIA-v3XQblgT6DTLHsC9zVuTrEuifK3h9P1Fq7PIAha8Z9TER64RIcfAzSgtq7uHbZL4iLJuR5XGhqn3ju4ZXoTHYjXCclA/s44/vtzone-default-avatar.jpg';
 
