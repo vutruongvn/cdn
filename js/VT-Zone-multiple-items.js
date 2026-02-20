@@ -69,6 +69,57 @@ function initBootstrapTooltips() {
 }
 
 // =====================
+// LIKE BUTTONS TRANG INDEX
+// Dùng window.auth và window.initSingleLikeButton từ firebase.js
+// =====================
+
+// Biến đặt tên riêng để tránh xung đột với firebase.js
+let _multiItemsPopupShowing = false;
+
+function initNewLikeButtons() {
+    // Guard: firebase.js phải load trước
+    if (typeof window.db === 'undefined' || typeof window.auth === 'undefined') return;
+
+    const likeBtns = document.querySelectorAll('.likePost:not(.firebase-like-btn)');
+    if (!likeBtns.length) return;
+
+    // Tạo Toast nếu chưa có
+    let toastEl = document.getElementById('loginToast');
+    if (!toastEl) {
+        const container     = document.createElement('div');
+        container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        container.style.zIndex = '1060';
+        container.innerHTML = `
+            <div id="loginToast" class="toast align-items-center text-white bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fa-solid fa-circle-info me-2"></i>Đăng nhập để Thích bài viết này!
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>`;
+        document.body.appendChild(container);
+        toastEl = document.getElementById('loginToast');
+    }
+
+    const loginToast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3000 });
+
+    window.auth.onAuthStateChanged((user) => {
+        likeBtns.forEach(btn => {
+            if (user) {
+                if (typeof window.initSingleLikeButton === 'function') {
+                    window.initSingleLikeButton(btn, user);
+                }
+            } else {
+                if (typeof window.updateLikeUI === 'function') window.updateLikeUI(btn, false);
+                btn.onclick = (e) => { e.preventDefault(); loginToast.show(); };
+            }
+            btn.classList.add('firebase-like-btn');
+        });
+    });
+}
+
+// =====================
 // ÁP DỤNG LOGIC SAU KHI THÊM BÀI VIẾT (CÀ KHI LOAD TRANG LẪN SAU AJAX)
 // =====================
 
@@ -331,5 +382,3 @@ if (document.readyState === 'loading') {
 // =========================================================================================
 // VT Zone Multiple Items Scripts v5.0.0 - Ready
 // =============================================
-
-
