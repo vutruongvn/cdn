@@ -90,13 +90,11 @@ window.VT_InitCommentSystem = function() {
 
     // HTML thông báo khi bình luận bị tắt
     const getDisabledNoticeHtml = (photoURL) => `
-        <div class="VT-disabled-notice flex-grow-1 position-relative d-flex align-items-center gap-2">
-            <img src="${photoURL || DEFAULT_AVATAR}"
-                 class="VT-user-avatar rounded-circle m-0 pe-none"
-                 loading="lazy" width="44" height="44"
-                 style="object-fit:cover; flex-shrink:0;">
-            <div class="VT-comment-input VT-comment-disabled-noty flex-grow-1 d-flex align-items-center opacity-75 text-nowrap" style="cursor:not-allowed;user-select:none">
-                Quản trị viên đã tắt bình luận
+        <div class="VT-disabled-notice flex-grow-1 position-relative d-flex align-items-center gap-2" style="cursor:default;user-select:none">
+            <!--<img src="${photoURL || DEFAULT_AVATAR}" class="VT-user-avatar rounded-circle m-0 pe-none d-none" loading="lazy" width="44" height="44" style="object-fit:cover; flex-shrink:0;">-->
+   			<i class="fad fa-comment-slash opacity-50 rounded-circle" style="width:100%;max-width:44px;line-height:44px;text-align:center;background:rgba(0,0,0,.2)"></i>
+            <div class="VT-comment-input VT-comment-disabled-noty flex-grow-1 d-flex align-items-center text-nowrap">
+                <span class="opacity-50">Quản trị viên đã tắt bình luận của bài viết này.</span>
             </div>
         </div>`;
 
@@ -163,7 +161,7 @@ window.VT_InitCommentSystem = function() {
                 if (restoredIn)   restoredIn.contentEditable   = String(!!user);
                 if (restoredPh)   restoredPh.innerText         = user
                     ? `Bình luận dưới tên ${user.displayName}`
-                    : 'Đăng nhập để bình luận';
+                    : 'Đăng nhập để bình luận về bài viết này.';
                 if (restoredSend) restoredSend.style.display   = user ? '' : 'none';
             }
 
@@ -862,7 +860,7 @@ window.VT_InitCommentSystem = function() {
                 if (!user) { input.innerText = ""; VT_HandlePlaceholder(input); }
                 if (ph) ph.innerText = user
                     ? `Bình luận dưới tên ${user.displayName}`
-                    : "Đăng nhập để bình luận";
+                    : "Đăng nhập để bình luận về bài viết này.";
             }
             // Ẩn nút Đăng bình luận (icon máy bay) khi chưa đăng nhập
             if (sendBtn) sendBtn.style.display = user ? '' : 'none';
