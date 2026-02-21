@@ -1,6 +1,6 @@
 // =========================================================================================
 /**
- * VUTRUONG.VN - ALL PAGE SCRIPTS
+ * VUTRUONG.VN - ALL PAGE SCRIPTSssssssssssssss
  * Chạy trên toàn hệ thống - vutruong.vn
  * Phiên bản: 5.0.1
  * Cập nhật: 20/2/2026
