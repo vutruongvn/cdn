@@ -2,8 +2,8 @@
 /**
  * VUTRUONG.VN - MULTIPLE ITEMS PAGE SCRIPTS
  * Chạy trên trang Index / Multiple Items
- * Phiên bản: 5.0.0
- * Cập nhật: 18/2/2026
+ * Phiên bản: 5.0.1
+ * Cập nhật: 20/2/2026
  */
 // =========================================================================================
 
@@ -70,52 +70,35 @@ function initBootstrapTooltips() {
 
 // =====================
 // LIKE BUTTONS TRANG INDEX
-// Dùng window.auth và window.initSingleLikeButton từ firebase.js
+// Dùng window.auth.currentUser + window.initSingleLikeButton từ firebase-system
+// KHÔNG tạo onAuthStateChanged listener mới (firebase-system đã có 1 listener toàn cục)
+// KHÔNG tạo loginToast mới (firebase-system quản lý qua #loginToast)
 // =====================
 
-// Biến đặt tên riêng để tránh xung đột với firebase.js
-let _multiItemsPopupShowing = false;
-
 function initNewLikeButtons() {
-    // Guard: firebase.js phải load trước
-    if (typeof window.db === 'undefined' || typeof window.auth === 'undefined') return;
+    if (typeof window.initSingleLikeButton !== 'function' ||
+        typeof window.updateLikeUI !== 'function') return;
 
     const likeBtns = document.querySelectorAll('.likePost:not(.firebase-like-btn)');
     if (!likeBtns.length) return;
 
-    // Tạo Toast nếu chưa có
-    let toastEl = document.getElementById('loginToast');
-    if (!toastEl) {
-        const container     = document.createElement('div');
-        container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-        container.style.zIndex = '1060';
-        container.innerHTML = `
-            <div id="loginToast" class="toast align-items-center text-white bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        <i class="fa-solid fa-circle-info me-2"></i>Đăng nhập để Thích bài viết này!
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>`;
-        document.body.appendChild(container);
-        toastEl = document.getElementById('loginToast');
-    }
-
-    const loginToast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3000 });
-
-    window.auth.onAuthStateChanged((user) => {
-        likeBtns.forEach(btn => {
-            if (user) {
-                if (typeof window.initSingleLikeButton === 'function') {
-                    window.initSingleLikeButton(btn, user);
+    const user = window.auth?.currentUser;
+    likeBtns.forEach(btn => {
+        if (user) {
+            // Đã đăng nhập → khởi tạo like + realtime listener
+            window.initSingleLikeButton(btn, user);
+        } else {
+            // Guest → reset UI + hiện toast khi click (toast do firebase-system quản lý)
+            window.updateLikeUI(btn, false);
+            btn.onclick = (e) => {
+                e.preventDefault();
+                const toastEl = document.getElementById('loginToast');
+                if (toastEl && typeof bootstrap !== 'undefined') {
+                    bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3000 }).show();
                 }
-            } else {
-                if (typeof window.updateLikeUI === 'function') window.updateLikeUI(btn, false);
-                btn.onclick = (e) => { e.preventDefault(); loginToast.show(); };
-            }
-            btn.classList.add('firebase-like-btn');
-        });
+            };
+        }
+        btn.classList.add('firebase-like-btn');
     });
 }
 
@@ -342,6 +325,8 @@ document.addEventListener('click', function(e) {
 // =====================
 // LAZY LOAD ẢNH
 // Tải trước ảnh trong .VT_homePostGallery khi sắp vào vùng nhìn
+// rootMargin 1200px: tải trước sớm để ảnh sẵn sàng trước khi user cuộn đến
+// Hiệu ứng: blur(5px) → clear dần cùng với opacity 0 → 1
 // =====================
 
 const imageObserver = new IntersectionObserver((entries, observer) => {
@@ -350,13 +335,16 @@ const imageObserver = new IntersectionObserver((entries, observer) => {
         const img = entry.target;
         const src = img.getAttribute('data-src');
         if (src) {
-            img.src     = src;
+            img.src = src;
             img.removeAttribute('data-src');
-            img.onload  = () => img.style.opacity = '1';
+            img.onload = () => {
+                img.style.filter  = 'none';
+                img.style.opacity = '1';
+            };
         }
         observer.unobserve(img);
     });
-}, { root: null, rootMargin: '0px 0px 300px 0px', threshold: 0.01 });
+}, { root: null, rootMargin: '0px 0px 1200px 0px', threshold: 0.01 });
 
 function VT_LazyLoad() {
     document.querySelectorAll('.VT_homePostGallery img:not(.lazy-processed)').forEach(img => {
@@ -365,9 +353,10 @@ function VT_LazyLoad() {
 
         img.classList.add('lazy-processed');
         img.setAttribute('data-src', src);
-        img.src             = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
-        img.style.opacity   = '0';
-        img.style.transition = 'transform .3s ease, opacity 1s ease';
+        img.src                   = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+        img.style.opacity         = '0';
+        img.style.filter          = 'blur(5px)';
+        img.style.transition      = 'transform .3s ease, opacity 1s ease, filter 0.8s ease';
         img.style.backgroundColor = '#f2f3f5';
         imageObserver.observe(img);
     });
@@ -380,6 +369,5 @@ if (document.readyState === 'loading') {
 }
 
 // =========================================================================================
-// VT Zone Multiple Items Scripts v5.0.0 - Ready
+// VT Zone Multiple Items Scripts v5.0.1 - Ready
 // =============================================
-
