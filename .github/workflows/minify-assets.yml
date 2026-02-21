@@ -20,8 +20,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,35 +27,33 @@ jobs:
           node-version: '20'
 
       - name: Install tools
-        run: npm install -g terser uglifycss
+        run: npm install -g terser clean-css-cli
 
-      - name: Minify JS
+      - name: Minify Assets
         run: |
-          find . -type f -name "*.js" -not -name "*.min.js" -not -path "*/node_modules/*" | while read file; do
-            minfile="${file%.js}.min.js"
-            terser "$file" --compress --mangle --output "$minfile" --source-map "url='$(basename $minfile).map'"
+          echo "🚀 Đang bắt đầu nén file..."
+          
+          # Nén JS
+          find . -type f -name "*.js" ! -name "*.min.js" ! -path "*/node_modules/*" | while read f; do
+            terser "$f" --compress --mangle --output "${f%.js}.min.js"
+            echo "✅ JS: $f"
+          done
+          
+          # Nén CSS - Dùng cách an toàn nhất
+          find . -type f -name "*.css" ! -name "*.min.css" ! -path "*/node_modules/*" | while read f; do
+            # Dùng cleancss trực tiếp và ép tạo file
+            cleancss -o "${f%.css}.min.css" "$f"
+            echo "✅ CSS: $f -> ${f%.css}.min.css"
           done
 
-      - name: Minify CSS
+      - name: Force Check (Debug)
         run: |
-          # Dùng uglifycss để thay thế cho cleancss vì nó ổn định hơn trên môi trường ảo
-          find . -type f -name "*.css" -not -name "*.min.css" -not -path "*/node_modules/*" | while read file; do
-            minfile="${file%.css}.min.css"
-            echo "Processing CSS: $file -> $minfile"
-            uglifycss "$file" > "$minfile"
-          done
+          echo "--- Kiểm tra thực tế trong thư mục vtzone/css ---"
+          ls -R cdn/vtzone/css/ || echo "Thư mục không tồn tại"
 
-      - name: Check files existence (Debug)
-        run: |
-          echo "Kiem tra file sau khi nen:"
-          find . -name "*.min.css"
-          find . -name "*.min.js"
-
-      - name: Commit & Push changes
+      - name: Commit & Push
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: auto-minify JS & CSS [skip ci]"
-          file_pattern: |
-            **/*.min.js
-            **/*.min.css
-            **/*.map
+          # Sử dụng dấu sao đại diện để bắt toàn bộ file mới
+          file_pattern: 'cdn/vtzone/css/*.min.css cdn/vtzone/js/*.min.js **/*.min.css **/*.min.js **/*.map'
