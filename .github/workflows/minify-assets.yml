@@ -3,108 +3,67 @@ name: Auto Minify JS & CSS
 on:
   push:
     branches:
-      - main        # Thay thành "master" nếu repo dùng branch master
+      - main
     paths:
-      - '**/*.js'   # Kích hoạt khi có file .js thay đổi (bất kỳ thư mục nào)
-      - '**/*.css'  # Kích hoạt khi có file .css thay đổi (bất kỳ thư mục nào)
-  workflow_dispatch:  # Cho phép chạy thủ công từ tab Actions trên GitHub
+      - '**/*.js'
+      - '**/*.css'
+  workflow_dispatch:
+
+# QUAN TRỌNG: Cấp quyền ghi để Action có thể commit file .min
+permissions:
+  contents: write
 
 jobs:
   minify:
     runs-on: ubuntu-latest
-
-    # Bỏ qua nếu commit được tạo bởi chính bot (tránh vòng lặp vô tận)
-    if: "!contains(github.event.head_commit.message, '[skip ci]') && github.actor != 'github-actions[bot]'"
+    # Tránh vòng lặp: không chạy nếu người commit là bot
+    if: github.actor != 'github-actions[bot]'
 
     steps:
-      # ── Bước 1: Lấy toàn bộ code về ──────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Lấy toàn bộ lịch sử để tránh lỗi khi push
           fetch-depth: 0
 
-      # ── Bước 2: Cài Node.js ───────────────────────────────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # ── Bước 3: Cài công cụ nén ───────────────────────────────────────────
       - name: Install minification tools
-        run: |
-          npm install -g terser clean-css-cli
+        run: npm install -g terser clean-css-cli
 
-      # ── Bước 4: Nén tất cả file JS (tạo file .min.js cùng thư mục) ───────
       - name: Minify JS files
         run: |
           echo "=== Bắt đầu nén JS ==="
-          # Tìm tất cả file .js, bỏ qua file đã nén (.min.js) và node_modules
           find . -name "*.js" \
                  -not -name "*.min.js" \
                  -not -path "*/node_modules/*" \
                  -not -path "*/.git/*" \
                  -not -path "*/vendor/*" | while read file; do
-
-            # Tạo tên file output: /path/to/script.js → /path/to/script.min.js
             minfile="${file%.js}.min.js"
-
-            echo "Nén: $file → $minfile"
-            terser "$file" \
-              --compress \
-              --mangle \
-              --output "$minfile" \
-              --source-map "url='$(basename $minfile).map'" \
-              || echo "⚠️  Lỗi khi nén: $file"
+            echo "Nén: $file -> $minfile"
+            terser "$file" --compress --mangle --output "$minfile" --source-map "url='$(basename $minfile).map'" || echo "⚠️ Lỗi: $file"
           done
-          echo "=== Hoàn tất nén JS ==="
 
-      # ── Bước 5: Nén tất cả file CSS (tạo file .min.css cùng thư mục) ─────
       - name: Minify CSS files
         run: |
           echo "=== Bắt đầu nén CSS ==="
-          # Tìm tất cả file .css, bỏ qua file đã nén (.min.css) và node_modules
           find . -name "*.css" \
                  -not -name "*.min.css" \
                  -not -path "*/node_modules/*" \
                  -not -path "*/.git/*" \
                  -not -path "*/vendor/*" | while read file; do
-
-            # Tạo tên file output: /path/to/style.css → /path/to/style.min.css
             minfile="${file%.css}.min.css"
-
-            echo "Nén: $file → $minfile"
-            cleancss \
-              --level 2 \
-              -o "$minfile" \
-              "$file" \
-              || echo "⚠️  Lỗi khi nén: $file"
+            echo "Nén: $file -> $minfile"
+            cleancss --level 2 -o "$minfile" "$file" || echo "⚠️ Lỗi: $file"
           done
-          echo "=== Hoàn tất nén CSS ==="
 
-      # ── Bước 6: Kiểm tra có file mới/thay đổi không ───────────────────────
-      - name: Check for changes
-        id: check_changes
-        run: |
-          git diff --quiet && git ls-files --others --exclude-standard | grep -q . && echo "changed=true" >> $GITHUB_OUTPUT || true
-          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "Không có file mới, bỏ qua bước commit."
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "Phát hiện file thay đổi, chuẩn bị commit."
-          fi
-
-      # ── Bước 7: Commit & Push file .min.js / .min.css ─────────────────────
-      - name: Commit and push minified files
-        if: steps.check_changes.outputs.changed == 'true'
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Chỉ stage các file .min.js, .min.css và source map
-          git add **/*.min.js **/*.min.css **/*.min.js.map 2>/dev/null || \
-          git add $(find . -name "*.min.js" -o -name "*.min.css" -o -name "*.min.js.map" | grep -v node_modules)
-
-          git commit -m "chore: auto-minify JS & CSS [skip ci]"
-          git push
+      - name: Commit & Push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: auto-minify JS & CSS [skip ci]"
+          file_pattern: '**.min.js **.min.css **.map'
+          # Tự động skip nếu không có file nào thay đổi
+          skip_dirty_check: false
