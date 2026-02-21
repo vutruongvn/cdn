@@ -28,32 +28,41 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install minification tools
+      - name: Install tools
         run: npm install -g terser clean-css-cli
 
-      - name: Minify JS files
+      - name: Minify JS
         run: |
-          echo "=== Đang nén JS ==="
-          find . -name "*.js" -not -name "*.min.js" -not -path "*/node_modules/*" | while read file; do
+          echo "🚀 Đang xử lý JS..."
+          find . -type f -name "*.js" -not -name "*.min.js" -not -path "*/node_modules/*" | while read file; do
             minfile="${file%.js}.min.js"
-            npx terser "$file" --compress --mangle --output "$minfile" --source-map "url='$(basename $minfile).map'"
+            terser "$file" --compress --mangle --output "$minfile" --source-map "url='$(basename $minfile).map'"
+            echo "✅ Done: $minfile"
           done
 
-      - name: Minify CSS files
+      - name: Minify CSS
         run: |
-          echo "=== Đang nén CSS ==="
-          # Tìm tất cả file .css (loại trừ .min.css và node_modules)
-          find . -name "*.css" -not -name "*.min.css" -not -path "*/node_modules/*" | while read file; do
+          echo "🚀 Đang xử lý CSS..."
+          # Dùng npx để đảm bảo gọi đúng lệnh cleancss từ package clean-css-cli
+          find . -type f -name "*.css" -not -name "*.min.css" -not -path "*/node_modules/*" | while read file; do
             minfile="${file%.css}.min.css"
-            echo "Processing: $file -> $minfile"
-            # Sử dụng npx để đảm bảo lệnh cleancss luôn chạy được
-            npx cleancss --level 2 --source-map -o "$minfile" "$file" || echo "⚠️ Lỗi tại file: $file"
+            echo "Đang nén: $file -> $minfile"
+            npx cleancss -o "$minfile" "$file" || echo "❌ Lỗi tại file: $file"
           done
+
+      - name: Verify Files (Debug)
+        run: |
+          echo "--- Danh sách file .min vừa tạo ---"
+          find . -name "*.min.css"
+          find . -name "*.min.js"
 
       - name: Commit & Push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: auto-minify JS & CSS [skip ci]"
-          # Pattern này sẽ gom tất cả các file .min và .map mới tạo
-          file_pattern: '**/*.min.js **/*.min.css **/*.map'
+          # Sửa lại pattern để chắc chắn không sót file nào
+          file_pattern: |
+            **/*.min.js
+            **/*.min.css
+            **/*.map
           skip_dirty_check: false
