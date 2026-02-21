@@ -106,8 +106,8 @@ window.firebase.firestore.FieldValue = {
 // Xuất ra window.VT_ADMIN_UIDS để các module khác dùng chung
 // =====================
 const VT_ADMIN_UIDS = [
-    'u9U3j9O63jbipOgai3o88X4008q2',  // Google account chính
-    'KZuVkr6O2uUFVxdrbdU9eL84bXk2',  // admin@vutruong.vn
+    'lqwBdkeUnOSjclnMEbewRlhFTp33',  // ...2069@gmail
+    'i0couAY25zO9X7oVime446irXel1',  // admin@vutruong.vn
 ];
 window.VT_ADMIN_UIDS = VT_ADMIN_UIDS;  // Export toàn cục
 
