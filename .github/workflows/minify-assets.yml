@@ -29,7 +29,11 @@ jobs:
           node-version: '20'
 
       - name: Install tools
-        run: npm install -g terser clean-css-cli
+        run: |
+          npm install -g terser clean-css-cli
+          echo "Kiểm tra phiên bản công cụ:"
+          terser --version
+          cleancss --version
 
       - name: Minify JS
         run: |
@@ -37,30 +41,32 @@ jobs:
           find . -type f -name "*.js" -not -name "*.min.js" -not -path "*/node_modules/*" | while read file; do
             minfile="${file%.js}.min.js"
             terser "$file" --compress --mangle --output "$minfile" --source-map "url='$(basename $minfile).map'"
-            echo "✅ Done: $minfile"
+            echo "✅ Created: $minfile"
           done
 
       - name: Minify CSS
         run: |
           echo "🚀 Đang xử lý CSS..."
-          # Dùng npx để đảm bảo gọi đúng lệnh cleancss từ package clean-css-cli
+          # Dùng lệnh trực tiếp thay vì npx để tránh delay/hỏi xác nhận
           find . -type f -name "*.css" -not -name "*.min.css" -not -path "*/node_modules/*" | while read file; do
             minfile="${file%.css}.min.css"
             echo "Đang nén: $file -> $minfile"
-            npx cleancss -o "$minfile" "$file" || echo "❌ Lỗi tại file: $file"
+            cleancss -o "$minfile" "$file"
+            
+            # Kiểm tra xem file có thực sự được tạo ra không
+            if [ -f "$minfile" ]; then
+              echo "✅ Thành công: $minfile"
+              ls -l "$minfile"
+            else
+              echo "❌ Thất bại: Không tìm thấy file $minfile sau khi nén!"
+            fi
           done
-
-      - name: Verify Files (Debug)
-        run: |
-          echo "--- Danh sách file .min vừa tạo ---"
-          find . -name "*.min.css"
-          find . -name "*.min.js"
 
       - name: Commit & Push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: auto-minify JS & CSS [skip ci]"
-          # Sửa lại pattern để chắc chắn không sót file nào
+          # Ép GitHub add tất cả file .min mới, kể cả nếu nó bị ẩn
           file_pattern: |
             **/*.min.js
             **/*.min.css
