@@ -29,46 +29,35 @@ jobs:
           node-version: '20'
 
       - name: Install tools
-        run: |
-          npm install -g terser clean-css-cli
-          echo "Kiểm tra phiên bản công cụ:"
-          terser --version
-          cleancss --version
+        run: npm install -g terser uglifycss
 
       - name: Minify JS
         run: |
-          echo "🚀 Đang xử lý JS..."
           find . -type f -name "*.js" -not -name "*.min.js" -not -path "*/node_modules/*" | while read file; do
             minfile="${file%.js}.min.js"
             terser "$file" --compress --mangle --output "$minfile" --source-map "url='$(basename $minfile).map'"
-            echo "✅ Created: $minfile"
           done
 
       - name: Minify CSS
         run: |
-          echo "🚀 Đang xử lý CSS..."
-          # Dùng lệnh trực tiếp thay vì npx để tránh delay/hỏi xác nhận
+          # Dùng uglifycss để thay thế cho cleancss vì nó ổn định hơn trên môi trường ảo
           find . -type f -name "*.css" -not -name "*.min.css" -not -path "*/node_modules/*" | while read file; do
             minfile="${file%.css}.min.css"
-            echo "Đang nén: $file -> $minfile"
-            cleancss -o "$minfile" "$file"
-            
-            # Kiểm tra xem file có thực sự được tạo ra không
-            if [ -f "$minfile" ]; then
-              echo "✅ Thành công: $minfile"
-              ls -l "$minfile"
-            else
-              echo "❌ Thất bại: Không tìm thấy file $minfile sau khi nén!"
-            fi
+            echo "Processing CSS: $file -> $minfile"
+            uglifycss "$file" > "$minfile"
           done
+
+      - name: Check files existence (Debug)
+        run: |
+          echo "Kiem tra file sau khi nen:"
+          find . -name "*.min.css"
+          find . -name "*.min.js"
 
       - name: Commit & Push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: auto-minify JS & CSS [skip ci]"
-          # Ép GitHub add tất cả file .min mới, kể cả nếu nó bị ẩn
           file_pattern: |
             **/*.min.js
             **/*.min.css
             **/*.map
-          skip_dirty_check: false
