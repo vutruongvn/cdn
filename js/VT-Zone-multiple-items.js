@@ -341,10 +341,10 @@ const imageObserver = new IntersectionObserver((entries, observer) => {
         }
         observer.unobserve(img);
     });
-}, { root: null, rootMargin: '0px 0px 1200px 0px', threshold: 0.01 });
+}, { root: null, rootMargin: '0px 0px 900px 0px', threshold: 0.01 });
 
 function VT_LazyLoad() {
-    document.querySelectorAll('#centerMain img:not(.lazy-processed)').forEach(img => {
+    document.querySelectorAll('.VT_homePostGallery img:not(.lazy-processed)').forEach(img => {
         const src = img.getAttribute('src');
         if (!src || src.startsWith('data:') || img.classList.contains('no-lazy')) return;
 
@@ -368,4 +368,5 @@ if (document.readyState === 'loading') {
 // =========================================================================================
 // VT Zone Multiple Items Scripts v5.0.1 - Ready
 // =============================================
+
 
