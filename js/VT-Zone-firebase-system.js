@@ -70,8 +70,6 @@ const auth = getAuth(app);
 window.db   = db;
 window.auth = auth;
 
-console.log("[Firebase] App, Firestore (persistent cache), Auth sẵn sàng (v10)");
-
 // =====================
 // COMPATIBILITY LAYER
 // Giả lập namespace window.firebase để tương thích với code body.js (VT_InitAdminSystem)
@@ -470,7 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
         } else {
-            console.log("[Auth] Guest mode");
+            console.log("[Auth] Chưa đăng nhập");
 
             clearUserSession();
             updateAuthUI(null);
@@ -691,7 +689,7 @@ window.VT_InitCommentSystem = function() {
 
                 // Chỉ log khi admin thực sự toggle - không log lần đầu tải trang
                 if (!wasFirst) {
-                    console.log(`[Comments] Bài ${postId}: đã ${disabled ? 'tắt' : 'bật'} bình luận`);
+                    console.log(`[Comments] ${postId}: đã ${disabled ? 'tắt' : 'bật'} bình luận`);
                 }
 
                 // Cập nhật text nút .VT_offComment
