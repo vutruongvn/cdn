@@ -2,7 +2,7 @@ svg{border:0;outline:none}
 .blog-posts.hfeed.container{padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1em;}
 .VT_loadMorePost{padding: var(--vt-padding); display: block; text-align: center; margin: 0; border-radius: var(--vt-radius); transition: .2s ease; font-weight: 500; font-size: 14px; background: var(--vt-bg); box-shadow: var(--vt-shadow)}
 .VT_loadMorePost:hover{box-shadow:rgba(0,0,0,0.3) 0 25px 20px -20px;color:#000}
-/* ===========================
+/* ==========================
    1. CORE VARIABLES & SETUP ...
    ========================================================================== */
 :root {
