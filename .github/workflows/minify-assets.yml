@@ -29,31 +29,31 @@ jobs:
       - name: Install tools
         run: npm install -g terser clean-css-cli
 
-      - name: Minify Assets
+      - name: Minify Everything
         run: |
-          echo "🚀 Đang bắt đầu nén file..."
+          echo "🚀 Đang quét và nén toàn bộ repo..."
           
-          # Nén JS
+          # Nén tất cả file JS (loại trừ .min.js và node_modules)
           find . -type f -name "*.js" ! -name "*.min.js" ! -path "*/node_modules/*" | while read f; do
+            echo "Compressing JS: $f"
             terser "$f" --compress --mangle --output "${f%.js}.min.js"
-            echo "✅ JS: $f"
           done
           
-          # Nén CSS - Dùng cách an toàn nhất
+          # Nén tất cả file CSS (loại trừ .min.css và node_modules)
           find . -type f -name "*.css" ! -name "*.min.css" ! -path "*/node_modules/*" | while read f; do
-            # Dùng cleancss trực tiếp và ép tạo file
+            echo "Compressing CSS: $f"
             cleancss -o "${f%.css}.min.css" "$f"
-            echo "✅ CSS: $f -> ${f%.css}.min.css"
           done
-
-      - name: Force Check (Debug)
-        run: |
-          echo "--- Kiểm tra thực tế trong thư mục vtzone/css ---"
-          ls -R cdn/vtzone/css/ || echo "Thư mục không tồn tại"
 
       - name: Commit & Push
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: auto-minify JS & CSS [skip ci]"
-          # Sử dụng dấu sao đại diện để bắt toàn bộ file mới
-          file_pattern: 'cdn/vtzone/css/*.min.css cdn/vtzone/js/*.min.js **/*.min.css **/*.min.js **/*.map'
+          # Dùng dấu sao tổng quát để GitHub tự tìm các file mới sinh ra
+          file_pattern: |
+            *.min.js
+            *.min.css
+            *.map
+            **/*.min.js
+            **/*.min.css
+            **/*.map
