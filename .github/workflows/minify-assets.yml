@@ -9,21 +9,18 @@ on:
       - '**/*.css'
   workflow_dispatch:
 
-# QUAN TRỌNG: Cấp quyền ghi để Action có thể commit file .min
 permissions:
   contents: write
 
 jobs:
   minify:
     runs-on: ubuntu-latest
-    # Tránh vòng lặp: không chạy nếu người commit là bot
     if: github.actor != 'github-actions[bot]'
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # Lấy toàn bộ lịch sử để tránh lỗi khi push
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -36,34 +33,27 @@ jobs:
 
       - name: Minify JS files
         run: |
-          echo "=== Bắt đầu nén JS ==="
-          find . -name "*.js" \
-                 -not -name "*.min.js" \
-                 -not -path "*/node_modules/*" \
-                 -not -path "*/.git/*" \
-                 -not -path "*/vendor/*" | while read file; do
+          echo "=== Đang nén JS ==="
+          find . -name "*.js" -not -name "*.min.js" -not -path "*/node_modules/*" | while read file; do
             minfile="${file%.js}.min.js"
-            echo "Nén: $file -> $minfile"
-            terser "$file" --compress --mangle --output "$minfile" --source-map "url='$(basename $minfile).map'" || echo "⚠️ Lỗi: $file"
+            npx terser "$file" --compress --mangle --output "$minfile" --source-map "url='$(basename $minfile).map'"
           done
 
       - name: Minify CSS files
         run: |
-          echo "=== Bắt đầu nén CSS ==="
-          find . -name "*.css" \
-                 -not -name "*.min.css" \
-                 -not -path "*/node_modules/*" \
-                 -not -path "*/.git/*" \
-                 -not -path "*/vendor/*" | while read file; do
+          echo "=== Đang nén CSS ==="
+          # Tìm tất cả file .css (loại trừ .min.css và node_modules)
+          find . -name "*.css" -not -name "*.min.css" -not -path "*/node_modules/*" | while read file; do
             minfile="${file%.css}.min.css"
-            echo "Nén: $file -> $minfile"
-            cleancss --level 2 -o "$minfile" "$file" || echo "⚠️ Lỗi: $file"
+            echo "Processing: $file -> $minfile"
+            # Sử dụng npx để đảm bảo lệnh cleancss luôn chạy được
+            npx cleancss --level 2 --source-map -o "$minfile" "$file" || echo "⚠️ Lỗi tại file: $file"
           done
 
       - name: Commit & Push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: auto-minify JS & CSS [skip ci]"
-          file_pattern: '**.min.js **.min.css **.map'
-          # Tự động skip nếu không có file nào thay đổi
+          # Pattern này sẽ gom tất cả các file .min và .map mới tạo
+          file_pattern: '**/*.min.js **/*.min.css **/*.map'
           skip_dirty_check: false
