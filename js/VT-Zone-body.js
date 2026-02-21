@@ -7,8 +7,6 @@
  */
 // =========================================================================================
 
-console.log("[VT Zone] Body scripts đang khởi tạo...");
-
 // =====================
 // DARK MODE TOGGLE
 // Lưu trạng thái vào localStorage
@@ -31,7 +29,6 @@ console.log("[VT Zone] Body scripts đang khởi tạo...");
         }
 
         toggleButtons.forEach(btn => btn.addEventListener('click', toggleTheme));
-        console.log("[Theme] Đã khởi tạo");
     });
 })();
 
@@ -899,3 +896,4 @@ document.addEventListener("DOMContentLoaded", () => {
 // =========================================================================================
 // VT Zone Body Scripts v5.0.1 - Ready
 // =========================================================================================
+
