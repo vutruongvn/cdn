@@ -7,6 +7,8 @@
  */
 // =========================================================================================
 
+console.log("[Multiple Items] Scripts đang khởi tạo...");
+
 // =====================
 // HELPER FUNCTIONS
 // =====================
@@ -322,6 +324,9 @@ document.addEventListener('click', function(e) {
 
 // =====================
 // LAZY LOAD ẢNH
+// Tải trước ảnh trong .VT_homePostGallery khi sắp vào vùng nhìn
+// rootMargin 1200px: tải trước sớm để ảnh sẵn sàng trước khi user cuộn đến
+// Hiệu ứng: blur(5px) → clear dần cùng với opacity 0 → 1
 // =====================
 
 const imageObserver = new IntersectionObserver((entries, observer) => {
@@ -366,6 +371,3 @@ if (document.readyState === 'loading') {
 // =========================================================================================
 // VT Zone Multiple Items Scripts v5.0.1 - Ready
 // =============================================
-
-
-
