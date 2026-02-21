@@ -31,29 +31,33 @@ jobs:
 
       - name: Minify Everything
         run: |
-          echo "🚀 Đang quét và nén toàn bộ repo..."
+          echo "🚀 Đang quét toàn bộ repo để nén..."
           
-          # Nén tất cả file JS (loại trừ .min.js và node_modules)
+          # Nén JS: Quét mọi ngóc ngách
           find . -type f -name "*.js" ! -name "*.min.js" ! -path "*/node_modules/*" | while read f; do
-            echo "Compressing JS: $f"
+            echo "Nén JS: $f"
             terser "$f" --compress --mangle --output "${f%.js}.min.js"
           done
           
-          # Nén tất cả file CSS (loại trừ .min.css và node_modules)
+          # Nén CSS: Quét mọi ngóc ngách (kể cả vtzone/css)
           find . -type f -name "*.css" ! -name "*.min.css" ! -path "*/node_modules/*" | while read f; do
-            echo "Compressing CSS: $f"
+            echo "Nén CSS: $f"
+            # Ép cleancss ghi file ra đúng đường dẫn của file gốc
             cleancss -o "${f%.css}.min.css" "$f"
           done
+
+      - name: Verify Output (Debug)
+        run: |
+          echo "--- Kiểm tra danh sách file .min vừa tạo ---"
+          find . -name "*.min.css"
+          find . -name "*.min.js"
 
       - name: Commit & Push
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: auto-minify JS & CSS [skip ci]"
-          # Dùng dấu sao tổng quát để GitHub tự tìm các file mới sinh ra
+          # Dùng pattern cực rộng để không bao giờ bị lỗi 'did not match any files'
           file_pattern: |
-            *.min.js
-            *.min.css
-            *.map
             **/*.min.js
             **/*.min.css
             **/*.map
