@@ -324,9 +324,6 @@ document.addEventListener('click', function(e) {
 
 // =====================
 // LAZY LOAD ẢNH
-// Tải trước ảnh trong .VT_homePostGallery khi sắp vào vùng nhìn
-// rootMargin 1200px: tải trước sớm để ảnh sẵn sàng trước khi user cuộn đến
-// Hiệu ứng: blur(5px) → clear dần cùng với opacity 0 → 1
 // =====================
 
 const imageObserver = new IntersectionObserver((entries, observer) => {
@@ -347,7 +344,7 @@ const imageObserver = new IntersectionObserver((entries, observer) => {
 }, { root: null, rootMargin: '0px 0px 1200px 0px', threshold: 0.01 });
 
 function VT_LazyLoad() {
-    document.querySelectorAll('.VT_homePostGallery img:not(.lazy-processed)').forEach(img => {
+    document.querySelectorAll('#centerMain img:not(.lazy-processed)').forEach(img => {
         const src = img.getAttribute('src');
         if (!src || src.startsWith('data:') || img.classList.contains('no-lazy')) return;
 
@@ -371,3 +368,4 @@ if (document.readyState === 'loading') {
 // =========================================================================================
 // VT Zone Multiple Items Scripts v5.0.1 - Ready
 // =============================================
+
