@@ -581,7 +581,7 @@ window.VT_InitCommentSystem = function() {
     const getDisabledNoticeHtml = (photoURL) => `
         <div class="VT-disabled-notice flex-grow-1 position-relative d-flex align-items-center gap-2" style="cursor:default;user-select:none">
             <!--<img src="${photoURL || DEFAULT_AVATAR}" class="VT-user-avatar rounded-circle m-0 pe-none d-none" loading="lazy" width="44" height="44" style="object-fit:cover; flex-shrink:0;">-->
-   			<i class="fad fa-comment-slash opacity-50 rounded-circle" style="width:100%;max-width:44px;line-height:44px;text-align:center;background:rgba(0,0,0,.2)"></i>
+   			<i class="fad fa-comment-slash opacity-50 rounded-circle" style="width:100%;max-width:36px;line-height:36px;text-align:center;background:rgba(0,0,0,.15)"></i>
             <div class="VT-comment-input VT-comment-disabled-noty flex-grow-1 d-flex align-items-center text-nowrap">
                 <span class="opacity-50">Quản trị viên đã tắt bình luận của bài viết này.</span>
             </div>
@@ -770,7 +770,7 @@ window.VT_InitCommentSystem = function() {
 
     // Skeleton loading HTML
     const renderSkeleton = () =>
-        `<div class="VT-comment-item mt-3"><div class="d-flex align-items-start gap-2"><div class="vt-ske-avatar vt-loading-effect-loading" style="width:44px;height:44px;border-radius:50%;flex-shrink:0"></div><div class="flex-grow-1"><div class="vt-ske-bubble vt-loading-effect-loading" style="width:18rem;height:1rem;border-radius:4px"></div><div class="d-flex align-items-center gap-2 mt-1"><div class="vt-ske-text vt-loading-effect-loading" style="width:2.75rem;height:.8rem;border-radius:4px"></div><div class="vt-ske-text vt-loading-effect-loading" style="width:2.75rem;height:.8rem;border-radius:4px"></div></div></div></div></div>`;
+        `<div class="VT-comment-item mt-3"><div class="d-flex align-items-start gap-2"><div class="vt-ske-avatar vt-loading-effect-loading" style="width:36px;height:36px;border-radius:50%;flex-shrink:0"></div><div class="flex-grow-1"><div class="vt-ske-bubble vt-loading-effect-loading" style="width:18rem;height:1rem;border-radius:4px"></div><div class="d-flex align-items-center gap-2 mt-1"><div class="vt-ske-text vt-loading-effect-loading" style="width:2.75rem;height:.8rem;border-radius:4px"></div><div class="vt-ske-text vt-loading-effect-loading" style="width:2.75rem;height:.8rem;border-radius:4px"></div></div></div></div></div>`;
 
     // Format nội dung comment (sanitize + markdown cơ bản)
     const formatCommentText = (str, cId) => {
@@ -1088,7 +1088,7 @@ window.VT_InitCommentSystem = function() {
 
         return `<div class="VT-comment-item m-0 mt-3 ${isChild ? 'VT-comment-item-reply' : ''}" id="VT-cmt-${cId}">
             <div class="d-flex align-items-start gap-2">
-                <img src="${data.userAvatar || DEFAULT_AVATAR}" class="rounded-circle m-0 object-fit-cover pe-none" loading="lazy" width="${isChild ? 28 : 44}" height="${isChild ? 28 : 44}">
+                <img src="${data.userAvatar || DEFAULT_AVATAR}" class="rounded-circle m-0 object-fit-cover pe-none" loading="lazy" width="${isChild ? 36 : 36}" height="${isChild ? 36 : 36}">
                 <div class="flex-grow-1">
                     <div class="VT-comment-bubble">
                         <div class="d-inline ${isAdmin ? 'is-admin-name fw-medium' : 'is-not-admin-name fw-medium'}">
@@ -1100,7 +1100,7 @@ window.VT_InitCommentSystem = function() {
                         <small class="text-primary fw-bold cursor-pointer me-2" onclick="VT_SaveEdit(this,'${cId}')">Lưu chỉnh sửa</small>
                         <small class="opacity-75 cursor-pointer" onclick="VT_CancelEdit(this,'${cId}')">Hủy</small>
                     </div>
-                    <div class="d-flex align-items-center gap-3 opacity-75 mt-1 small">
+                    <div class="d-flex align-items-center gap-3 opacity-75 small">
                         <a href="${window.location.href.split('#')[0]}#VT-cmt-${cId}" class="VT-cmt-time opacity-75 text-decoration-none" title="${fullDate}">${timeAgo(data.createdAt?.toDate())}${data.lastEdited ? ' (đã chỉnh sửa)' : ''}</a>
                         ${!isChild && !isDisabled ? `<span class="VT-action-link" onclick="VT_ToggleReply(this,'${cId}','${data.userName}')">Trả lời</span>` : ''}
                         ${isOwner && !isDisabled  ? `<span class="VT-action-link" onclick="VT_EditMode(this,'${cId}')">Chỉnh sửa</span>` : ''}
