@@ -304,7 +304,7 @@ function _showBanModal(banData = {}, force = false) {
                 <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                     <div class="modal-body text-center p-4">
                         <div class="mb-3 text-danger">
-                            <i class="fa-solid fa-ban" style="font-size:2.2rem"></i>
+                            <i class="fad fa-ban" style="font-size:2.2rem"></i>
                         </div>
                         <h5 class="fw-bold mb-2">Tài khoản bị hạn chế</h5>
                         <p class="mb-1 small">
@@ -418,16 +418,13 @@ function listenBanStatus(uid) {
                                 <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                                     <div class="modal-body text-center p-4">
                                         <div class="mb-3 text-success">
-                                            <i class="fa-solid fa-circle-check" style="font-size:2.2rem"></i>
+                                            <i class="fad fa-circle-check" style="font-size:2.2rem"></i>
                                         </div>
                                         <h5 class="fw-bold mb-2">Hạn chế đã được gỡ bỏ</h5>
-                                        <p class="opacity-75 small mb-4">
-                                            Tài khoản của bạn đã được gỡ bỏ hạn chế.<br>
-                                            Nhấn <strong>Đóng</strong> để tiếp tục sử dụng đầy đủ tính năng.
-                                        </p>
+                                        <p class="opacity-75 small mb-3">Tài khoản của bạn đã được gỡ bỏ hạn chế.</p>
                                         <button type="button" id="VTUnbanCloseBtn"
                                                 class="btn btn-success btn-sm rounded-pill px-4 fw-medium">
-                                            <i class="fa-solid fa-circle-check me-2"></i>Đóng
+                                            <i class="fad fa-circle-check me-2"></i>Đóng
                                         </button>
                                     </div>
                                 </div>
@@ -525,8 +522,6 @@ function _onBannedInteract(e) {
 // Dùng để tùy biến CSS + hiển thị icon hạn chế realtime, không cần re-render.
 // =====================
 
-const BAN_ICON_HTML = '<i class="fa-duotone fa-ban text-danger small vt-banned-icon" data-bs-toggle="tooltip" title="Tài khoản bị hạn chế"></i>';
-
 function _updateBannedUserClass(uid, isBanned) {
     if (!uid) return;
     document.querySelectorAll(
@@ -534,14 +529,6 @@ function _updateBannedUserClass(uid, isBanned) {
          .VT-comment-item[data-author-uid="${uid}"] .is-not-admin-name`
     ).forEach(el => {
         el.classList.toggle('is-banned-user', isBanned);
-
-        // Thêm / xóa icon ban sau tên user
-        const existing = el.querySelector('.vt-banned-icon');
-        if (isBanned && !existing) {
-            el.insertAdjacentHTML('beforeend', BAN_ICON_HTML);
-        } else if (!isBanned && existing) {
-            existing.remove();
-        }
     });
 }
 
@@ -1533,7 +1520,7 @@ window.VT_InitCommentSystem = function() {
         const isAuthorBanned = _banStatusCache.has(data.uid) && _banStatusCache.get(data.uid) === true;
         const nameCls        = `d-inline ${isAdmin ? 'is-admin-name' : 'is-not-admin-name'} fw-medium${isAuthorBanned ? ' is-banned-user' : ''}`;
         const bannedIconHtml = isAuthorBanned
-            ? '<i class="fa-solid fa-ban ms-1 text-danger small vt-banned-icon" data-bs-toggle="tooltip" title="Tài khoản bị hạn chế"></i>'
+            ? '<i class="fad fa-ban ms-1 text-danger small vt-banned-icon" data-bs-toggle="tooltip" title="Tài khoản bị hạn chế"></i>'
             : '';
 
         // data-author-uid: dùng để _updateBannedUserClass() toggle class is-banned-user
@@ -1709,7 +1696,7 @@ window.VT_InitCommentSystem = function() {
                     <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                         <div class="modal-body text-center p-4">
                             <div class="mb-3">
-                                <i class="fa-solid ${iconClass}" style="font-size:2rem"></i>
+                                <i class="fad ${iconClass}" style="font-size:2rem"></i>
                             </div>
                             <h5 class="fw-bold mb-2">${title}</h5>
                             <p class="opacity-75 small mb-4">${body}</p>
@@ -1787,7 +1774,7 @@ window.VT_InitCommentSystem = function() {
                  role="status" aria-live="polite" aria-atomic="true">
                 <div class="d-flex">
                     <div class="toast-body">
-                        <i class="fa-solid ${icon} me-2"></i>${message}
+                        <i class="fad ${icon} me-2"></i>${message}
                     </div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto"
                             data-bs-dismiss="toast"></button>
@@ -1858,7 +1845,7 @@ window.VT_InitCommentSystem = function() {
                     <div class="modal-dialog modal-dialog-centered modal-md">
                         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                             <div class="modal-body text-center p-4">
-                                <div class="mb-3 text-danger"><i class="fa-solid fa-trash-can-list" style="font-size:2rem"></i></div>
+                                <div class="mb-3 text-danger"><i class="fad fa-trash-can-list" style="font-size:2rem"></i></div>
                                 <h5 class="fw-bold">Xác nhận xóa?</h5>
                                 <p class="opacity-75 small">Bình luận này sẽ bị xóa vĩnh viễn.</p>
                                 <div class="d-flex gap-2 mt-4">
@@ -1975,7 +1962,7 @@ window.VT_InitCommentSystem = function() {
                     <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                         <div class="modal-body p-4">
                             <div class="text-center mb-3 text-warning">
-                                <i class="fa-solid fa-ban" style="font-size:2rem"></i>
+                                <i class="fad fa-ban" style="font-size:2rem"></i>
                             </div>
                             <h5 class="fw-bold text-center mb-1">Hạn chế người dùng</h5>
                             <p id="VTBanUserName" class="text-center opacity-75 small mb-3"></p>
@@ -1984,7 +1971,7 @@ window.VT_InitCommentSystem = function() {
                             <!-- Khung nhập lý do khác, hiện khi chọn "Khác" -->
                             <div id="vtBanOtherWrap" class="mt-2" style="display:none">
                                 <input type="text" id="vtBanOtherReason"
-                                       class="form-control form-control-sm rounded-3"
+                                       class="form-control form-control-sm rounded shadow-none border"
                                        placeholder="Nhập lý do cụ thể..." maxlength="200">
                             </div>
                             <div id="vtBanError" class="text-danger small mt-2"
@@ -2309,7 +2296,7 @@ window.VT_InitCommentSystem = function() {
         }
 
         // Chưa có data → fetch từ Firestore
-        btn.innerHTML        = `<i class="fa-solid fa-spinner-third fa-spin me-2"></i>đang tải...`;
+        btn.innerHTML        = `<i class="fa-duotone fa-solid fa-spinner-third fa-spin me-2"></i>đang tải...`;
         btn.style.pointerEvents = 'none';
 
         try {
