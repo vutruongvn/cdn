@@ -206,8 +206,8 @@ function VTFilms_showOverlay() {
 
                 <!-- Thông báo lỗi (ẩn mặc định) -->
                 <div id="VTFilms-error"
-                     class="d-none alert alert-danger border-0 small text-start mt-3 mb-0 py-2 px-3"
-                     style="background:rgba(220,53,69,.1)" role="alert"></div>
+                     class="d-none alert alert-danger text-center border-0 small mt-3 mb-0 py-2 px-3"
+                     role="alert"></div>
 
                 <p class="text-secondary mt-4 mb-0 small">
                     Đăng nhập bằng tài khoản Google của bạn
@@ -318,7 +318,7 @@ async function VTFilms_onGSICallback(response) {
         // onAuthStateChanged nhận user → gọi VTFilms_reloadPage()
     } catch (err) {
         VTFilms_log.error('signInWithCredential thất bại:', err.code);
-        VTFilms_setLoading(false, `Đăng nhập thất bại (${err.code}). Vui lòng thử lại.`);
+        VTFilms_setLoading(false, `Đăng nhập thất bại (${err.code}).`);
     }
 }
 
@@ -338,7 +338,7 @@ async function VTFilms_openPopup() {
         VTFilms_log.error('Popup Sign-In thất bại:', err.code);
         const msg = err.code === 'auth/popup-closed-by-user'
             ? 'Bạn đã đóng cửa sổ đăng nhập. Vui lòng thử lại.'
-            : `Đăng nhập thất bại (${err.code}). Vui lòng thử lại.`;
+            : `Đăng nhập thất bại (${err.code}).`;
         VTFilms_setLoading(false, msg);
     }
 }
