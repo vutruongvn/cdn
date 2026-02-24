@@ -67,13 +67,13 @@ const VTFilms_log = {
 // ── 3. FIREBASE INIT ──────────────────────────────────────────────────────────
 VTFilms_log.info('Firebase v12.9.0 khởi tạo...');
 const VTFilms_fbApp = initializeApp({
-    apiKey:            'AIzaSyCWk6_TaztoDbMlvtLI-hXzgHcrn3xKjTs',
-    authDomain:        'vt-films-project.firebaseapp.com',
-    projectId:         'vt-films-project',
-    storageBucket:     'vt-films-project.firebasestorage.app',
-    messagingSenderId: '819581342302',
-    appId:             '1:819581342302:web:c156a31adc6de3e93adacf',
-    measurementId:     'G-T38N17NE5X'
+    apiKey:            'AIzaSyCyTqNXos2w80W9o6XHj7QkLaSoSU5MiOM',
+    authDomain:        'vt-films-pj.firebaseapp.com',
+    projectId:         'vt-films-pj',
+    storageBucket:     'vt-films-pj.firebasestorage.app',
+    messagingSenderId: '891750241616',
+    appId:             '1:891750241616:web:78a48d2ee8d2fd71dd0855',
+    measurementId:     'G-G8QD7CEKDF'
 });
 getAnalytics(VTFilms_fbApp);
 const VTFilms_auth = getAuth(VTFilms_fbApp);
