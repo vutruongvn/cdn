@@ -525,7 +525,7 @@ function _onBannedInteract(e) {
 // Dùng để tùy biến CSS + hiển thị icon hạn chế realtime, không cần re-render.
 // =====================
 
-const BAN_ICON_HTML = '<i class="fa-solid fa-ban ms-1 text-danger small vt-banned-icon" data-bs-toggle="tooltip" title="Tài khoản bị hạn chế"></i>';
+const BAN_ICON_HTML = '<i class="fa-duotone fa-ban text-danger small vt-banned-icon" data-bs-toggle="tooltip" title="Tài khoản bị hạn chế"></i>';
 
 function _updateBannedUserClass(uid, isBanned) {
     if (!uid) return;
