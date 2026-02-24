@@ -54,7 +54,7 @@ import {
 // ── 2. HẰNG SỐ & TIỆN ÍCH ────────────────────────────────────────────────────
 const VTFilms_VERSION   = '3.2';
 const VTFilms_CACHE_KEY = 'VTFilms_userCache';
-const VTFilms_CLIENT_ID = '891750241616-qk4j7r1q2dqbh9nfp6shah1pc07omapm.apps.googleusercontent.com';
+const VTFilms_CLIENT_ID = '891750241616-234jksd5e2b301g838gr6t650hdobptk.apps.googleusercontent.com';
 
 const VTFilms_log = {
     info:  (m, ...a) => console.log(`%c[VTFilms v${VTFilms_VERSION}]`,   'color:#dc3545;font-weight:bold', '→', m, ...a),
@@ -147,11 +147,12 @@ function VTFilms_showOverlay() {
     overlay.innerHTML = `
         <!-- Card đăng nhập – Bootstrap 5 thuần, không custom style thừa -->
         <div class="card text-center shadow-lg"
-             style="width:min(460px,calc(100vw - 28px));
+             style="width:min(500px,calc(100vw - 28px));
                     background:rgba(255,255,255,.045);
                     border:1px solid rgba(255,255,255,.09) !important;
                     border-radius:22px;
-                    backdrop-filter:blur(24px)">
+                    backdrop-filter:blur(24px);
+					user-select:none">
             <div class="card-body p-5">
 
                 <!-- Logo -->
@@ -161,17 +162,17 @@ function VTFilms_showOverlay() {
               <path d=' M188.102264,382.835175   C163.279175,339.887726 138.642349,297.257141 113.141380,253.131256   C119.858635,253.131256 125.113457,253.120575 130.368240,253.132904   C190.193649,253.273224 250.019073,253.456223 309.844482,253.465607   C313.559967,253.466187 315.126831,255.231369 316.719513,257.989685   C342.292236,302.279297 367.915436,346.539734 393.532959,390.803467   C410.804230,420.645935 428.072968,450.489929 445.383789,480.309418   C446.696198,482.570129 447.637421,484.512726 446.072235,487.195251   C435.997070,504.463043 426.061462,521.812195 416.063263,539.125000   C415.576385,539.968079 415.156158,540.937561 413.884003,541.255676   C411.952515,541.072021 411.607605,539.190308 410.826355,537.837036   C378.762604,482.292603 346.731018,426.729584 314.677948,371.178986   C304.187378,352.997955 293.581360,334.883057 283.194855,316.642944   C281.313202,313.338501 279.077026,311.939941 275.252472,311.976196   C258.088135,312.138824 240.921509,312.038818 223.755890,312.090637   C216.543533,312.112396 215.631409,313.705109 219.267776,320.001587   C240.013321,355.923126 260.782440,391.831055 281.564423,427.731537   C313.944000,483.666565 346.337646,539.593506 378.738495,595.516235   C380.138489,597.932495 380.874237,600.095947 379.222107,602.916992   C369.035461,620.311523 359.021393,637.807129 348.929565,655.257324   C348.610321,655.809326 348.069458,656.233154 346.872345,657.556152   C293.847748,565.805542 241.068130,474.478760 188.102264,382.835175  z' opacity='1.000000' stroke='none'/>
             </svg>
                     <div class="fw-bolder fs-2">
-                        <span class="text-danger">Films</span>
+                        <span class="text-danger d-block pt-2">Films</span>
                     </div>
                 </div>
-
-                <h1 class="fs-5 fw-bold text-white mb-3">Đăng nhập để tiếp tục</h1>
-                <p class="text-secondary mb-4 lh-base">
-                    Miễn phí • Tốc độ cao • Cập nhật liên tục
-                </p>
-
+				
+    			<p class="text-light mb-4 h6 fw-bold">Đăng nhập để sử dụng VT Films!</p>	
+				
                 <!-- One Tap renderButton (JWT → signInWithCredential, không popup thêm) -->
-                <div id="VTFilms-g-btn" class="d-flex justify-content-center mb-3" style="min-height:44px"></div>
+                <div id="VTFilms-g-btn" class="d-flex align-items-center justify-content-center mb-3" style="min-height:44px"></div>
+
+    			<p class="text-light mt-4 h6 opacity-50 fw-normal">Miễn phí • Tốc độ cao • Cập nhật liên tục</p>	
+    			<p class="text-light m-0 mt-2 small opacity-25 fw-normal" onclick="javascript:alert('Hông được đâu ní')">Tiếp tục mà không đăng nhập?</p>	
 
                 <!-- Phân cách -->
                 <div class="d-none align-items-center gap-2 text-secondary small mb-3">
@@ -209,9 +210,6 @@ function VTFilms_showOverlay() {
                      class="d-none alert alert-danger text-center border-0 small mt-3 mb-0 py-2 px-3"
                      role="alert"></div>
 
-                <p class="text-secondary mt-4 mb-0 small">
-                    Đăng nhập bằng tài khoản Google của bạn
-                </p>
             </div>
         </div>`;
 
@@ -284,22 +282,22 @@ function VTFilms_initGSI() {
     if (btnEl) {
         google.accounts.id.renderButton(btnEl, {
             type:           'standard',
-            theme:          'outline',
+            theme:          'dark',
             size:           'large',
             text:           'signin_with',
-            shape:          'rectangular',
+            shape:          'pill',
             logo_alignment: 'left',
-            width:          380,
+           // width:          300,
         });
         VTFilms_log.ok('Google Sign-In Button đã render.');
     }
 
     // One Tap ở góc màn hình (phụ – chỉ hiện khi trình duyệt cho phép)
-    google.accounts.id.prompt((n) => {
-        if      (n.isNotDisplayed())  VTFilms_log.warn('One Tap không hiển thị:', n.getNotDisplayedReason());
-        else if (n.isSkippedMoment()) VTFilms_log.warn('One Tap bị bỏ qua:', n.getSkippedReason());
-        else                          VTFilms_log.ok('One Tap góc màn hình hiển thị.');
-    });
+    // google.accounts.id.prompt((n) => {
+    //     if      (n.isNotDisplayed())  VTFilms_log.warn('One Tap không hiển thị:', n.getNotDisplayedReason());
+    //     else if (n.isSkippedMoment()) VTFilms_log.warn('One Tap bị bỏ qua:', n.getSkippedReason());
+    //     else                          VTFilms_log.ok('One Tap góc màn hình hiển thị.');
+    // });
 }
 
 /**
@@ -399,12 +397,12 @@ function VTFilms_renderDropdown(user) {
 
     el.innerHTML = `
         <div class="dropdown">
-            <a class="nav-link d-flex align-items-center gap-2 py-1"
+            <a class="nav-link p-0 m-0"
                role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <img src="${user.avatar}" class="rounded-circle border border-2 border-danger"
-                     width="32" height="32" style="object-fit:cover" alt="${user.name}"
+                <img src="${user.avatar}" class="rounded-circle"
+                     width="45" height="45" style="object-fit:cover" alt="${user.name}"
                      onerror="this.src='${fallback}'">
-                <span class="d-none d-xl-inline small fw-semibold text-white text-truncate"
+                <span class="d-none small fw-semibold text-white text-truncate"
                       style="max-width:110px">${user.name}</span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow">
@@ -415,13 +413,21 @@ function VTFilms_renderDropdown(user) {
                              onerror="this.src='${fallback}'">
                         <div class="overflow-hidden">
                             <div class="fw-semibold small text-truncate">${user.name}</div>
-                            <div class="text-secondary text-truncate" style="font-size:11px">${user.email}</div>
+                            <div class="text-secondary text-truncate" style="font-size:12px">${user.email}</div>
                         </div>
                     </div>
                 </li>
                 <li><hr class="dropdown-divider"></li>
+
+            	<li>
+              	<a class="dropdown-item text-white d-flex align-items-center gap-2 nav-toggle-theme-btn shadow-none py-2" id="themeToggler" onclick="toggleTheme()" role="button" title="Chuyển chế độ sáng/tối">
+                 <i class="fa-duotone fa-sun" id="themeIcon"></i>
+					Đổi giao diện
+             	 </a>
+            	</li>
+
                 <li>
-                    <button class="dropdown-item text-danger d-flex align-items-center gap-2"
+                    <button class="dropdown-item text-danger d-flex align-items-center gap-2 py-2"
                             onclick="window.VTFilms_Auth.signOut()">
                         <i class="fa-duotone fa-right-from-bracket fa-fw"></i>
                         Đăng xuất
