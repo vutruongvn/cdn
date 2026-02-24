@@ -67,7 +67,7 @@ const VTFilms_log = {
 // ── 3. FIREBASE INIT ──────────────────────────────────────────────────────────
 VTFilms_log.info('Firebase v12.9.0 khởi tạo...');
 const VTFilms_fbApp = initializeApp({
-    apiKey:            'AIzaSyChcQvnl-h2AbX8Zwx7wtUZkjlAXaEPlzc',
+    apiKey:            'AIzaSyCWk6_TaztoDbMlvtLI-hXzgHcrn3xKjTs',
     authDomain:        'vt-films-project.firebaseapp.com',
     projectId:         'vt-films-project',
     storageBucket:     'vt-films-project.firebasestorage.app',
