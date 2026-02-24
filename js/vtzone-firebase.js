@@ -4,7 +4,7 @@
  * Gộp từ: VT-Zone-firebase-5_0_1.js + VT-Zone-comments-5_0_2.js
  * Tính năng: Auth, Like, View History, Session Cache, Admin Tools,
  *            Bình luận Realtime (Đăng/Trả lời/Xóa/Chỉnh sửa/Bật-Tắt/Đếm)
- * Phiên bản: 5.5.0
+ * Phiên bản: 5.6.0
  * Cập nhật: 24/2/2026
  * Thay đổi (5.3.0):
  *   - Thêm nút "Hạn chế người dùng" (Admin) vào dropdown ellipsis, toggle "Gỡ hạn chế"
@@ -34,6 +34,18 @@
  *     is-not-admin-name) của user bị hạn chế → tùy biến CSS dễ dàng
  *   - data-author-uid trên mỗi .VT-comment-item → xác định owner để toggle class
  *   - _updateBannedUserClass(uid, isBanned) cập nhật realtime không cần re-render
+ * Thay đổi (5.6.0):
+ *   - Gỡ hạn chế: thay toast → modal-md Bootstrap 5 (VTUnbanNoticeModal)
+ *     → Không tự reload, chỉ reload khi user bấm "Đóng" (đảm bảo user đọc thông báo)
+ *   - Logic banned user: không xóa DOM, chỉ vô hiệu hóa input + đổi placeholder +
+ *     ẩn nút "Trả lời", "Chỉnh sửa", "Xóa" khỏi giao diện (style display:none)
+ *   - Icon hạn chế: thêm <i class="fa-solid fa-ban text-danger"> sau tên user bị hạn chế
+ *     trong cả createHtml (render mới) và _updateBannedUserClass (toggle realtime)
+ *   - Khi banned user tương tác (click like, focus input...): luôn hiện modal hạn chế
+ *     dù đã tick "Không hiển thị lại" (force=true bypass suppress key)
+ *   - window._vtLastBanData: lưu banData mới nhất để force-modal dùng khi cần
+ *   - VT_SyncUserUI: tôn trọng trạng thái banned (không re-enable input khi bị hạn chế)
+ *   - Tối ưu module: loại bỏ dead code, đồng bộ guard force-show xuyên suốt
  */
 // =========================================================================================
 
@@ -259,7 +271,8 @@ async function saveUserProfile(user) {
 // Admin set users/{uid}.banned = true → user bị chặn ngay lập tức kể cả đang online
 // =====================
 
-window._vtUserBanned = false;  // Flag toàn cục - true khi user bị ban
+window._vtUserBanned  = false;  // Flag toàn cục - true khi user bị hạn chế
+window._vtLastBanData = {};     // Lưu banData mới nhất để force-modal khi user tương tác
 
 // =====================
 // MODAL THÔNG BÁO BỊ HẠN CHẾ (phía User)
@@ -267,13 +280,14 @@ window._vtUserBanned = false;  // Flag toàn cục - true khi user bị ban
 // - Hiển thị lý do hạn chế, nút Liên hệ admin, nút Đóng
 // - Checkbox "Không hiển thị lại lần sau" → lưu sessionStorage
 //   Suppress key bị xóa khi: đăng xuất, được gỡ hạn chế, bị hạn chế realtime
+// - force=true: luôn hiện modal dù đã suppress (dùng khi user click tương tác)
 // =====================
 
 const BAN_NOTICE_SUPPRESS_KEY = 'vt_ban_notice_suppressed';
 
-function _showBanModal(banData = {}) {
-    // Nếu user đã check "Không hiển thị lại" trong phiên này → bỏ qua
-    if (sessionStorage.getItem(BAN_NOTICE_SUPPRESS_KEY) === '1') return;
+function _showBanModal(banData = {}, force = false) {
+    // Nếu user đã check "Không hiển thị lại" → bỏ qua, TRỪ KHI force=true (click tương tác)
+    if (!force && sessionStorage.getItem(BAN_NOTICE_SUPPRESS_KEY) === '1') return;
 
     // Xóa modal cũ nếu tồn tại
     const old = document.getElementById('VTBanNoticeModal');
@@ -365,45 +379,80 @@ function listenBanStatus(uid) {
             const isFirst        = _isFirstBanSnapshot;
             _isFirstBanSnapshot  = false;
 
+            // Lưu banData mới nhất để force-modal dùng khi user tương tác (like, focus input...)
+            if (window._vtUserBanned) window._vtLastBanData = banData;
+
             // Bị hạn chế realtime (không phải lần đầu tải) → xóa suppress để modal luôn hiện
             if (window._vtUserBanned && !wasBanned && !isFirst) {
                 sessionStorage.removeItem(BAN_NOTICE_SUPPRESS_KEY);
             }
 
-            // Hiển thị modal + xóa DOM khi:
+            // Hiển thị modal + vô hiệu hóa UI khi:
             // 1. Lần đầu tải trang & đã bị hạn chế → hiển thị ngay (trừ khi đã suppress)
             // 2. Vừa bị hạn chế trong lúc đang online → hiển thị realtime
             if (window._vtUserBanned && (isFirst || !wasBanned)) {
                 console.warn('[Ban] Tài khoản bị hạn chế quyền:', uid);
                 _showBanModal(banData);
-                // Xóa khỏi DOM: input area, reply box, nút Trả lời, mục Edit/Delete
+                // Vô hiệu hóa UI: disable input + ẩn nút Trả lời / Chỉnh sửa / Xóa
                 _applyBannedDomState();
-                // Thêm is-banned-user vào tên của chính user trong các comment đang hiển thị
+                // Thêm is-banned-user class + icon ban vào tên user trong các comment
                 _updateBannedUserClass(uid, true);
             }
 
-            // Nếu vừa được gỡ hạn chế → hiện toast "đã gỡ hạn chế" rồi reload
+            // Nếu vừa được gỡ hạn chế → hiện modal thông báo, user bấm "Đóng" mới reload
             if (wasBanned && !window._vtUserBanned) {
                 console.log('[Ban] Tài khoản đã được gỡ hạn chế:', uid);
                 sessionStorage.removeItem(BAN_NOTICE_SUPPRESS_KEY);
-                // Toast thông báo ở giữa trên, tự dismiss, rồi reload
+                window._vtLastBanData = {};
+
                 if (typeof bootstrap !== 'undefined') {
-                    const _uc = document.createElement('div');
-                    _uc.className     = 'toast-container position-fixed top-0 start-50 translate-middle-x p-3';
-                    _uc.style.zIndex  = '1090';
-                    _uc.innerHTML     = `
-                        <div id="VTUnbanToast" class="toast text-white bg-success border-0"
-                             role="alert" aria-atomic="true">
-                            <div class="toast-body text-center fw-medium px-3 py-2">
-                                <i class="fa-solid fa-circle-check me-2"></i>Tài khoản của bạn đã được gỡ bỏ hạn chế.
+                    // ── Modal gỡ hạn chế ─────────────────────────────────────────────
+                    const _uid = 'VTUnbanNoticeModal';
+                    const _old = document.getElementById(_uid);
+                    if (_old) { bootstrap.Modal.getInstance(_old)?.dispose(); _old.remove(); }
+
+                    document.body.insertAdjacentHTML('beforeend', `
+                        <div class="modal fade" id="${_uid}" tabindex="-1"
+                             data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered modal-md">
+                                <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                                    <div class="modal-body text-center p-4">
+                                        <div class="mb-3 text-success">
+                                            <i class="fa-solid fa-circle-check" style="font-size:2.2rem"></i>
+                                        </div>
+                                        <h5 class="fw-bold mb-2">Hạn chế đã được gỡ bỏ</h5>
+                                        <p class="opacity-75 small mb-4">
+                                            Tài khoản của bạn đã được gỡ bỏ hạn chế.<br>
+                                            Nhấn <strong>Đóng</strong> để tiếp tục sử dụng đầy đủ tính năng.
+                                        </p>
+                                        <button type="button" id="VTUnbanCloseBtn"
+                                                class="btn btn-success btn-sm rounded-pill px-4 fw-medium">
+                                            <i class="fa-solid fa-circle-check me-2"></i>Đóng
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>`;
-                    document.body.appendChild(_uc);
-                    bootstrap.Toast.getOrCreateInstance(
-                        document.getElementById('VTUnbanToast'), { autohide: false }
-                    ).show();
-                    setTimeout(() => window.location.reload(), 1800);
+                        </div>`);
+
+                    const _el  = document.getElementById(_uid);
+                    const _obj = new bootstrap.Modal(_el);
+
+                    // Reload chỉ khi user bấm "Đóng" — không tự động
+                    document.getElementById('VTUnbanCloseBtn').addEventListener('click', () => {
+                        _obj.hide();
+                        window.location.reload();
+                    });
+
+                    _el.addEventListener('hidden.bs.modal', () => {
+                        _obj.dispose();
+                        _el.remove();
+                        // Fallback: nếu user đóng bằng cách khác (Esc...) vẫn reload
+                        window.location.reload();
+                    }, { once: true });
+
+                    _obj.show();
                 } else {
+                    // Fallback khi Bootstrap chưa load
                     window.location.reload();
                 }
             }
@@ -414,55 +463,86 @@ function listenBanStatus(uid) {
 
 // =====================
 // _applyBannedDomState
-// Xóa khỏi DOM tất cả thành phần tương tác khi user bị hạn chế.
+// Vô hiệu hóa tương tác khi user bị hạn chế — KHÔNG xóa DOM, chỉ disable/ẩn.
 // Gọi từ listenBanStatus lần đầu phát hiện bị hạn chế (tải trang hoặc realtime).
-// User bị hạn chế không phải admin → mọi nút Edit/Delete hiển thị đều là của chính họ.
+// Phục hồi đầy đủ sau khi reload (khi đã gỡ hạn chế).
 // =====================
 
 function _applyBannedDomState() {
-    // 1. Xóa ô nhập bình luận chính
-    document.querySelectorAll('.VT-input-area').forEach(el => el.remove());
+    // 1. Vô hiệu hóa ô nhập bình luận: tắt contenteditable, đổi placeholder, ẩn nút gửi
+    document.querySelectorAll('.VT-input-area').forEach(area => {
+        area.classList.add('vt-banned-input');
 
-    // 2. Xóa reply box đang mở
+        const input   = area.querySelector('.VT-comment-input');
+        const ph      = area.querySelector('.VT-placeholder');
+        const sendBtn = area.querySelector('button[onclick*="VT_SendComment"]');
+
+        if (input) {
+            input.contentEditable = 'false';
+            input.innerText       = '';
+            // Click vào input → luôn hiện modal hạn chế (dù đã suppress)
+            input.addEventListener('click', _onBannedInteract, true);
+        }
+        if (ph)      ph.innerText         = 'Tài khoản của bạn đã bị hạn chế.';
+        if (sendBtn) sendBtn.style.display = 'none';
+    });
+
+    // 2. Đóng reply box đang mở (nếu có)
     document.querySelectorAll('.VT-dynamic-reply-box').forEach(el => el.remove());
 
-    // 3. Xóa nút "Trả lời" trên từng comment
-    document.querySelectorAll('[onclick*="VT_ToggleReply"]').forEach(el => el.remove());
+    // 3. Ẩn nút "Trả lời" trên từng comment (không xóa khỏi DOM)
+    document.querySelectorAll('[onclick*="VT_ToggleReply"]')
+            .forEach(el => el.style.setProperty('display', 'none', 'important'));
 
-    // 4. Xóa mục "Chỉnh sửa" trong dropdown
+    // 4. Ẩn mục "Chỉnh sửa" trong dropdown
     document.querySelectorAll('[onclick*="VT_EditMode"]')
-            .forEach(el => el.closest('li')?.remove());
+            .forEach(el => el.closest('li')?.style.setProperty('display', 'none', 'important'));
 
-    // 5. Xóa mục "Xóa" trong dropdown (user bị hạn chế chỉ thấy nút Xóa trên comment của mình)
+    // 5. Ẩn mục "Xóa" trong dropdown (chỉ ẩn trên comment của chính mình)
     document.querySelectorAll('[onclick*="VT_DeleteComment"]')
-            .forEach(el => el.closest('li')?.remove());
+            .forEach(el => el.closest('li')?.style.setProperty('display', 'none', 'important'));
 
-    // 6. Xóa dropdown rỗng (không còn item nào) + divider thừa
+    // 6. Ẩn dropdown khi không còn item nào hiển thị
     document.querySelectorAll('.VT-comment-item .dropdown-menu').forEach(menu => {
-        menu.querySelectorAll('li hr.dropdown-divider').forEach(hr => {
-            const visibleItems = menu.querySelectorAll('li .dropdown-item');
-            if (visibleItems.length === 0) hr.closest('li')?.remove();
-        });
-        if (menu.querySelectorAll('.dropdown-item').length === 0) {
-            menu.closest('.dropdown')?.remove();
-        }
+        const hasVisible = Array.from(menu.querySelectorAll('li'))
+            .some(li => li.style.display !== 'none' && li.querySelector('.dropdown-item'));
+        if (!hasVisible) menu.closest('.dropdown')?.style.setProperty('display', 'none', 'important');
     });
+}
+
+// Handler: banned user click vào vùng nhập → luôn hiện modal hạn chế (force=true)
+function _onBannedInteract(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    _showBanModal(window._vtLastBanData || {}, true);
 }
 
 // =====================
 // _updateBannedUserClass(uid, isBanned)
-// Toggle class is-banned-user trên thẻ div username (is-admin-name / is-not-admin-name)
-// của tất cả comment thuộc author có uid tương ứng.
-// data-author-uid được gán trong createHtml lên mỗi .VT-comment-item.
-// Dùng để tùy biến CSS: làm mờ, ẩn, hoặc đánh dấu comment của user bị hạn chế.
+// Toggle class is-banned-user + icon fa-ban trên thẻ div username
+// (is-admin-name / is-not-admin-name) của tất cả comment thuộc uid tương ứng.
+// data-author-uid gán trong createHtml lên mỗi .VT-comment-item.
+// Dùng để tùy biến CSS + hiển thị icon hạn chế realtime, không cần re-render.
 // =====================
+
+const BAN_ICON_HTML = '<i class="fa-solid fa-ban ms-1 text-danger small vt-banned-icon" data-bs-toggle="tooltip" title="Tài khoản bị hạn chế"></i>';
 
 function _updateBannedUserClass(uid, isBanned) {
     if (!uid) return;
     document.querySelectorAll(
         `.VT-comment-item[data-author-uid="${uid}"] .is-admin-name,
          .VT-comment-item[data-author-uid="${uid}"] .is-not-admin-name`
-    ).forEach(el => el.classList.toggle('is-banned-user', isBanned));
+    ).forEach(el => {
+        el.classList.toggle('is-banned-user', isBanned);
+
+        // Thêm / xóa icon ban sau tên user
+        const existing = el.querySelector('.vt-banned-icon');
+        if (isBanned && !existing) {
+            el.insertAdjacentHTML('beforeend', BAN_ICON_HTML);
+        } else if (!isBanned && existing) {
+            existing.remove();
+        }
+    });
 }
 
 // Đọc cache ngay — trước khi Firebase resolve
@@ -560,9 +640,9 @@ window.initLikeCountDisplay = initLikeCountDisplay;
 function initSingleLikeButton(button, user) {
     if (!db || !auth) return;
 
-    // Guard: user bị ban → không cho like, hiện modal ban
+    // Guard: user bị hạn chế → không cho like, luôn hiện modal hạn chế (force=true)
     if (window._vtUserBanned) {
-        button.onclick = (e) => { e.preventDefault(); _showBanModal({}); };
+        button.onclick = (e) => { e.preventDefault(); _showBanModal(window._vtLastBanData || {}, true); };
         return;
     }
 
@@ -1174,9 +1254,9 @@ window.VT_InitCommentSystem = function() {
             return;
         }
 
-        // Guard: user bị ban → không cho gửi bình luận
+        // Guard: user bị hạn chế → không cho gửi, luôn hiện modal hạn chế (force=true)
         if (window._vtUserBanned) {
-            if (typeof window._showBanModal === 'function') window._showBanModal({});
+            if (typeof window._showBanModal === 'function') window._showBanModal(window._vtLastBanData || {}, true);
             return;
         }
 
@@ -1449,9 +1529,12 @@ window.VT_InitCommentSystem = function() {
                             </ul>
                         </div>` : '';
 
-        // Class is-banned-user: thêm nếu _banStatusCache biết author đang bị hạn chế
+        // Class is-banned-user + icon ban: thêm nếu _banStatusCache biết author đang bị hạn chế
         const isAuthorBanned = _banStatusCache.has(data.uid) && _banStatusCache.get(data.uid) === true;
         const nameCls        = `d-inline ${isAdmin ? 'is-admin-name' : 'is-not-admin-name'} fw-medium${isAuthorBanned ? ' is-banned-user' : ''}`;
+        const bannedIconHtml = isAuthorBanned
+            ? '<i class="fa-solid fa-ban ms-1 text-danger small vt-banned-icon" data-bs-toggle="tooltip" title="Tài khoản bị hạn chế"></i>'
+            : '';
 
         // data-author-uid: dùng để _updateBannedUserClass() toggle class is-banned-user
         return `<div class="VT-comment-item m-0 mt-3 ${isChild ? 'VT-comment-item-reply' : ''}" id="VT-cmt-${cId}" data-author-uid="${data.uid}">
@@ -1460,7 +1543,7 @@ window.VT_InitCommentSystem = function() {
                 <div class="flex-grow-1">
                     <div class="VT-comment-bubble">
                         <div class="${nameCls}">
-                            ${data.userName}${isAdmin ? '<i class="fa-solid fa-badge-check ms-1 text-primary small" data-bs-toggle="tooltip" title="Tài khoản đã được xác thực"></i>' : ''}
+                            ${data.userName}${isAdmin ? '<i class="fa-solid fa-badge-check ms-1 text-primary small" data-bs-toggle="tooltip" title="Tài khoản đã được xác thực"></i>' : ''}${bannedIconHtml}
                         </div>
                         <div class="VT-comment-text d-inline border-0">${formatCommentText(data.content, cId)}</div>
                     </div>
@@ -2135,15 +2218,19 @@ window.VT_InitCommentSystem = function() {
             const input   = app.querySelector('.VT-comment-input');
             const ph      = app.querySelector('.VT-placeholder');
             const sendBtn = app.querySelector('.VT-input-area button[onclick*="VT_SendComment"]');
+
             if (input) {
-                input.contentEditable = String(!!user);
+                // User bị hạn chế: KHÔNG re-enable contenteditable
+                input.contentEditable = (!!user && !window._vtUserBanned) ? 'true' : 'false';
                 if (!user) { input.innerText = ""; VT_HandlePlaceholder(input); }
-                if (ph) ph.innerText = user
-                    ? `Bình luận dưới tên ${user.displayName}`
-                    : "Đăng nhập để bình luận về bài viết này.";
+                if (ph) ph.innerText = window._vtUserBanned
+                    ? 'Tài khoản của bạn đã bị hạn chế.'
+                    : user
+                        ? `Bình luận dưới tên ${user.displayName}`
+                        : 'Đăng nhập để bình luận về bài viết này.';
             }
-            // Ẩn nút Đăng bình luận (icon máy bay) khi chưa đăng nhập
-            if (sendBtn) sendBtn.style.display = user ? '' : 'none';
+            // Ẩn nút Đăng bình luận khi chưa đăng nhập HOẶC đang bị hạn chế
+            if (sendBtn) sendBtn.style.display = (user && !window._vtUserBanned) ? '' : 'none';
         });
 
         // Xóa hết reply box đang mở khi login/logout tránh hiện sai avatar/tên
@@ -2337,5 +2424,5 @@ if (document.readyState === 'loading') {
 }
 
 // =========================================================================================
-// VT Zone Firebase System v5.5.0 - Ready
+// VT Zone Firebase System v5.6.0 - Ready
 // =========================================================================================
