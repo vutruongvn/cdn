@@ -223,7 +223,7 @@ function VTFilms_showOverlay() {
 function VTFilms_hideOverlay() {
     const el = document.getElementById('VTFilms-overlay');
     if (!el) return;
-    el.style.transition = 'opacity 1s ease';
+    el.style.transition = 'opacity .5s ease';
     el.style.opacity = '0';
     setTimeout(() => el.remove(), 1000);
     VTFilms_log.info('Overlay đăng nhập đã xóa.');
