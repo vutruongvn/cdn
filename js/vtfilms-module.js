@@ -196,12 +196,12 @@ function VTFilms_showOverlay() {
 
                 <!-- Loading spinner (ẩn mặc định) -->
                 <div id="VTFilms-loading" class="d-none mt-3">
-                    <div class="d-inline-flex align-items-center gap-2 text-secondary small rounded-pill px-4 py-2"
+                    <div class="d-inline-flex align-items-center gap-2 text-danger small rounded-pill px-4 py-2"
                          style="background:rgba(220,53,69,.08);border:1px solid rgba(220,53,69,.2)">
-                        <div class="spinner-border spinner-border-sm text-danger" role="status">
-                            <span class="visually-hidden">Đang tải...</span>
+                        <div class="spinner-border spinner-border-sm text-danger me-1" role="status">
+                            <span class="visually-hidden"></span>
                         </div>
-                        Đang xác thực...
+                        Đang xác thực
                     </div>
                 </div>
 
