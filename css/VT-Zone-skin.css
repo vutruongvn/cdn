@@ -506,15 +506,16 @@ html.VT_darkMode .centerMenu {
   position: relative;
 }
 .sidenav-menu a {
-  display: table;
-  padding: 3px 1.75em 3px 1em;
-  margin: 5px 1em;
-  text-decoration: none;
-  font-size: 16px;
-  font-weight: 400;
-  border-radius: 100px;
-  transition: 0.3s ease;
-  position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 1.75em 3px 1em;
+    margin: .25rem 1rem;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 400;
+    border-radius: 100px;
+    transition: .3s ease;
+    position: relative;
 }
 .sidenav-menu_a:before {
   content: "";
@@ -1641,4 +1642,5 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 }
 
 /* ========================================================================= */
+
 
