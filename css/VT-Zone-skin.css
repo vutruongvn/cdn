@@ -932,7 +932,7 @@ article.post-outer-container .postBodyLimited { display: -webkit-box; -webkit-li
 article.post-outer-container .postFeaturedImage img {margin-bottom:0}
 article.post-outer-container .postBody_multipleItems b {font-weight:500}
 article.post-outer-container .post img {max-width:100%;margin-bottom:1em}
-article.post-outer-container .post p {padding:0 1em}
+article.post-outer-container .post p {padding:0 1em;text-align:justify}
 article.post-outer-container .post h2 {margin: 1em 0 .5em 0; padding: 0 1em 0 13px; border-left: 3px solid #ccc; font-weight: 600}
 
 article.post-outer-container .post hr {
@@ -1642,6 +1642,7 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 }
 
 /* ========================================================================= */
+
 
 
 
