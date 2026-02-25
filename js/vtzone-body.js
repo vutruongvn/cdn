@@ -12,24 +12,54 @@
 // Lưu trạng thái vào localStorage
 // =====================
 
-(function() {
-    const htmlElement = document.documentElement;
+(function () {
+  const HTML = document.documentElement;
+  const STORAGE_KEY = 'theme';
+  const MODE_META = {
+    light:  { icon: 'fa-sun',                label: 'Sáng'     },
+    dark:   { icon: 'fa-moon',               label: 'Tối'      },
+    system: { icon: 'fa-circle-half-stroke', label: 'Hệ thống' },
+  };
 
-    // Áp dụng theme đã lưu trước khi DOM sẵn sàng (tránh flash)
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') htmlElement.classList.add('VT_darkMode');
+  function resolveTheme(mode) {
+    return mode === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : mode;
+  }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        const toggleButtons = document.querySelectorAll('.theme-toggle');
-        if (!toggleButtons.length) return;
+  function applyTheme(mode) {
+    const resolved = resolveTheme(mode);
+    HTML.setAttribute('data-bs-theme', resolved);
+    HTML.classList.toggle('VT_darkMode', resolved === 'dark'); // giữ class cũ
+  }
 
-        function toggleTheme() {
-            const isDark = htmlElement.classList.toggle('VT_darkMode');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        }
+  function updateUI(mode) {
+    const btn = document.getElementById('themeDropdownBtn');
+    if (!btn) return;
+    const meta = MODE_META[mode] || MODE_META.system;
+    btn.querySelector('.theme-icon').className = `theme-icon fa-solid ${meta.icon}`;
+    btn.querySelector('.theme-label').textContent = meta.label;
+    document.querySelectorAll('#themeMenu [data-theme]').forEach(item =>
+      item.classList.toggle('active', item.dataset.theme === mode));
+  }
 
-        toggleButtons.forEach(btn => btn.addEventListener('click', toggleTheme));
+  function setMode(mode) {
+    localStorage.setItem(STORAGE_KEY, mode);
+    applyTheme(mode);
+    updateUI(mode);
+  }
+
+  // Áp ngay tránh flash
+  applyTheme(localStorage.getItem(STORAGE_KEY) || 'system');
+
+  document.addEventListener('DOMContentLoaded', () => {
+    updateUI(localStorage.getItem(STORAGE_KEY) || 'system');
+    document.querySelectorAll('#themeMenu [data-theme]').forEach(item =>
+      item.addEventListener('click', () => setMode(item.dataset.theme)));
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if ((localStorage.getItem(STORAGE_KEY) || 'system') === 'system') applyTheme('system');
     });
+  });
 })();
 
 // =====================
@@ -896,4 +926,5 @@ document.addEventListener("DOMContentLoaded", () => {
 // =========================================================================================
 // VT Zone Body Scripts v5.0.1 - Ready
 // =========================================================================================
+
 
