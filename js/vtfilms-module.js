@@ -114,7 +114,7 @@ const VTFilms_VERSION = '5.0';
 // Thêm UID vào mảng này để cấp quyền admin.
 // Các UID còn lại tự động nhận role = "user".
 const VTFilms_ADMIN_UIDS = [
-    'VZBMWcv7gzbC9ngMk9LrixEyCyv1',
+    'KU6FC2SAsmaE8qIu4EGU9J422On1',
 ];
 
 // ── Storage Keys ──
