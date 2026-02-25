@@ -293,11 +293,11 @@ function VTFilms_initGSI() {
     }
 
     // One Tap ở góc màn hình (phụ – chỉ hiện khi trình duyệt cho phép)
-    // google.accounts.id.prompt((n) => {
-    //     if      (n.isNotDisplayed())  VTFilms_log.warn('One Tap không hiển thị:', n.getNotDisplayedReason());
-    //     else if (n.isSkippedMoment()) VTFilms_log.warn('One Tap bị bỏ qua:', n.getSkippedReason());
-    //     else                          VTFilms_log.ok('One Tap góc màn hình hiển thị.');
-    // });
+     google.accounts.id.prompt((n) => {
+         if      (n.isNotDisplayed())  VTFilms_log.warn('One Tap không hiển thị:', n.getNotDisplayedReason());
+         else if (n.isSkippedMoment()) VTFilms_log.warn('One Tap bị bỏ qua:', n.getSkippedReason());
+         else                          VTFilms_log.ok('One Tap góc màn hình hiển thị.');
+     });
 }
 
 /**
