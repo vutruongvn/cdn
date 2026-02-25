@@ -11,61 +11,77 @@
  *        Fix One Tap tự đóng (cancel_on_tap_outside: false), đổi tiền tố VTFilms_
  *  v3.1  [FIX] One Tap callback gọi Popup → double login
  *          → Dùng signInWithCredential(JWT) cho One Tap, không mở thêm popup
- *          → Nút "Chọn tài khoản" vẫn dùng signInWithPopup (đúng luồng)
  *        [REMOVED] Ánh sáng nền trang trí trong overlay
  *  v3.2  [FIX] Xóa lazy load API (không tương thích với kiến trúc hiện tại)
  *        [NEW] Remove class d-none khỏi #VT-Films-App sau khi Firebase xác nhận login
  *  v4.0  [NEW] Đăng xuất → redirect về trang chủ ngay lập tức
  *        [NEW] Thu thập & lưu thông tin phiên đăng nhập vào Firestore
- *  v4.1  [OPT] Giảm dữ liệu session: 15 fields → 6 fields thiết yếu
- *              Bỏ: name, avatar, provider, userAgent, platform, language,
- *                  screen, pageUrl, referrer, loginAtLocal
- *        [OPT] Guard bằng sessionStorage → chỉ write Firestore 1 lần/tab
- *              (reload trang không tạo thêm document thừa)
- *        [OPT] Bỏ accuracy khỏi geo (thường hàng nghìn mét, vô nghĩa)
+ *  v4.1  [OPT] Giảm dữ liệu session 15 → 6 fields, guard bằng sessionStorage
+ *  v5.0  [REFACTOR] Bỏ hoàn toàn subcollection sessions — lãng phí, không cần thiết
+ *        [NEW] Lưu user dưới dạng flat document tại users/{uid}
+ *              Fields: uid, email, displayName, photoURL, provider, role,
+ *                      createdAt, lastLoginAt
+ *        [NEW] Phân quyền: role "admin" (uid hardcode) vs "user" thường
+ *        [NEW] Admin UID: VZBMWcv7gzbC9ngMk9LrixEyCyv1
+ *        [OPT] 3 mức write thông minh, không đọc Firestore lần nào:
+ *              Lần đầu (user mới)  → setDoc full document (1 write)
+ *              Tab mới / login lại → updateDoc chỉ lastLoginAt (1 write nhỏ)
+ *              Reload cùng tab     → skip hoàn toàn (0 write)
  *
  * ─────────────────────────────────────────────────────────────
- * LUỒNG ĐĂNG NHẬP
+ * CẤU TRÚC FIRESTORE
  *
- *   One Tap (renderButton / góc màn hình)
- *     → VTFilms_onGSICallback(response.credential = JWT)
- *     → signInWithCredential   ← 1 bước, không popup thêm
- *     → onAuthStateChanged → VTFilms_saveLoginSession() → reload
+ *   users/{uid}                    ← Document phẳng, 1 document / user
+ *     uid          string          Firebase UID
+ *     email        string          Email Google
+ *     displayName  string          Tên hiển thị
+ *     photoURL     string          URL ảnh đại diện
+ *     provider     string          "google"
+ *     role         string          "admin" | "user"
+ *     createdAt    timestamp       Lần đầu đăng nhập (server timestamp, ghi 1 lần)
+ *     lastLoginAt  timestamp       Lần đăng nhập/mở tab gần nhất (cập nhật mỗi tab)
  *
- *   Nút "Chọn tài khoản" (manual)
- *     → VTFilms_openPopup()
- *     → signInWithPopup        ← popup chọn tài khoản
- *     → onAuthStateChanged → VTFilms_saveLoginSession() → reload
+ *   Không còn subcollection sessions → tiết kiệm reads/writes đáng kể.
+ *
+ * ─────────────────────────────────────────────────────────────
+ * LOGIC WRITE FIRESTORE (0 reads, tối đa 1 write/tab)
+ *
+ *   localStorage['VTFilms_profileSaved'] = uid
+ *     → Chưa có: user MỚI → setDoc full document + ghi localStorage
+ *     → Đã có:   user cũ → chỉ updateDoc lastLoginAt (nếu chưa làm trong tab này)
+ *
+ *   sessionStorage['VTFilms_tabActive']
+ *     → Chưa có: tab mới → updateDoc lastLoginAt + ghi sessionStorage
+ *     → Đã có:   reload  → SKIP, 0 write
+ *
+ *   Tóm tắt số lần write:
+ *     User mới  đăng nhập lần đầu   = 1 write (setDoc full)
+ *     User cũ   mở tab mới          = 1 write (updateDoc lastLoginAt)
+ *     User cũ   reload trong tab    = 0 write
+ *     Tổng reads                    = 0 (không getDoc gì cả)
  *
  * ─────────────────────────────────────────────────────────────
  * STORAGE ĐƯỢC DÙNG
  *
- *   localStorage['VTFilms_userCache']
- *     Lưu: { uid, name, email, avatar }
- *     Mục đích: anti-flash UI (đọc trước khi Firebase phản hồi ~200-800ms)
- *     Tồn tại: đến khi đăng xuất (xóa tự động)
+ *   localStorage['VTFilms_userCache']      { uid, name, email, avatar, role }
+ *     Mục đích: anti-flash UI (hiện trước khi Firebase phản hồi ~200-800ms)
+ *     Tồn tại: đến khi đăng xuất
  *
- *   sessionStorage['VTFilms_sessionSaved']
- *     Lưu: sessionId (string UUID)
- *     Mục đích: guard — nếu đã có → SKIP, không write Firestore lại
- *     Tồn tại: đến khi đóng tab (tự xóa bởi trình duyệt)
- *              → tab mới = phiên mới = write đúng 1 lần
+ *   localStorage['VTFilms_profileSaved']   uid (string)
+ *     Mục đích: biết user này đã có document Firestore chưa
+ *     Tồn tại: đến khi đăng xuất
  *
- * ─────────────────────────────────────────────────────────────
- * DỮ LIỆU PHIÊN (Firestore: users/{uid}/sessions/{sessionId})
- *
- *   uid        — Firebase uid
- *   email      — Email Google
- *   sessionId  — UUID duy nhất, tạo bằng crypto.randomUUID()
- *   loginAt    — serverTimestamp() (chính xác, không phụ thuộc giờ client)
- *   timezone   — Asia/Ho_Chi_Minh (từ Intl.DateTimeFormat)
- *   geo        — { lat, lng } nếu cho phép | { error } nếu từ chối
+ *   sessionStorage['VTFilms_tabActive']    "1"
+ *     Mục đích: guard — đã updateDoc lastLoginAt trong tab này chưa
+ *     Tồn tại: đến khi đóng tab (tự xóa)
  *
  * ─────────────────────────────────────────────────────────────
  * API CÔNG KHAI
  *   window.VTFilms_USER                  → Object user (null nếu chưa login)
+ *   window.VTFilms_USER.role             → "admin" | "user"
  *   window.VTFilms_Auth.signOut()        → Đăng xuất + redirect về trang chủ
  *   window.VTFilms_Auth.getUser()        → Lấy user hiện tại
+ *   window.VTFilms_Auth.isAdmin()        → true nếu role === "admin"
  *   window.VTFilms_Auth._openPopup()     → Dùng trong HTML onclick
  *   window.addEventListener('vtfilms:auth-ready', cb)
  */
@@ -85,27 +101,26 @@ import {
 import {
     getFirestore,
     doc,
-    setDoc,
-    serverTimestamp         // Timestamp phía Firestore server (không phụ thuộc giờ client)
+    setDoc,       // Tạo document mới (user lần đầu)
+    updateDoc,    // Chỉ cập nhật lastLoginAt (user cũ mở tab mới)
+    serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
 
-// ── 2. HẰNG SỐ & TIỆN ÍCH ────────────────────────────────────────────────────
-const VTFilms_VERSION = '4.1';
+// ── 2. HẰNG SỐ & CẤU HÌNH ────────────────────────────────────────────────────
+const VTFilms_VERSION = '5.0';
 
-/**
- * VTFilms_CACHE_KEY — Key localStorage.
- * Lưu { uid, name, email, avatar } để hiện UI ngay, không chờ Firebase.
- * Tồn tại lâu dài đến khi đăng xuất.
- */
-const VTFilms_CACHE_KEY = 'VTFilms_userCache';
+// ── Admin UIDs ──
+// Thêm UID vào mảng này để cấp quyền admin.
+// Các UID còn lại tự động nhận role = "user".
+const VTFilms_ADMIN_UIDS = [
+    'VZBMWcv7gzbC9ngMk9LrixEyCyv1',
+];
 
-/**
- * VTFilms_SESSION_KEY — Key sessionStorage.
- * Lưu sessionId của tab hiện tại (tự xóa khi đóng tab).
- * Dùng làm guard: nếu đã có → SKIP write Firestore khi reload.
- */
-const VTFilms_SESSION_KEY = 'VTFilms_sessionSaved';
+// ── Storage Keys ──
+const VTFilms_CACHE_KEY   = 'VTFilms_userCache';     // localStorage: thông tin UI anti-flash
+const VTFilms_PROFILE_KEY = 'VTFilms_profileSaved';  // localStorage: đánh dấu đã có document Firestore
+const VTFilms_TAB_KEY     = 'VTFilms_tabActive';     // sessionStorage: guard lastLoginAt trong tab
 
 /** Google OAuth Client ID. */
 const VTFilms_CLIENT_ID = '891750241616-234jksd5e2b301g838gr6t650hdobptk.apps.googleusercontent.com';
@@ -139,59 +154,184 @@ const VTFilms_db   = getFirestore(VTFilms_fbApp);
 VTFilms_log.ok('Firebase sẵn sàng.');
 
 
-// ── 4. CACHE UI (localStorage) ────────────────────────────────────────────────
+// ── 4. HELPERS: PHÂN QUYỀN ───────────────────────────────────────────────────
 
-/** Lưu { uid, name, email, avatar } vào localStorage. */
+/**
+ * VTFilms_getRole(uid) — Xác định role dựa trên UID.
+ * Admin UIDs được hardcode trong VTFilms_ADMIN_UIDS.
+ * Mọi UID khác đều là "user".
+ *
+ * @param {string} uid
+ * @returns {'admin' | 'user'}
+ */
+function VTFilms_getRole(uid) {
+    return VTFilms_ADMIN_UIDS.includes(uid) ? 'admin' : 'user';
+}
+
+
+// ── 5. STORAGE: localStorage (cache UI + profile flag) ───────────────────────
+
+/**
+ * VTFilms_saveCache(user) — Lưu thông tin hiển thị vào localStorage.
+ * Bao gồm role để các component khác có thể đọc ngay mà không cần Firebase.
+ *
+ * @param {{ uid, name, email, avatar, role }} user
+ */
 function VTFilms_saveCache(user) {
     try {
-        localStorage.setItem(VTFilms_CACHE_KEY, JSON.stringify(
-            { uid: user.uid, name: user.name, email: user.email, avatar: user.avatar }
-        ));
-    } catch (e) { VTFilms_log.warn('Lưu cache thất bại:', e.message); }
+        localStorage.setItem(VTFilms_CACHE_KEY, JSON.stringify({
+            uid:    user.uid,
+            name:   user.name,
+            email:  user.email,
+            avatar: user.avatar,
+            role:   user.role,
+        }));
+        VTFilms_log.info(`Cache UI lưu OK (${user.name} · ${user.role}).`);
+    } catch (e) {
+        VTFilms_log.warn('Lưu cache thất bại:', e.message);
+    }
 }
 
-/** Xóa cache khi đăng xuất. */
-function VTFilms_clearCache() {
-    try { localStorage.removeItem(VTFilms_CACHE_KEY); } catch (_) {}
-}
-
-/** Đọc cache. Trả về object hoặc null. */
+/**
+ * VTFilms_getCache() — Đọc cache từ localStorage.
+ * @returns {{ uid, name, email, avatar, role } | null}
+ */
 function VTFilms_getCache() {
     try { return JSON.parse(localStorage.getItem(VTFilms_CACHE_KEY)); } catch (_) { return null; }
 }
 
-
-// ── 5. GUARD PHIÊN (sessionStorage) ──────────────────────────────────────────
-
-/**
- * Kiểm tra tab này đã write Firestore chưa.
- * @returns {boolean} true = đã write, SKIP; false = chưa, cần write
- */
-function VTFilms_isSessionSaved() {
-    try { return !!sessionStorage.getItem(VTFilms_SESSION_KEY); } catch (_) { return false; }
+/** Xóa cache UI khi đăng xuất. */
+function VTFilms_clearCache() {
+    try { localStorage.removeItem(VTFilms_CACHE_KEY); } catch (_) {}
+    VTFilms_log.info('Cache UI đã xóa.');
 }
 
 /**
- * Đánh dấu tab này đã write Firestore.
- * Các lần reload trong cùng tab sẽ skip.
- * @param {string} sessionId
+ * VTFilms_isProfileSaved(uid) — Kiểm tra user này đã có document Firestore chưa.
+ * So sánh uid hiện tại với uid được lưu trong localStorage.
+ * Tránh ghi trùng khi user đã từng đăng nhập trước đó.
+ *
+ * @param {string} uid
+ * @returns {boolean}
  */
-function VTFilms_markSessionSaved(sessionId) {
-    try { sessionStorage.setItem(VTFilms_SESSION_KEY, sessionId); } catch (_) {}
+function VTFilms_isProfileSaved(uid) {
+    try { return localStorage.getItem(VTFilms_PROFILE_KEY) === uid; } catch (_) { return false; }
 }
 
 /**
- * Xóa guard khi đăng xuất.
- * Đảm bảo lần đăng nhập tiếp theo (tab mới) sẽ write bình thường.
+ * VTFilms_markProfileSaved(uid) — Đánh dấu document Firestore đã được tạo.
+ * @param {string} uid
  */
-function VTFilms_clearSessionGuard() {
-    try { sessionStorage.removeItem(VTFilms_SESSION_KEY); } catch (_) {}
+function VTFilms_markProfileSaved(uid) {
+    try { localStorage.setItem(VTFilms_PROFILE_KEY, uid); } catch (_) {}
+    VTFilms_log.info(`Profile flag lưu OK (uid: ${uid}).`);
+}
+
+/** Xóa profile flag khi đăng xuất. */
+function VTFilms_clearProfileFlag() {
+    try { localStorage.removeItem(VTFilms_PROFILE_KEY); } catch (_) {}
+    VTFilms_log.info('Profile flag đã xóa.');
 }
 
 
-// ── 6. QUẢN LÝ DOM ───────────────────────────────────────────────────────────
+// ── 6. STORAGE: sessionStorage (guard tab) ───────────────────────────────────
 
-/** Xóa #VT-Films-App khỏi DOM — ngăn render nội dung khi chưa login. */
+/**
+ * VTFilms_isTabActive() — Kiểm tra tab này đã cập nhật lastLoginAt chưa.
+ * sessionStorage tự xóa khi đóng tab → tab mới = cập nhật bình thường.
+ *
+ * @returns {boolean} true = đã cập nhật trong tab này, SKIP; false = chưa
+ */
+function VTFilms_isTabActive() {
+    try { return !!sessionStorage.getItem(VTFilms_TAB_KEY); } catch (_) { return false; }
+}
+
+/** Đánh dấu tab này đã cập nhật lastLoginAt. */
+function VTFilms_markTabActive() {
+    try { sessionStorage.setItem(VTFilms_TAB_KEY, '1'); } catch (_) {}
+}
+
+/** Xóa tab guard khi đăng xuất (tab mới sau login lại sẽ cập nhật bình thường). */
+function VTFilms_clearTabGuard() {
+    try { sessionStorage.removeItem(VTFilms_TAB_KEY); } catch (_) {}
+    VTFilms_log.info('Tab guard đã xóa.');
+}
+
+
+// ── 7. FIRESTORE: SYNC USER DOCUMENT ─────────────────────────────────────────
+
+/**
+ * VTFilms_syncUserDoc(fbUser) — Đồng bộ thông tin user lên Firestore.
+ *
+ * Logic 3 mức (không đọc Firestore lần nào):
+ *
+ *   Mức 1 — User MỚI (chưa có profile flag trong localStorage):
+ *     → setDoc full document (tạo mới)
+ *     → Ghi localStorage profile flag để nhớ
+ *     → Ghi sessionStorage tab guard
+ *     → 1 write (lớn: tất cả fields)
+ *
+ *   Mức 2 — User CŨ, TAB MỚI (có profile flag, chưa có tab guard):
+ *     → updateDoc chỉ lastLoginAt
+ *     → Ghi sessionStorage tab guard
+ *     → 1 write (nhỏ: 1 field)
+ *
+ *   Mức 3 — User CŨ, RELOAD (có cả profile flag và tab guard):
+ *     → SKIP hoàn toàn, 0 write
+ *
+ * @param {import('firebase/auth').User} fbUser - Firebase User object
+ */
+async function VTFilms_syncUserDoc(fbUser) {
+    const uid  = fbUser.uid;
+    const role = VTFilms_getRole(uid);
+    const ref  = doc(VTFilms_db, 'users', uid);
+
+    // ── Mức 3: Reload cùng tab → SKIP ──
+    if (VTFilms_isTabActive()) {
+        VTFilms_log.info('Tab guard tồn tại → skip Firestore write (reload).');
+        return;
+    }
+
+    // ── Mức 1: User mới → setDoc full document ──
+    if (!VTFilms_isProfileSaved(uid)) {
+        VTFilms_log.info(`User mới (${fbUser.email}) → tạo document Firestore...`);
+        try {
+            await setDoc(ref, {
+                uid,
+                email:       fbUser.email,
+                displayName: fbUser.displayName || 'Người dùng',
+                photoURL:    fbUser.photoURL    || null,
+                provider:    'google',
+                role,
+                createdAt:   serverTimestamp(),   // Chỉ ghi 1 lần duy nhất khi tạo mới
+                lastLoginAt: serverTimestamp(),
+            });
+            VTFilms_markProfileSaved(uid); // Nhớ: user này đã có document
+            VTFilms_markTabActive();       // Nhớ: tab này đã xử lý xong
+            VTFilms_log.ok(`Document tạo mới OK: users/${uid} (role: ${role})`);
+        } catch (err) {
+            VTFilms_log.error('setDoc thất bại:', err.message);
+        }
+        return;
+    }
+
+    // ── Mức 2: User cũ, tab mới → chỉ cập nhật lastLoginAt ──
+    VTFilms_log.info(`User cũ, tab mới (${fbUser.email}) → cập nhật lastLoginAt...`);
+    try {
+        await updateDoc(ref, {
+            lastLoginAt: serverTimestamp(),
+        });
+        VTFilms_markTabActive(); // Nhớ: tab này đã cập nhật xong
+        VTFilms_log.ok(`lastLoginAt cập nhật OK: users/${uid}`);
+    } catch (err) {
+        VTFilms_log.error('updateDoc thất bại:', err.message);
+    }
+}
+
+
+// ── 8. QUẢN LÝ DOM ───────────────────────────────────────────────────────────
+
+/** Xóa #VT-Films-App khỏi DOM — ngăn render nội dung khi chưa đăng nhập. */
 function VTFilms_removeApp() {
     const el = document.getElementById('VT-Films-App');
     if (!el) { VTFilms_log.warn('#VT-Films-App không tìm thấy.'); return; }
@@ -201,7 +341,7 @@ function VTFilms_removeApp() {
 
 /**
  * Hiện #VT-Films-App: remove class d-none.
- * HTML đặt d-none sẵn → module remove sau khi Firebase xác nhận.
+ * HTML đặt d-none sẵn để tránh flash nội dung trước khi xác thực xong.
  */
 function VTFilms_showApp() {
     const el = document.getElementById('VT-Films-App');
@@ -210,14 +350,14 @@ function VTFilms_showApp() {
     VTFilms_log.ok('#VT-Films-App hiển thị (d-none removed).');
 }
 
-/** Reload trang sau login. */
+/** Reload trang sau khi đăng nhập lần đầu. */
 function VTFilms_reloadPage() {
-    VTFilms_log.info('Login OK → reload...');
+    VTFilms_log.info('Login OK → reload trang...');
     window.location.reload();
 }
 
 
-// ── 7. OVERLAY ĐĂNG NHẬP ─────────────────────────────────────────────────────
+// ── 9. OVERLAY ĐĂNG NHẬP ─────────────────────────────────────────────────────
 
 /** Tạo và chèn overlay đăng nhập vào body (chỉ tạo 1 lần). */
 function VTFilms_showOverlay() {
@@ -239,11 +379,12 @@ function VTFilms_showOverlay() {
                     user-select:none">
             <div class="card-body p-5">
 
-                <!-- Logo -->
+                <!-- Logo VT Films -->
                 <div class="d-flex align-items-center justify-content-center gap-2 mb-4">
-                    <svg style='fill:var(--bs-danger)' id='Layer_1' version='1.1' viewBox='0 0 992 992' width='75' x='0px' xml:space='preserve' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' y='0px'>
-                      <path d=' M537.072266,790.994934   C518.384460,823.271484 499.881897,855.232605 481.546600,886.904846   C478.881500,886.932983 478.519226,885.252380 477.814240,884.032715   C449.972229,835.864990 422.152496,787.684387 394.315430,739.513794   C390.315125,732.591492 386.319824,725.663940 382.164368,718.834900   C380.506805,716.110901 380.462708,713.887695 382.125458,711.018250   C426.808105,633.910156 471.397614,556.748169 516.004395,479.596100   C524.258179,465.320282 532.502258,451.038788 540.782654,436.778381   C545.431152,428.772736 544.592163,427.275574 535.083252,427.237640   C518.919495,427.173157 502.752899,427.023346 486.593201,427.275269   C481.969421,427.347321 479.380280,425.745056 477.107635,421.790588   C447.725372,370.664581 418.193115,319.624817 388.704956,268.559662   C386.049835,263.961761 383.438019,259.338867 379.894104,253.129639   C385.960632,253.129639 390.803619,253.110168 395.646393,253.132751   C431.301971,253.299011 466.956360,252.964279 502.614929,253.440689   C531.431396,253.825653 560.260315,253.186874 589.083862,253.148209   C638.565613,253.081833 688.054443,252.618851 737.526855,253.301346   C772.849670,253.788635 808.158020,252.737198 843.472717,253.321091   C846.685547,253.374207 848.234192,254.640961 849.695862,257.176147   C881.311340,312.012695 912.985779,366.815247 944.634949,421.632355   C945.440491,423.027618 946.591370,424.321869 946.523254,426.153778   C944.361511,427.828064 941.948669,427.139038 939.723450,427.140350   C877.900391,427.176880 816.077271,427.210663 754.254578,427.063690   C749.389282,427.052124 746.563293,428.368378 743.998535,432.817963   C682.519409,539.473328 620.854248,646.021362 559.227478,752.591614   C551.890320,765.279602 544.580139,777.983154 537.072266,790.994934  M819.889526,322.563171   C819.395142,321.694672 818.778259,320.872894 818.426147,319.950104   C816.044861,313.709869 811.857849,311.803955 804.977356,311.842102   C744.648071,312.176819 684.316345,312.063019 623.985291,312.061981   C579.153809,312.061188 534.322266,312.028320 489.490753,312.015198   C482.944855,312.013306 482.075104,313.355286 485.232697,318.848877   C493.949249,334.014130 502.731812,349.141418 511.469452,364.294556   C512.931519,366.830078 514.423218,368.791748 517.951172,368.753387   C558.773682,368.309479 599.602661,369.267975 640.423889,368.212158   C642.548523,368.157196 644.742676,367.995361 646.466614,369.508209   C646.796143,370.938385 645.950256,371.853851 645.381775,372.839539   C635.644958,389.723267 625.897766,406.600983 616.147461,423.476898   C576.307068,492.433197 536.462280,561.386963 496.624573,630.344788   C481.206879,657.032288 465.843597,683.751404 450.341980,710.390015   C448.438293,713.661377 448.402344,716.329529 450.331238,719.611450   C459.192932,734.689331 467.808929,749.911377 476.610535,765.024963   C479.793884,770.491150 481.213623,770.492065 484.345154,765.150940   C490.243134,755.091309 496.025574,744.963806 501.852203,734.862366   C537.729919,672.662231 573.562988,610.436157 609.496277,548.268127   C642.844788,490.571930 676.359741,432.971771 709.598022,375.212311   C712.350708,370.428802 715.243408,368.482300 720.894104,368.520233   C760.057373,368.783051 799.223328,368.673859 838.388367,368.649750   C844.888184,368.645752 845.635620,367.338776 842.437500,361.751801   C835.071777,348.884094 827.663818,336.040588 819.889526,322.563171  z' opacity='1.000000' stroke='none'/>
-                      <path d=' M188.102264,382.835175   C163.279175,339.887726 138.642349,297.257141 113.141380,253.131256   C119.858635,253.131256 125.113457,253.120575 130.368240,253.132904   C190.193649,253.273224 250.019073,253.456223 309.844482,253.465607   C313.559967,253.466187 315.126831,255.231369 316.719513,257.989685   C342.292236,302.279297 367.915436,346.539734 393.532959,390.803467   C410.804230,420.645935 428.072968,450.489929 445.383789,480.309418   C446.696198,482.570129 447.637421,484.512726 446.072235,487.195251   C435.997070,504.463043 426.061462,521.812195 416.063263,539.125000   C415.576385,539.968079 415.156158,540.937561 413.884003,541.255676   C411.952515,541.072021 411.607605,539.190308 410.826355,537.837036   C378.762604,482.292603 346.731018,426.729584 314.677948,371.178986   C304.187378,352.997955 293.581360,334.883057 283.194855,316.642944   C281.313202,313.338501 279.077026,311.939941 275.252472,311.976196   C258.088135,312.138824 240.921509,312.038818 223.755890,312.090637   C216.543533,312.112396 215.631409,313.705109 219.267776,320.001587   C240.013321,355.923126 260.782440,391.831055 281.564423,427.731537   C313.944000,483.666565 346.337646,539.593506 378.738495,595.516235   C380.138489,597.932495 380.874237,600.095947 379.222107,602.916992   C369.035461,620.311523 359.021393,637.807129 348.929565,655.257324   C348.610321,655.809326 348.069458,656.233154 346.872345,657.556152   C293.847748,565.805542 241.068130,474.478760 188.102264,382.835175  z' opacity='1.000000' stroke='none'/>
+                    <svg style='fill:var(--bs-danger)' viewBox='0 0 992 992' width='75'
+                         xmlns='http://www.w3.org/2000/svg'>
+                      <path d='M537.072266,790.994934 C518.384460,823.271484 499.881897,855.232605 481.546600,886.904846 C478.881500,886.932983 478.519226,885.252380 477.814240,884.032715 C449.972229,835.864990 422.152496,787.684387 394.315430,739.513794 C390.315125,732.591492 386.319824,725.663940 382.164368,718.834900 C380.506805,716.110901 380.462708,713.887695 382.125458,711.018250 C426.808105,633.910156 471.397614,556.748169 516.004395,479.596100 C524.258179,465.320282 532.502258,451.038788 540.782654,436.778381 C545.431152,428.772736 544.592163,427.275574 535.083252,427.237640 C518.919495,427.173157 502.752899,427.023346 486.593201,427.275269 C481.969421,427.347321 479.380280,425.745056 477.107635,421.790588 C447.725372,370.664581 418.193115,319.624817 388.704956,268.559662 C386.049835,263.961761 383.438019,259.338867 379.894104,253.129639 C385.960632,253.129639 390.803619,253.110168 395.646393,253.132751 C431.301971,253.299011 466.956360,252.964279 502.614929,253.440689 C531.431396,253.825653 560.260315,253.186874 589.083862,253.148209 C638.565613,253.081833 688.054443,252.618851 737.526855,253.301346 C772.849670,253.788635 808.158020,252.737198 843.472717,253.321091 C846.685547,253.374207 848.234192,254.640961 849.695862,257.176147 C881.311340,312.012695 912.985779,366.815247 944.634949,421.632355 C945.440491,423.027618 946.591370,424.321869 946.523254,426.153778 C944.361511,427.828064 941.948669,427.139038 939.723450,427.140350 C877.900391,427.176880 816.077271,427.210663 754.254578,427.063690 C749.389282,427.052124 746.563293,428.368378 743.998535,432.817963 C682.519409,539.473328 620.854248,646.021362 559.227478,752.591614 C551.890320,765.279602 544.580139,777.983154 537.072266,790.994934z' opacity='1.000000' stroke='none'/>
+                      <path d='M188.102264,382.835175 C163.279175,339.887726 138.642349,297.257141 113.141380,253.131256 C119.858635,253.131256 125.113457,253.120575 130.368240,253.132904 C190.193649,253.273224 250.019073,253.456223 309.844482,253.465607 C313.559967,253.466187 315.126831,255.231369 316.719513,257.989685 C342.292236,302.279297 367.915436,346.539734 393.532959,390.803467 C410.804230,420.645935 428.072968,450.489929 445.383789,480.309418 C446.696198,482.570129 447.637421,484.512726 446.072235,487.195251 C435.997070,504.463043 426.061462,521.812195 416.063263,539.125000 C415.576385,539.968079 415.156158,540.937561 413.884003,541.255676 C411.952515,541.072021 411.607605,539.190308 410.826355,537.837036 C378.762604,482.292603 346.731018,426.729584 314.677948,371.178986 C304.187378,352.997955 293.581360,334.883057 283.194855,316.642944 C281.313202,313.338501 279.077026,311.939941 275.252472,311.976196 C258.088135,312.138824 240.921509,312.038818 223.755890,312.090637 C216.543533,312.112396 215.631409,313.705109 219.267776,320.001587 C240.013321,355.923126 260.782440,391.831055 281.564423,427.731537 C313.944000,483.666565 346.337646,539.593506 378.738495,595.516235 C380.138489,597.932495 380.874237,600.095947 379.222107,602.916992 C369.035461,620.311523 359.021393,637.807129 348.929565,655.257324 C348.610321,655.809326 348.069458,656.233154 346.872345,657.556152 C293.847748,565.805542 241.068130,474.478760 188.102264,382.835175z' opacity='1.000000' stroke='none'/>
                     </svg>
                     <div class="fw-bolder fs-2">
                         <span class="text-danger d-block pt-2">Films</span>
@@ -252,14 +393,18 @@ function VTFilms_showOverlay() {
 
                 <p class="text-light mb-4 h6 fw-bold">Đăng nhập để sử dụng VT Films!</p>
 
-                <!-- One Tap renderButton -->
+                <!-- Nút Google One Tap / renderButton -->
                 <div id="VTFilms-g-btn"
                      class="d-flex align-items-center justify-content-center mb-3"
                      style="min-height:44px"></div>
 
-                <p class="text-light mt-4 h6 opacity-50 fw-normal">Miễn phí • Tốc độ cao • Cập nhật liên tục</p>
+                <p class="text-light mt-4 h6 opacity-50 fw-normal">
+                    Miễn phí • Tốc độ cao • Cập nhật liên tục
+                </p>
                 <p class="text-light m-0 mt-2 small opacity-25 fw-normal"
-                   onclick="javascript:alert('Hông được đâu ní')">Tiếp tục mà không đăng nhập?</p>
+                   onclick="javascript:alert('Hông được đâu ní')">
+                    Tiếp tục mà không đăng nhập?
+                </p>
 
                 <!-- Phân cách (ẩn, dự phòng) -->
                 <div class="d-none align-items-center gap-2 text-secondary small mb-3">
@@ -281,7 +426,7 @@ function VTFilms_showOverlay() {
                     Chọn tài khoản Google
                 </button>
 
-                <!-- Spinner loading -->
+                <!-- Spinner loading (ẩn mặc định) -->
                 <div id="VTFilms-loading" class="d-none mt-3">
                     <div class="d-inline-flex align-items-center gap-2 text-danger small rounded-pill px-4 py-2"
                          style="background:rgba(220,53,69,.08);border:1px solid rgba(220,53,69,.2)">
@@ -292,7 +437,7 @@ function VTFilms_showOverlay() {
                     </div>
                 </div>
 
-                <!-- Thông báo lỗi -->
+                <!-- Thông báo lỗi (ẩn mặc định) -->
                 <div id="VTFilms-error"
                      class="d-none alert alert-danger text-center border-0 small mt-3 mb-0 py-2 px-3"
                      role="alert"></div>
@@ -311,13 +456,13 @@ function VTFilms_hideOverlay() {
     el.style.transition = 'opacity .3s ease';
     el.style.opacity    = '0';
     setTimeout(() => el.remove(), 1500);
-    VTFilms_log.info('Overlay đăng nhập đã xóa.');
+    VTFilms_log.info('Overlay đăng nhập ẩn dần...');
 }
 
 /**
  * Toggle trạng thái loading trong overlay.
- * show=true  → disable nút, ẩn error, hiện spinner
- * show=false → enable nút, ẩn spinner, hiện error nếu có
+ * show=true  → disable nút, ẩn lỗi, hiện spinner
+ * show=false → enable nút, ẩn spinner, hiện lỗi nếu có
  */
 function VTFilms_setLoading(show, errorMsg = '') {
     const popup   = document.getElementById('VTFilms-popup-btn');
@@ -342,11 +487,11 @@ function VTFilms_setLoading(show, errorMsg = '') {
 }
 
 
-// ── 8. GOOGLE IDENTITY SERVICES (GSI) ────────────────────────────────────────
+// ── 10. GOOGLE IDENTITY SERVICES (GSI) ───────────────────────────────────────
 
 /**
  * Khởi tạo GSI và render nút đăng nhập.
- * Tự retry sau 600ms nếu script GSI chưa load.
+ * Tự retry sau 600ms nếu script GSI chưa load xong.
  */
 function VTFilms_initGSI() {
     if (!window.google?.accounts?.id) {
@@ -360,12 +505,13 @@ function VTFilms_initGSI() {
         client_id:             VTFilms_CLIENT_ID,
         callback:              VTFilms_onGSICallback,
         auto_select:           false,
-        cancel_on_tap_outside: false,
+        cancel_on_tap_outside: false, // Không tự đóng khi click ra ngoài overlay
         language:              'vi',
         context:               'signin',
         ux_mode:               'popup',
     });
 
+    // Render nút Google chuẩn trong card overlay
     const btnEl = document.getElementById('VTFilms-g-btn');
     if (btnEl) {
         google.accounts.id.renderButton(btnEl, {
@@ -379,6 +525,7 @@ function VTFilms_initGSI() {
         VTFilms_log.ok('Google Sign-In Button đã render.');
     }
 
+    // One Tap góc màn hình (phụ — trình duyệt có thể chặn)
     google.accounts.id.prompt((n) => {
         if      (n.isNotDisplayed())  VTFilms_log.warn('One Tap không hiển thị:', n.getNotDisplayedReason());
         else if (n.isSkippedMoment()) VTFilms_log.warn('One Tap bị bỏ qua:', n.getSkippedReason());
@@ -387,8 +534,8 @@ function VTFilms_initGSI() {
 }
 
 /**
- * [FIX v3.1] Callback từ One Tap.
- * signInWithCredential(JWT) — 1 bước, không popup thêm.
+ * [FIX v3.1] Callback từ One Tap / renderButton.
+ * Dùng signInWithCredential(JWT) — xác thực 1 bước, không popup thêm.
  */
 async function VTFilms_onGSICallback(response) {
     VTFilms_log.info('One Tap callback → signInWithCredential...');
@@ -396,6 +543,7 @@ async function VTFilms_onGSICallback(response) {
     try {
         const credential = GoogleAuthProvider.credential(response.credential);
         await signInWithCredential(VTFilms_auth, credential);
+        // → onAuthStateChanged(user) tự trigger
     } catch (err) {
         VTFilms_log.error('signInWithCredential thất bại:', err.code);
         VTFilms_setLoading(false, `Đăng nhập thất bại (${err.code}).`);
@@ -404,12 +552,13 @@ async function VTFilms_onGSICallback(response) {
 
 /** Đăng nhập thủ công bằng popup chọn tài khoản Google. */
 async function VTFilms_openPopup() {
-    VTFilms_log.info('Mở Google Popup...');
+    VTFilms_log.info('Mở Google Popup (manual)...');
     VTFilms_setLoading(true);
     try {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithPopup(VTFilms_auth, provider);
+        // → onAuthStateChanged(user) tự trigger
     } catch (err) {
         VTFilms_log.error('Popup Sign-In thất bại:', err.code);
         const msg = err.code === 'auth/popup-closed-by-user'
@@ -420,25 +569,26 @@ async function VTFilms_openPopup() {
 }
 
 
-// ── 9. ĐĂNG XUẤT ─────────────────────────────────────────────────────────────
+// ── 11. ĐĂNG XUẤT ────────────────────────────────────────────────────────────
 
 /**
- * Đăng xuất + xóa toàn bộ storage + redirect về trang chủ.
+ * Đăng xuất: xóa toàn bộ storage + Firebase signOut + redirect trang chủ.
  *
- *   1. Tắt Google auto-select
- *   2. Xóa localStorage cache
- *   3. Xóa sessionStorage guard
+ *   1. Tắt Google auto-select (tránh tự đăng nhập lại)
+ *   2. Xóa localStorage (cache UI + profile flag)
+ *   3. Xóa sessionStorage (tab guard)
  *   4. Firebase signOut
- *   5. Redirect về trang chủ (pathname, không có query string)
+ *   5. Redirect về pathname (xóa query string, về trang chủ)
  */
 async function VTFilms_signOut() {
-    VTFilms_log.info('Đang đăng xuất...');
+    VTFilms_log.info('Bắt đầu đăng xuất...');
     try {
         window.google?.accounts?.id?.disableAutoSelect();
         VTFilms_clearCache();
-        VTFilms_clearSessionGuard();
+        VTFilms_clearProfileFlag();
+        VTFilms_clearTabGuard();
         await VTFilms_fbSignOut(VTFilms_auth);
-        VTFilms_log.ok('Đăng xuất thành công → redirect về trang chủ...');
+        VTFilms_log.ok('Đăng xuất thành công → redirect trang chủ...');
         window.location.href = window.location.pathname;
     } catch (err) {
         VTFilms_log.error('Đăng xuất thất bại:', err.message);
@@ -446,40 +596,60 @@ async function VTFilms_signOut() {
 }
 
 
-// ── 10. QUẢN LÝ USER ─────────────────────────────────────────────────────────
+// ── 12. QUẢN LÝ USER OBJECT ───────────────────────────────────────────────────
 
-/** Chuẩn hóa Firebase User → VTFilms_USER object. */
+/**
+ * VTFilms_buildUser(fbUser) — Chuẩn hóa Firebase User → VTFilms_USER object.
+ * Tự xác định role từ VTFilms_ADMIN_UIDS.
+ * Fallback avatar nếu Google không trả về ảnh.
+ *
+ * @param {import('firebase/auth').User} fbUser
+ * @returns {{ uid, name, email, avatar, role, provider, loginTime }}
+ */
 function VTFilms_buildUser(fbUser) {
     const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(fbUser.displayName || 'U')}&background=dc3545&color=fff&size=128`;
+    const role     = VTFilms_getRole(fbUser.uid);
     return {
         uid:       fbUser.uid,
         name:      fbUser.displayName || 'Người dùng',
         email:     fbUser.email,
         avatar:    fbUser.photoURL || fallback,
         provider:  fbUser.providerData?.[0]?.providerId || 'google.com',
+        role,
         loginTime: Date.now(),
     };
 }
 
-/** Gán user vào window + cache + dispatch event. */
+/**
+ * VTFilms_setUser(user) — Gán user vào window + localStorage + dispatch event.
+ * @param {object|null} user
+ */
 function VTFilms_setUser(user) {
     window.VTFilms_USER = user;
     if (user) {
         VTFilms_saveCache(user);
-        VTFilms_log.ok('User set:', user.name, `<${user.email}>`);
+        VTFilms_log.ok(`User set: ${user.name} <${user.email}> · role: ${user.role}`);
     } else {
         VTFilms_clearCache();
-        VTFilms_log.info('User set: null.');
+        VTFilms_log.info('User set: null (chưa đăng nhập).');
     }
     window.dispatchEvent(new CustomEvent('vtfilms:auth-ready', { detail: { user } }));
 }
 
-/** Render dropdown avatar/tên user vào #vt-user-info. */
+/**
+ * VTFilms_renderDropdown(user) — Render dropdown avatar/tên vào #vt-user-info.
+ * Hiện badge "Admin" nếu role === "admin".
+ *
+ * @param {{ uid, name, email, avatar, role }} user
+ */
 function VTFilms_renderDropdown(user) {
     const el = document.getElementById('vt-user-info');
     if (!el || !user) return;
 
-    const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=dc3545&color=fff`;
+    const fallback   = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=dc3545&color=fff`;
+    const adminBadge = user.role === 'admin'
+        ? `<span class="badge bg-danger ms-1" style="font-size:10px">Admin</span>`
+        : '';
 
     el.innerHTML = `
         <div class="dropdown">
@@ -492,19 +662,24 @@ function VTFilms_renderDropdown(user) {
                       style="max-width:110px">${user.name}</span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow">
+                <!-- Thông tin user -->
                 <li>
                     <div class="dropdown-item-text d-flex align-items-center gap-3 py-2">
                         <img src="${user.avatar}" class="rounded-circle flex-shrink-0"
                              width="44" height="44" style="object-fit:cover" alt="${user.name}"
                              onerror="this.src='${fallback}'">
                         <div class="overflow-hidden">
-                            <div class="fw-semibold small text-truncate">${user.name}</div>
-                            <div class="text-secondary text-truncate" style="font-size:12px">${user.email}</div>
+                            <div class="fw-semibold small text-truncate">
+                                ${user.name}${adminBadge}
+                            </div>
+                            <div class="text-secondary text-truncate"
+                                 style="font-size:12px">${user.email}</div>
                         </div>
                     </div>
                 </li>
                 <li><hr class="dropdown-divider"></li>
 
+                <!-- Đổi giao diện sáng/tối -->
                 <li>
                     <a class="dropdown-item text-white d-flex align-items-center gap-2 nav-toggle-theme-btn shadow-none py-2"
                        id="themeToggler" onclick="toggleTheme()" role="button"
@@ -514,6 +689,7 @@ function VTFilms_renderDropdown(user) {
                     </a>
                 </li>
 
+                <!-- Đăng xuất → VTFilms_signOut() → redirect trang chủ -->
                 <li>
                     <button class="dropdown-item text-danger d-flex align-items-center gap-2 py-2"
                             onclick="window.VTFilms_Auth.signOut()">
@@ -524,157 +700,93 @@ function VTFilms_renderDropdown(user) {
             </ul>
         </div>`;
 
-    VTFilms_log.ok('Dropdown user render vào #vt-user-info.');
+    VTFilms_log.ok(`Dropdown render OK (${user.name} · ${user.role}).`);
 }
 
 
-// ── 11. CHỐNG FLASH UI ────────────────────────────────────────────────────────
+// ── 13. ANTI-FLASH ────────────────────────────────────────────────────────────
 
 /**
  * Chạy TRƯỚC onAuthStateChanged (Firebase cần ~200–800ms để phản hồi).
  *
  *  Có cache  → kỳ vọng đã login → GIỮ #VT-Films-App → chờ Firebase xác nhận
  *  Không cache → chắc chắn chưa login → XÓA #VT-Films-App + hiện overlay ngay
+ *
+ * Đảm bảo không flash nội dung phim trước khi xác thực,
+ * và không flash overlay nếu user đã đăng nhập.
  */
 function VTFilms_antiFlash() {
     const cache = VTFilms_getCache();
     if (cache) {
-        VTFilms_log.info(`Cache tìm thấy (${cache.name}) → giữ UI, chờ Firebase...`);
+        VTFilms_log.info(`Anti-flash: cache tìm thấy (${cache.name} · ${cache.role}) → giữ UI, chờ Firebase...`);
     } else {
-        VTFilms_log.info('Không có cache → xóa UI, hiện overlay ngay...');
-        VTFilms_removeApp();
+        VTFilms_log.info('Anti-flash: không có cache → xóa UI, hiện overlay ngay...');
+        const appEl = document.getElementById('VT-Films-App');
+        if (appEl) appEl.remove();
         VTFilms_showOverlay();
     }
 }
 
 
-// ── 12. LƯU PHIÊN ĐĂNG NHẬP ──────────────────────────────────────────────────
+// ── 14. AUTH STATE LISTENER (TRUNG TÂM ĐIỀU PHỐI) ────────────────────────────
 
 /**
- * Lấy vị trí GPS (lat/lng). Bỏ accuracy — thường hàng nghìn mét, vô nghĩa.
- * Timeout 8s, dùng lại cache 60s nếu có.
+ * Đăng ký onAuthStateChanged — hàm trung tâm điều phối toàn bộ luồng xác thực.
  *
- * @returns {Promise<{ lat, lng } | { error: string }>}
- */
-function VTFilms_getGeolocation() {
-    return new Promise((resolve) => {
-        if (!navigator.geolocation) {
-            resolve({ error: 'Không hỗ trợ Geolocation.' });
-            return;
-        }
-        navigator.geolocation.getCurrentPosition(
-            (pos) => resolve({
-                lat: pos.coords.latitude,
-                lng: pos.coords.longitude
-            }),
-            (err) => resolve({ error: err.message || 'Từ chối vị trí.' }),
-            { timeout: 8000, maximumAge: 60000 }
-        );
-    });
-}
-
-/**
- * Lưu phiên đăng nhập vào Firestore.
- * Path: users/{uid}/sessions/{sessionId}
+ * Đã đăng nhập (fbUser truthy):
+ *   1. Build user object (có role)
+ *   2. setUser → lưu cache + dispatch event
+ *   3. syncUserDoc → write Firestore theo 3 mức (tối ưu write)
+ *   4. Hide overlay
+ *   5a. App bị xóa (login lần đầu trong tab) → reload
+ *   5b. App còn trong DOM (reload từ cache)   → showApp + renderDropdown
  *
- * Guard bằng sessionStorage:
- *   - Lần đầu trong tab → write Firestore + đánh dấu sessionStorage
- *   - Reload / navigate trong tab → sessionStorage còn → SKIP, không write lại
- *   - Đóng tab, mở lại → sessionStorage mới (rỗng) → write bình thường
- *
- * 6 fields được lưu: uid, email, sessionId, loginAt, timezone, geo
- *
- * @param {import('firebase/auth').User} fbUser
- */
-async function VTFilms_saveLoginSession(fbUser) {
-    // Guard: tab này đã write rồi → bỏ qua, tránh write trùng khi reload
-    if (VTFilms_isSessionSaved()) {
-        VTFilms_log.info('Session đã lưu trong tab này → skip Firestore write.');
-        return;
-    }
-
-    try {
-        const sessionId = (typeof crypto !== 'undefined' && crypto.randomUUID)
-            ? crypto.randomUUID()
-            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-        VTFilms_log.info(`Lưu phiên mới... sessionId: ${sessionId}`);
-
-        const geo = await VTFilms_getGeolocation();
-        VTFilms_log.info('Vị trí:', geo.error ? `không có (${geo.error})` : `${geo.lat}, ${geo.lng}`);
-
-        await setDoc(
-            doc(VTFilms_db, 'users', fbUser.uid, 'sessions', sessionId),
-            {
-                uid:       fbUser.uid,
-                email:     fbUser.email,
-                sessionId,
-                loginAt:   serverTimestamp(),
-                timezone:  Intl.DateTimeFormat().resolvedOptions().timeZone,
-                geo,
-            }
-        );
-
-        // Đánh dấu tab này đã write → reload sẽ skip
-        VTFilms_markSessionSaved(sessionId);
-        VTFilms_log.ok(`Phiên lưu OK: users/${fbUser.uid}/sessions/${sessionId}`);
-
-    } catch (err) {
-        VTFilms_log.error('Không thể lưu phiên:', err.message);
-        // Không re-throw: lỗi Firestore không block app
-    }
-}
-
-
-// ── 13. AUTH STATE LISTENER (TRUNG TÂM ĐIỀU PHỐI) ────────────────────────────
-
-/**
- * Đăng ký onAuthStateChanged — trung tâm điều phối toàn bộ luồng xác thực.
- *
- * Đã đăng nhập:
- *   1. Build user, set cache, dispatch event
- *   2. saveLoginSession (guard → chỉ write 1 lần/tab)
- *   3. Hide overlay
- *   4a. App bị xóa → reload
- *   4b. App còn → showApp + renderDropdown
- *
- * Chưa đăng nhập:
- *   1. Clear user + cache + session guard
+ * Chưa đăng nhập (fbUser falsy):
+ *   1. Clear user + xóa toàn bộ storage
  *   2. Remove app DOM, show overlay
- *   3. Init GSI
+ *   3. Init GSI để hiện nút đăng nhập
  */
 function VTFilms_startListener() {
     VTFilms_log.info('Bắt đầu lắng nghe onAuthStateChanged...');
 
     onAuthStateChanged(VTFilms_auth, async (fbUser) => {
         if (fbUser) {
-            VTFilms_log.ok('Firebase xác nhận đăng nhập:', fbUser.email);
+            VTFilms_log.ok(`Firebase xác nhận: ${fbUser.email} (uid: ${fbUser.uid})`);
 
+            // Build user object và set vào global + cache
             const user = VTFilms_buildUser(fbUser);
             VTFilms_setUser(user);
-            VTFilms_hideOverlay();
 
-            // Lưu phiên vào Firestore — guard sessionStorage đảm bảo chỉ 1 write/tab
-            VTFilms_saveLoginSession(fbUser).catch(e =>
-                VTFilms_log.warn('saveLoginSession lỗi (không nghiêm trọng):', e.message)
+            // Sync document Firestore (thông minh: 0 reads, tối đa 1 write/tab)
+            VTFilms_syncUserDoc(fbUser).catch(e =>
+                VTFilms_log.warn('syncUserDoc lỗi (không ảnh hưởng app):', e.message)
             );
 
+            VTFilms_hideOverlay();
+
             if (!document.getElementById('VT-Films-App')) {
+                // App bị xóa (login lần đầu từ overlay) → reload để khôi phục HTML
                 VTFilms_reloadPage();
             } else {
-                VTFilms_log.ok('#VT-Films-App còn trong DOM → hiện UI + render dropdown.');
+                // App còn trong DOM (reload từ cache) → hiện UI + render dropdown
+                VTFilms_log.ok('#VT-Films-App có trong DOM → show + render dropdown.');
                 VTFilms_showApp();
                 VTFilms_renderDropdown(user);
             }
 
         } else {
-            VTFilms_log.info('Firebase: chưa đăng nhập → dọn dẹp UI...');
+            // ── Chưa / vừa đăng xuất ──
+            VTFilms_log.info('Firebase: chưa đăng nhập → dọn dẹp toàn bộ...');
             VTFilms_setUser(null);
-            VTFilms_clearSessionGuard(); // Xóa guard để lần login tiếp write bình thường
+            VTFilms_clearProfileFlag();
+            VTFilms_clearTabGuard();
 
-            if (document.getElementById('VT-Films-App'))    VTFilms_removeApp();
+            const appEl = document.getElementById('VT-Films-App');
+            if (appEl) { appEl.remove(); VTFilms_log.ok('#VT-Films-App đã xóa.'); }
+
             if (!document.getElementById('VTFilms-overlay')) VTFilms_showOverlay();
 
+            // Khởi tạo GSI sau khi DOM sẵn sàng
             document.readyState === 'loading'
                 ? document.addEventListener('DOMContentLoaded', VTFilms_initGSI)
                 : VTFilms_initGSI();
@@ -683,19 +795,32 @@ function VTFilms_startListener() {
 }
 
 
-// ── 14. EXPORT GLOBAL API ─────────────────────────────────────────────────────
+// ── 15. EXPORT GLOBAL API ─────────────────────────────────────────────────────
+
+/** window.VTFilms_USER — Object user hiện tại (null nếu chưa login). */
 window.VTFilms_USER = null;
+
+/**
+ * window.VTFilms_Auth — Public API cho các module/component khác.
+ *
+ *   .signOut()    → Đăng xuất + redirect trang chủ
+ *   .getUser()    → Trả về VTFilms_USER hiện tại
+ *   .isAdmin()    → true nếu user hiện tại có role "admin"
+ *   ._openPopup() → Mở popup chọn tài khoản thủ công (dùng trong HTML onclick)
+ *   .version      → Version module
+ */
 window.VTFilms_Auth = {
     signOut:    VTFilms_signOut,
     getUser:    () => window.VTFilms_USER,
+    isAdmin:    () => window.VTFilms_USER?.role === 'admin',
     _openPopup: VTFilms_openPopup,
     version:    VTFilms_VERSION,
 };
 
 
-// ── 15. KHỞI CHẠY ─────────────────────────────────────────────────────────────
+// ── 16. KHỞI CHẠY ─────────────────────────────────────────────────────────────
 VTFilms_log.info(`===== vtfilms-module.js v${VTFilms_VERSION} khởi chạy =====`);
-VTFilms_antiFlash();      // Bước 1: Tránh flash UI trước khi Firebase phản hồi
+VTFilms_antiFlash();      // Bước 1: Xử lý anti-flash trước Firebase phản hồi
 VTFilms_startListener();  // Bước 2: Lắng nghe Firebase Auth State
 VTFilms_log.info('Module khởi động xong, chờ Firebase phản hồi...');
 
