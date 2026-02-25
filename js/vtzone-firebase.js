@@ -53,7 +53,7 @@
 // IMPORT FIREBASE v10
 // Gộp toàn bộ import từ 2 files - loại bỏ trùng lặp
 // =====================
-import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
 import {
     getFirestore,
     initializeFirestore,
@@ -62,7 +62,7 @@ import {
     collection, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc,
     query, where, orderBy, onSnapshot, serverTimestamp, getDocs,
     writeBatch, increment
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 import {
     getAuth,
     GoogleAuthProvider,
@@ -71,7 +71,7 @@ import {
     signOut as firebaseSignOut,
     onAuthStateChanged,
     updateProfile
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 
 // =====================
 // CẤU HÌNH & KHỞI TẠO FIREBASE
