@@ -446,7 +446,12 @@ img {
   width: 550px;
   max-width: 100%;
   display: flex;
+  background: rgba(255,255,255,.65)
 }
+html.VT_darkMode .centerMenu {
+  background: rgba(0,0,0,.35)
+}
+
 .centerMenu a {
   height: 45px;
   display: inline-block;
@@ -1441,7 +1446,6 @@ html.VT_darkMode .vt-loading-effect-small-block {
     position: fixed;
     bottom: 0;
     left: 50%;
-    background: 0;
     backdrop-filter: blur(1em);
     border-radius: 100px;
     margin: 0 0 1em;
@@ -1637,3 +1641,4 @@ html.VT_darkMode .VTmultipleItems_postCommentWrapper .VTmultipleItems_postCommen
 }
 
 /* ========================================================================= */
+
