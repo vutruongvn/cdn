@@ -517,7 +517,7 @@ function VTFilms_showPendingOverlay(user) {
                 <div id="VTFilms-pending-icon" class="mb-3"><i class="fa-duotone fa-solid fa-hourglass-clock fa-2x text-warning fa-fade" style="--fa-animation-duration: 2s;"></i></div>
 
                 <!-- Tiêu đề -->
-                <div id="VTFilms-pending-title" class="fw-bold text-warning mb-2" style="font-size:1.1rem">
+                <div id="VTFilms-pending-title" class="fw-semibold h5 text-warning mb-2">
                     Tài khoản đang chờ xác thực
                 </div>
 
@@ -565,7 +565,7 @@ function VTFilms_showVerifySuccess() {
         const spinner = overlay.querySelector('#VTFilms-pending-spinner');
 
         if (icon)    { icon.innerHTML = '<i class="fad fa-circle-check text-success fa-2x"></i>'; icon.style.animation = 'none'; }
-        if (title)   { title.textContent = 'Xác thực thành công!'; title.className = 'fw-bold text-success mb-2'; title.style.fontSize = '1.25rem'; }
+        if (title)   { title.textContent = 'Xác thực thành công!'; title.className = 'fw-semibold h5 text-success mb-2'; }
         if (msg)     { msg.innerHTML = 'Tài khoản của bạn đã được phê duyệt'; }
         if (spinner) { spinner.innerHTML = `<i class="fad fa-spinner-third fa-spin me-2"></i>Đang tải dữ liệu`; }
 
@@ -600,7 +600,7 @@ function VTFilms_showVerifyRejected() {
         const spinner = overlay.querySelector('#VTFilms-pending-spinner');
 
         if (icon)    icon.innerHTML = '<i class="fad fa-ban fa-2x text-danger"></i>';
-        if (title)   { title.textContent = 'Tài khoản bị từ chối'; title.className = 'fw-bold text-danger mb-2'; title.style.fontSize = '1.25rem'; }
+        if (title)   { title.textContent = 'Tài khoản bị từ chối'; title.className = 'fw-semibold h5 text-danger mb-2'}
         if (msg)     msg.innerHTML = 'Liên hệ <b>Vũ Trường</b> để được hỗ trợ';
         // if (spinner) spinner.classList.add('d-none');
 		if (spinner) { spinner.innerHTML = `admin@vutruong.vn`; }
