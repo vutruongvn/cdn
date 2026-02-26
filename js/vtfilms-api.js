@@ -486,8 +486,9 @@ function renderGridSkeleton(count = 12) {
  * renderSectionSkeleton() — Skeleton placeholder cho 1 section trang chủ.
  */
 function renderSectionSkeleton() {
+    // Trả về INNER content (không có outer .movie-section wrapper).
+    // Wrapper là chính element home-section-{i} với class movie-section.
     return `
-    <div class="movie-section mb-3">
       <div class="section-title-wrapper pb-3">
         <div class="skeleton-item" style="width:200px; height:25px"></div>
       </div>
@@ -498,8 +499,7 @@ function renderSectionSkeleton() {
             <div class="skeleton-item skeleton-text my-2 mx-auto"></div>
             <div class="skeleton-item skeleton-text short mx-auto"></div>
           </div>`).join('')}
-      </div>
-    </div>`;
+      </div>`;
 }
 
 
@@ -795,9 +795,10 @@ function _buildSectionJob(item) {
  * _renderSectionHTML(job, data) — Render HTML hoàn chỉnh cho 1 section.
  */
 function _renderSectionHTML(job, data) {
+    // Trả về INNER content (không có outer .movie-section wrapper).
+    // Wrapper là chính element home-section-{i} với class movie-section.
     const top10 = data.items.slice(0, 10);
     return `
-    <div class="movie-section mb-3">
       <div class="section-title-wrapper d-flex justify-content-between align-items-center mb-3">
         <h2 class="section-title bungee h4 mb-0 py-2">${job.title}</h2>
         <button onclick="handleViewAll('${job.navType}', '${job.slug}')"
@@ -807,8 +808,7 @@ function _renderSectionHTML(job, data) {
       </div>
       <div class="movie-slider d-flex flex-nowrap overflow-x-auto gap-2 p-0">
         ${top10.map(m => renderMovieCard(m, 'card')).join('')}
-      </div>
-    </div>`;
+      </div>`;
 }
 
 /**
@@ -867,11 +867,15 @@ async function loadHomePage() {
     //   - Mỗi section còn lại: placeholder rỗng (không render skeleton ngay
     //     để tránh DOM bloat — skeleton chỉ render khi section sắp được load)
     let html = '';
+    // QUAN TRỌNG: wrapper div phải chính là .movie-section (direct child của #movieList).
+    // CSS dùng #movieList > .movie-section (direct child) và nth-of-type để apply gradient.
+    // Nếu thêm wrapper div bọc ngoài → .movie-section không còn là direct child → CSS hỏng.
     for (let i = 0; i < initial; i++) {
-        html += `<div id="home-section-${i}" data-loaded="0">${renderSectionSkeleton()}</div>`;
+        html += `<div id="home-section-${i}" class="movie-section mb-3" data-loaded="0">${renderSectionSkeleton()}</div>`;
     }
     for (let i = initial; i < total; i++) {
-        html += `<div id="home-section-${i}" data-loaded="0"></div>`;
+        // Placeholder: đã có class movie-section để nth-of-type đếm đúng thứ tự
+        html += `<div id="home-section-${i}" class="movie-section mb-3" data-loaded="0"></div>`;
     }
     container.innerHTML = html;
 
@@ -913,7 +917,7 @@ async function loadHomePage() {
         window._homeObserver.unobserve(entry.target);
 
         if (el) {
-            // Hiện skeleton trước khi fetch (trải nghiệm thị giác)
+            // Hiện skeleton trước khi fetch (el đã là .movie-section → chỉ set innerHTML)
             el.innerHTML = renderSectionSkeleton();
 
             // Delay nhỏ để skeleton hiện ra trước (animation cảm giác mượt)
