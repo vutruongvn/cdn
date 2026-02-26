@@ -46,6 +46,19 @@
 //         [OPT] Xóa hằng số không dùng: prefix parameter trong updatePageTitle
 //         [OPT] initLazyLoading: single shared IntersectionObserver thay vì
 //               tạo mới mỗi lần gọi
+//   v2.1  ── CHAIN LAZY LOADING ──
+//         [FIX] loadHomePage: CHAIN PATTERN thay vì observe tất cả sentinel cùng lúc
+//               Trước (v2.0): observe 15 sentinel → scroll nhanh → trigger nhiều section
+//               Sau  (v2.1): chỉ observe đúng 1 sentinel tại 1 thời điểm
+//               → Load xong section i → chuyển observe sang section i+1
+//               → Tuyệt đối không bao giờ load >1 section cùng lúc
+//               → Scroll đến đáy trang: vẫn tuần tự từng section +1
+//         [FIX] loadHomeSection: outerHTML → innerHTML để giữ element reference
+//               outerHTML destroy element → _homeObserver mất tham chiếu → chain đứt
+//         [OPT] rootMargin 400px → 200px: không đón đầu quá sớm
+//         [OPT] Placeholder sections: không render skeleton DOM cho section chưa cần
+//               → skeleton chỉ render khi sắp load (tiết kiệm DOM nodes ban đầu)
+//         [OPT] window._homeObserver (thay let _lazyHomeObserver) → persist qua lần gọi
 // ============================================================
 
 
@@ -818,45 +831,51 @@ async function loadHomeSection(index, containerEl) {
         return;
     }
 
-    // Fade out skeleton → render nội dung → fade in
-    containerEl.style.transition = 'opacity .2s';
+    // Fade out skeleton → render nội dung thật → fade in
+    // QUAN TRỌNG: Dùng innerHTML thay vì outerHTML để giữ nguyên element reference.
+    // outerHTML sẽ destroy element → IntersectionObserver chain bị mất tham chiếu.
+    containerEl.style.transition = 'opacity .25s ease';
     containerEl.style.opacity    = '0';
-    setTimeout(() => {
-        containerEl.outerHTML = _renderSectionHTML(job, data);
-        // outerHTML thay thế element → cần query lại để init lazy-load
-        initLazyLoading();
-        if (typeof initDragToScroll === 'function') initDragToScroll();
-        // Force opacity về 1 (element mới)
-        const newEl = document.querySelector(`.movie-section:nth-child(${index + 1})`);
-        if (newEl) { newEl.style.opacity = '1'; }
-    }, 200);
+
+    await new Promise(r => setTimeout(r, 260)); // Chờ fade out
+
+    containerEl.innerHTML = _renderSectionHTML(job, data);
+    containerEl.style.opacity = '1'; // Fade in
+
+    initLazyLoading();
+    if (typeof initDragToScroll === 'function') initDragToScroll();
 }
 
 /**
- * loadHomePage() — Tải trang chủ với lazy section loading.
+ * loadHomePage() — Tải trang chủ với lazy section loading theo chuỗi.
  *
  * Luồng:
- *   1. Render toàn bộ container: 3 skeleton trực tiếp + placeholders cho 15 section còn lại
- *   2. Load ngay 3 section đầu (qua FetchQueue)
- *   3. Dùng IntersectionObserver để tự động load section khi cuộn tới
+ *   1. Render khung: 3 skeleton trực tiếp + 1 sentinel placeholder (section kế tiếp)
+ *   2. Load 3 section đầu ngay lập tức (qua FetchQueue)
+ *   3. CHAIN PATTERN: chỉ observe đúng 1 sentinel tại một thời điểm
+ *      → Khi user cuộn tới → load section đó → đổi sentinel sang section tiếp theo
+ *      → Không bao giờ load nhiều section cùng lúc
+ *      → Scroll nhanh đến đáy: vẫn chỉ load tuần tự từng section
  */
 async function loadHomePage() {
     const container = document.getElementById(NGUONC_CONFIG.CONTAINER_ID);
     const initial   = NGUONC_CONFIG.HOME_INITIAL_COUNT;
     const total     = HOME_SECTIONS_LIST.length;
 
-    // Render khung HTML: 3 skeleton đầu + placeholder cho các section còn lại
+    // Render khung HTML:
+    //   - 3 section đầu: skeleton đầy đủ (sẽ thay bằng nội dung thật ngay)
+    //   - Mỗi section còn lại: placeholder rỗng (không render skeleton ngay
+    //     để tránh DOM bloat — skeleton chỉ render khi section sắp được load)
     let html = '';
     for (let i = 0; i < initial; i++) {
         html += `<div id="home-section-${i}" data-loaded="0">${renderSectionSkeleton()}</div>`;
     }
     for (let i = initial; i < total; i++) {
-        // Sentinel placeholder: chỉ có text nhỏ, không chiếm nhiều space
-        html += `<div id="home-section-${i}" data-loaded="0" class="home-section-sentinel" style="min-height:2px;"></div>`;
+        html += `<div id="home-section-${i}" data-loaded="0"></div>`;
     }
     container.innerHTML = html;
 
-    // Load 3 section đầu ngay lập tức (song song qua FetchQueue, có rate-limit)
+    // Load 3 section đầu song song (FetchQueue tự rate-limit)
     const initialLoads = [];
     for (let i = 0; i < initial; i++) {
         const el = document.getElementById(`home-section-${i}`);
@@ -864,31 +883,67 @@ async function loadHomePage() {
     }
     await Promise.all(initialLoads);
 
-    // Thiết lập lazy observer cho 15 section còn lại
-    // Mỗi section: khi sentinel vào viewport → load section + delay trước section kế
-    let _lazyHomeObserver = null;
-    if (_lazyHomeObserver) _lazyHomeObserver.disconnect();
+    // ── CHAIN PATTERN ─────────────────────────────────────────────────────────
+    // Chỉ observe đúng 1 sentinel tại một thời điểm.
+    // Sau khi section i load xong → observer chuyển sang observe section i+1.
+    // Đảm bảo tuyệt đối: không bao giờ load >1 section cùng lúc khi cuộn.
+    //
+    //   nextIndex = index section sắp được load kế tiếp
+    //   _isLoadingSection = guard chống trigger khi section đang load
+    //   observeNext() = hàm tái sử dụng: unobserve cũ → observe mới
+    // ─────────────────────────────────────────────────────────────────────────
 
-    _lazyHomeObserver = new IntersectionObserver(async (entries) => {
-        for (const entry of entries) {
-            if (!entry.isIntersecting) continue;
-            const el    = entry.target;
-            const index = parseInt(el.id.replace('home-section-', ''), 10);
+    let nextIndex       = initial;        // Section tiếp theo cần load
+    let _isLoadingSection = false;        // Guard: không trigger khi đang load
 
-            _lazyHomeObserver.unobserve(el); // Chỉ load 1 lần
-            await loadHomeSection(index, el);
+    // Hủy observer cũ nếu user navigate về home rồi lại về home
+    if (window._homeObserver) window._homeObserver.disconnect();
 
-            // Delay trước khi cho phép section tiếp theo load (hiệu ứng stagger)
+    window._homeObserver = new IntersectionObserver(async (entries) => {
+        // Chỉ quan tâm sentinel đang được observe (luôn chỉ có 1)
+        const entry = entries[0];
+        if (!entry.isIntersecting || _isLoadingSection) return;
+
+        _isLoadingSection = true;
+
+        const currentIndex = nextIndex;
+        const el = document.getElementById(`home-section-${currentIndex}`);
+
+        // Dừng observe sentinel hiện tại ngay lập tức
+        window._homeObserver.unobserve(entry.target);
+
+        if (el) {
+            // Hiện skeleton trước khi fetch (trải nghiệm thị giác)
+            el.innerHTML = renderSectionSkeleton();
+
+            // Delay nhỏ để skeleton hiện ra trước (animation cảm giác mượt)
             await new Promise(r => setTimeout(r, NGUONC_CONFIG.HOME_SECTION_DELAY));
+
+            // Load section thật (qua FetchQueue — có rate-limit, cache)
+            await loadHomeSection(currentIndex, el);
         }
+
+        nextIndex++;
+        _isLoadingSection = false;
+
+        // Nếu còn section tiếp → chuyển sang observe section đó
+        if (nextIndex < total) {
+            const nextEl = document.getElementById(`home-section-${nextIndex}`);
+            if (nextEl) window._homeObserver.observe(nextEl);
+        }
+        // nextIndex === total → tất cả section đã load, observer ngừng hoạt động
+
     }, {
-        rootMargin: '400px 0px', // Đón đầu 400px trước khi vào màn hình
+        // rootMargin nhỏ hơn (200px) so với v1 (400px):
+        // Chờ user cuộn gần tới section mới load, thay vì đón đầu quá sớm
+        rootMargin: '200px 0px',
         threshold:  0
     });
 
-    for (let i = initial; i < total; i++) {
-        const sentinel = document.getElementById(`home-section-${i}`);
-        if (sentinel) _lazyHomeObserver.observe(sentinel);
+    // Bắt đầu: chỉ observe section kế tiếp (index = initial)
+    if (nextIndex < total) {
+        const firstSentinel = document.getElementById(`home-section-${nextIndex}`);
+        if (firstSentinel) window._homeObserver.observe(firstSentinel);
     }
 }
 
