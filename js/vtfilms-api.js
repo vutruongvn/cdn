@@ -2,55 +2,88 @@
 // vtfilms-api.js — VT Films · Logic lấy & hiển thị dữ liệu phim
 // Nguồn API : phim.nguonc.com
 // Website   : films.vutruong.vn
+// Version   : 2.0
 // ============================================================
 //
 // MỤC LỤC
 //   0.  Lazy Load ảnh (IntersectionObserver)
 //   1.  Hằng số & cấu hình toàn cục
-//   2.  Tiện ích (slugify, displayName, fetchNguonC, updateURL)
-//   3.  Render card phim
-//   4.  Điều hướng SPA (triggerSearch, navigateToMovie, navigateToCategory)
-//   5.  Infinite Scroll (loadMoreMovies, updateBottomLoader)
-//   6.  Router (checkRoute, setupInfinitePage, renderGridSkeleton)
-//   7.  Trang chủ (HOME_SECTIONS_LIST, loadHomePage, renderHomeSkeleton)
-//   8.  Phim liên quan (loadRelatedMovies)
-//   9.  handleViewAll — điều hướng "Xem thêm"
-//  10.  Chi tiết phim (showMovieDetail, changeServer, playVideo)
-//  11.  Khởi chạy (initDynamicMenu, DOMContentLoaded, refreshHome)
+//   2.  Fetch Queue (rate limiting — chống bị block API)
+//   3.  API Cache (sessionStorage, TTL 5 phút)
+//   4.  fetchNguonC — fetch với cache + retry + abort
+//   5.  Tiện ích (slugify, getDisplayName, updateURL, updatePageTitle)
+//   6.  Render card phim & skeleton
+//   7.  Điều hướng SPA (triggerSearch, navigateToMovie, navigateToCategory)
+//   8.  Infinite Scroll (loadMoreMovies, updateBottomLoader)
+//   9.  Router (checkRoute, setupInfinitePage)
+//  10.  Trang chủ — lazy section loading (loadHomePage, loadHomeSection)
+//  11.  Phim liên quan (loadRelatedMovies)
+//  12.  handleViewAll
+//  13.  Chi tiết phim (showMovieDetail, changeServer, playVideo)
+//  14.  Khởi chạy (initDynamicMenu, DOMContentLoaded, refreshHome)
+// ============================================================
+//
+// CHANGELOG
+//   v1.x  Logic gốc: Promise.all song song toàn bộ section → server block
+//   v2.0  ── TỔNG TỐI ƯU ──
+//         [FIX] Rate limiting: FetchQueue (tối đa 3 concurrent, 220ms/request)
+//               → Ngăn bị block API do burst request đồng loạt
+//         [NEW] API Cache: sessionStorage TTL 5 phút
+//               → Không re-fetch khi navigate back/forward
+//               → Mỗi endpoint chỉ cần 1 request/5 phút
+//         [NEW] Retry logic: tự động thử lại tối đa 2 lần khi 429/503
+//               với exponential backoff (1s → 2s)
+//         [NEW] AbortController: hủy request cũ khi user navigate đi
+//               → Không còn race condition, không lãng phí bandwidth
+//         [NEW] Trang chủ lazy sections: hiện 3 section đầu ngay lập tức
+//               → IntersectionObserver tự động load thêm từng section khi scroll
+//               → Delay 300ms giữa mỗi section: không burst, có hiệu ứng mượt
+//         [NEW] setupInfinitePage: skeleton delay 600ms trước khi render
+//               → Trải nghiệm thị giác tốt hơn, giảm flash trắng
+//         [NEW] Search debounce 400ms → không fire request mỗi lần gõ phím
+//         [FIX] renderHomeSkeleton: chỉ render 3 skeleton (khớp với lazy load)
+//         [OPT] getDisplayName: cache allItems vào biến module (không tạo mới mỗi lần)
+//         [OPT] Xóa hằng số không dùng: prefix parameter trong updatePageTitle
+//         [OPT] initLazyLoading: single shared IntersectionObserver thay vì
+//               tạo mới mỗi lần gọi
 // ============================================================
 
 
 // ─────────────────────────────────────────────────────────────
 // 0. LAZY LOAD ẢNH
-//    Dùng IntersectionObserver để load ảnh khi sắp cuộn tới.
-//    Ảnh cần có class="lazy-img" và thuộc tính data-src="url".
-//    Sau khi load xong: thêm class "loaded", xóa class "lazy-img"
-//    để tránh bị observe lại ở lần gọi initLazyLoading() tiếp theo.
+//    Dùng 1 IntersectionObserver dùng chung toàn app (không tạo mới mỗi lần).
+//    Ảnh cần: class="lazy-img" + data-src="url".
+//    Sau load: thêm class "loaded", xóa "lazy-img".
 // ─────────────────────────────────────────────────────────────
+
+let _lazyObserver = null;
+
 function initLazyLoading() {
-    // Chỉ chọn những ảnh chưa được load (vẫn còn class lazy-img)
-    const images = document.querySelectorAll('.lazy-img');
-    const imageObserver = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const img = entry.target;
+    // Khởi tạo observer một lần duy nhất, tái sử dụng cho các lần gọi sau
+    if (!_lazyObserver) {
+        _lazyObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                const img     = entry.target;
                 const realSrc = img.getAttribute('data-src');
                 if (realSrc) {
                     img.src = realSrc;
-                    img.removeAttribute('data-src'); // Xóa để không bị xử lý lại
+                    img.removeAttribute('data-src');
                     img.onload = () => {
-                        img.classList.add('loaded');    // Trigger CSS fade-in
-                        img.classList.remove('lazy-img'); // Loại khỏi vòng quan sát tiếp theo
+                        img.classList.add('loaded');
+                        img.classList.remove('lazy-img');
                     };
                 }
-                observer.unobserve(img); // Dừng theo dõi ảnh sau khi đã xử lý
-            }
+                observer.unobserve(img);
+            });
+        }, {
+            rootMargin: '200px 0px', // Bắt đầu load trước 200px
+            threshold:  0.01
         });
-    }, {
-        rootMargin: '200px 0px', // Bắt đầu load trước khi cuộn tới 200px
-        threshold: 0.01
-    });
-    images.forEach(img => imageObserver.observe(img));
+    }
+
+    // Chỉ observe các ảnh chưa được load (còn class lazy-img)
+    document.querySelectorAll('.lazy-img').forEach(img => _lazyObserver.observe(img));
 }
 
 
@@ -58,52 +91,59 @@ function initLazyLoading() {
 // 1. HẰNG SỐ & CẤU HÌNH TOÀN CỤC
 // ─────────────────────────────────────────────────────────────
 
-/**
- * NGUONC_CONFIG — Cấu hình trung tâm cho API NguonC.
- * Thay đổi BASE_API tại đây nếu nguồn API đổi domain.
- */
 const NGUONC_CONFIG = {
-    BASE_API: "https://phim.nguonc.com/api/films",   // Base URL của tất cả endpoint danh sách
+    BASE_API:     'https://phim.nguonc.com/api/films',
+    DETAIL_API:   'https://phim.nguonc.com/api/film/',
     ENDPOINTS: {
-        new:      "/phim-moi-cap-nhat",              // Phim mới cập nhật
-        list:     "/danh-sach/",                     // Danh sách theo slug (phim-le, phim-bo, ...)
-        category: "/the-loai/",                      // Theo thể loại
-        country:  "/quoc-gia/",                      // Theo quốc gia
-        search:   "/search?keyword="                 // Tìm kiếm theo từ khóa
+        new:      '/phim-moi-cap-nhat',
+        list:     '/danh-sach/',
+        category: '/the-loai/',
+        country:  '/quoc-gia/',
+        search:   '/search?keyword='
     },
-    CONTAINER_ID: "movieList",   // ID của div chứa toàn bộ nội dung chính
-    DEFAULT_TITLE: "VT Films"    // Tiêu đề tab mặc định khi ở trang chủ
+    CONTAINER_ID:  'movieList',
+    DEFAULT_TITLE: 'VT Films',
+
+    // Rate limiting
+    MAX_CONCURRENT:     3,    // Tối đa 3 request chạy cùng lúc
+    MIN_DELAY_MS:       220,  // Delay tối thiểu giữa các request (ms)
+
+    // Cache
+    CACHE_TTL_MS:       5 * 60 * 1000,  // 5 phút
+
+    // UX
+    HOME_INITIAL_COUNT: 3,    // Số section hiển thị ngay khi load trang chủ
+    HOME_SECTION_DELAY: 300,  // Delay giữa mỗi section khi cuộn (ms)
+    SKELETON_DELAY_MS:  600,  // Delay skeleton cho trang category/country/search (ms)
+
+    // Retry
+    MAX_RETRIES:        2,
+    RETRY_BACKOFF_MS:   1000, // 1s → 2s (exponential)
 };
 
-/**
- * MOVIE_MENU_DATA — Dữ liệu thể loại và quốc gia để render menu nav động.
- * Thêm/xóa mục tại đây, menu sẽ tự cập nhật qua initDynamicMenu().
- */
 const MOVIE_MENU_DATA = {
     genres: [
-        "Hành Động", "Phiêu Lưu", "Hoạt Hình", "Hài", "Hình Sự",
-        "Tài Liệu", "Chính Kịch", "Gia Đình", "Giả Tưởng", "Lịch Sử",
-        "Kinh Dị", "Phim Nhạc", "Bí Ẩn", "Lãng Mạn", "Khoa Học Viễn Tưởng",
-        "Gây Cấn", "Chiến Tranh", "Tâm Lý", "Tình Cảm", "Cổ Trang",
-        "Miền Tây", "Phim 18+"
+        'Hành Động', 'Phiêu Lưu', 'Hoạt Hình', 'Hài', 'Hình Sự',
+        'Tài Liệu', 'Chính Kịch', 'Gia Đình', 'Giả Tưởng', 'Lịch Sử',
+        'Kinh Dị', 'Phim Nhạc', 'Bí Ẩn', 'Lãng Mạn', 'Khoa Học Viễn Tưởng',
+        'Gây Cấn', 'Chiến Tranh', 'Tâm Lý', 'Tình Cảm', 'Cổ Trang',
+        'Miền Tây', 'Phim 18+'
     ],
     countries: [
-        "Âu Mỹ", "Anh", "Trung Quốc", "Indonesia", "Việt Nam",
-        "Pháp", "Hồng Kông", "Hàn Quốc", "Nhật Bản", "Thái Lan",
-        "Đài Loan", "Nga", "Hà Lan", "Philippines", "Ấn Độ", "Quốc gia khác"
+        'Âu Mỹ', 'Anh', 'Trung Quốc', 'Indonesia', 'Việt Nam',
+        'Pháp', 'Hồng Kông', 'Hàn Quốc', 'Nhật Bản', 'Thái Lan',
+        'Đài Loan', 'Nga', 'Hà Lan', 'Philippines', 'Ấn Độ', 'Quốc gia khác'
     ]
 };
 
-/**
- * PAGING_STATE — Trạng thái phân trang cho chế độ Infinite Scroll.
- * Được reset mỗi khi setupInfinitePage() được gọi.
- *
- * @property {number}  currentPage     - Trang hiện tại (bắt đầu từ 1)
- * @property {boolean} isLoading       - Đang fetch API? → ngăn gọi chồng chất
- * @property {boolean} hasMore         - Còn trang tiếp theo?
- * @property {string}  currentEndpoint - Endpoint đang dùng cho infinite scroll
- * @property {boolean} isInfiniteMode  - Đang ở chế độ infinite scroll?
- */
+// Cache nội bộ cho getDisplayName (tính 1 lần, tái sử dụng)
+const _ALL_MENU_ITEMS = [
+    ...MOVIE_MENU_DATA.genres,
+    ...MOVIE_MENU_DATA.countries,
+    'Phim Lẻ', 'Phim Bộ', 'Phim Mới'
+];
+
+// Trạng thái phân trang cho infinite scroll
 const PAGING_STATE = {
     currentPage:      1,
     isLoading:        false,
@@ -114,43 +154,227 @@ const PAGING_STATE = {
 
 
 // ─────────────────────────────────────────────────────────────
-// 2. HÀM TIỆN ÍCH CHUẨN HÓA
+// 2. FETCH QUEUE — Rate Limiting
+//    Vấn đề: 18 request đồng loạt → server block tạm thời.
+//    Giải pháp: queue với tối đa MAX_CONCURRENT request song song,
+//    delay tối thiểu MIN_DELAY_MS giữa các request.
+//
+//    Cơ chế:
+//      enqueue(fn) → đưa vào hàng đợi, trả về Promise
+//      _processQueue() → chạy job tiếp theo nếu còn slot trống
+//      Sau mỗi job: delay MIN_DELAY_MS → giải phóng slot → chạy tiếp
+// ─────────────────────────────────────────────────────────────
+
+const FetchQueue = (() => {
+    const queue   = [];        // Hàng đợi job chờ
+    let   running = 0;         // Số job đang chạy hiện tại
+
+    function _processQueue() {
+        // Không làm gì nếu hết chỗ hoặc hàng đợi rỗng
+        if (running >= NGUONC_CONFIG.MAX_CONCURRENT || queue.length === 0) return;
+
+        running++;
+        const { fn, resolve, reject } = queue.shift();
+
+        fn()
+            .then(resolve)
+            .catch(reject)
+            .finally(() => {
+                // Sau khi job xong: chờ delay rồi mới nhường slot
+                setTimeout(() => {
+                    running--;
+                    _processQueue(); // Gọi job tiếp theo
+                }, NGUONC_CONFIG.MIN_DELAY_MS);
+            });
+
+        // Tiếp tục khai thác các slot còn trống (nếu có)
+        _processQueue();
+    }
+
+    return {
+        /**
+         * enqueue(fn) — Đưa async function vào queue.
+         * @param {Function} fn - async function cần chạy
+         * @returns {Promise} - resolve/reject khi fn hoàn thành
+         */
+        enqueue(fn) {
+            return new Promise((resolve, reject) => {
+                queue.push({ fn, resolve, reject });
+                _processQueue();
+            });
+        },
+
+        /** Số job đang chờ trong queue */
+        get queueLength() { return queue.length; }
+    };
+})();
+
+
+// ─────────────────────────────────────────────────────────────
+// 3. API CACHE — sessionStorage, TTL 5 phút
+//    Tránh re-fetch khi user navigate back/forward hoặc
+//    xem lại cùng trang trong 1 phiên.
+//
+//    Key: URL đầy đủ của request
+//    Value: { data: object, ts: timestamp }
+//    TTL: CACHE_TTL_MS (default 5 phút)
+// ─────────────────────────────────────────────────────────────
+
+const ApiCache = (() => {
+    const PREFIX = 'vtf_cache_';
+
+    return {
+        /**
+         * get(url) — Lấy cache nếu còn hiệu lực.
+         * @returns {object|null} — data hoặc null nếu miss/hết TTL
+         */
+        get(url) {
+            try {
+                const raw = sessionStorage.getItem(PREFIX + url);
+                if (!raw) return null;
+                const { data, ts } = JSON.parse(raw);
+                if (Date.now() - ts > NGUONC_CONFIG.CACHE_TTL_MS) {
+                    sessionStorage.removeItem(PREFIX + url); // Xóa expired
+                    return null;
+                }
+                return data;
+            } catch {
+                return null;
+            }
+        },
+
+        /**
+         * set(url, data) — Lưu vào cache.
+         * Bỏ qua lỗi QuotaExceeded (không crash vì đầy storage).
+         */
+        set(url, data) {
+            try {
+                sessionStorage.setItem(PREFIX + url, JSON.stringify({ data, ts: Date.now() }));
+            } catch {
+                // QuotaExceededError → bỏ qua, không ảnh hưởng chức năng
+            }
+        },
+
+        /** Xóa toàn bộ cache VTFilms (khi user refresh thủ công) */
+        clear() {
+            Object.keys(sessionStorage)
+                .filter(k => k.startsWith(PREFIX))
+                .forEach(k => sessionStorage.removeItem(k));
+        }
+    };
+})();
+
+
+// ─────────────────────────────────────────────────────────────
+// 4. fetchNguonC — Fetch với Cache + Rate Limiting + Retry
+//    Thứ tự xử lý:
+//      1. Kiểm tra cache → trả về ngay nếu còn hiệu lực
+//      2. Đưa vào FetchQueue (chống burst)
+//      3. Bên trong queue: fetch với AbortController
+//      4. Nếu 429/503: exponential backoff retry (tối đa MAX_RETRIES)
+//      5. Lưu kết quả vào cache
+//      6. Trả về null nếu lỗi (không throw)
+//
+//    AbortController: _currentAbortController được reset mỗi khi checkRoute()
+//    gọi _resetAbortController() → hủy mọi fetch cũ khi user navigate đi.
+// ─────────────────────────────────────────────────────────────
+
+let _currentAbortController = new AbortController();
+
+/** Reset abort controller — gọi trước mỗi navigation mới */
+function _resetAbortController() {
+    _currentAbortController.abort(); // Hủy tất cả request đang chạy
+    _currentAbortController = new AbortController();
+}
+
+/**
+ * fetchNguonC(endpoint, page) — Fetch dữ liệu từ API với đầy đủ bảo vệ.
+ *
+ * @param {string}      endpoint  - Path API hoặc URL đầy đủ
+ * @param {number|null} page      - Số trang (null = không thêm ?page=N)
+ * @param {boolean}     useQueue  - false = bypass queue (dùng cho fetch quan trọng, vd: chi tiết phim)
+ * @returns {Promise<object|null>}
+ */
+async function fetchNguonC(endpoint, page = null, useQueue = true) {
+    // Xây dựng URL đầy đủ
+    let url = endpoint.startsWith('http')
+        ? endpoint
+        : `${NGUONC_CONFIG.BASE_API}${endpoint}`;
+    if (page !== null) {
+        url += (url.includes('?') ? '&' : '?') + `page=${page}`;
+    }
+
+    // 1. Cache hit → trả về ngay, không tốn request
+    const cached = ApiCache.get(url);
+    if (cached) return cached;
+
+    // 2. Hàm fetch thực sự (có retry)
+    const doFetch = async () => {
+        const signal = _currentAbortController.signal;
+        let lastError;
+
+        for (let attempt = 0; attempt <= NGUONC_CONFIG.MAX_RETRIES; attempt++) {
+            if (signal.aborted) return null; // Navigation mới → bỏ
+
+            try {
+                if (attempt > 0) {
+                    // Exponential backoff: 1s, 2s
+                    await new Promise(r => setTimeout(r, NGUONC_CONFIG.RETRY_BACKOFF_MS * attempt));
+                }
+
+                const res = await fetch(url, { signal });
+
+                // Rate limited hoặc server quá tải → retry
+                if (res.status === 429 || res.status === 503) {
+                    lastError = new Error(`HTTP ${res.status}`);
+                    continue; // Thử lại
+                }
+
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                const data = await res.json();
+                ApiCache.set(url, data); // Lưu vào cache
+                return data;
+
+            } catch (err) {
+                if (err.name === 'AbortError') return null; // Navigation → bỏ yên lặng
+                lastError = err;
+            }
+        }
+
+        console.error('[VTFilms API] fetchNguonC thất bại sau retry:', url, lastError?.message);
+        return null;
+    };
+
+    // 3. Chạy qua queue hoặc trực tiếp
+    return useQueue ? FetchQueue.enqueue(doFetch) : doFetch();
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// 5. TIỆN ÍCH
 // ─────────────────────────────────────────────────────────────
 
 /**
- * getDisplayName(slug) — Tra cứu ngược: slug → tên hiển thị có dấu.
- * Dùng để hiển thị tiêu đề section (vd: "hanh-dong" → "Hành Động").
- * Nếu không tìm thấy trong danh sách, tự format slug thành Title Case.
- *
- * @param {string} slug - Slug cần tra cứu
- * @returns {string} Tên hiển thị đẹp
+ * getDisplayName(slug) — slug → tên hiển thị có dấu.
+ * Dùng _ALL_MENU_ITEMS đã cache thay vì tạo mảng mới mỗi lần.
  */
 function getDisplayName(slug) {
-    // Gộp tất cả mục: thể loại + quốc gia + các slug đặc biệt
-    const allItems = [
-        ...MOVIE_MENU_DATA.genres,
-        ...MOVIE_MENU_DATA.countries,
-        "Phim Lẻ", "Phim Bộ", "Phim Mới"
-    ];
-    const found = allItems.find(item => slugify(item) === slug);
+    const found = _ALL_MENU_ITEMS.find(item => slugify(item) === slug);
     if (found) return found;
-    // Fallback: format slug thành Title Case cho đẹp
     return slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
 
 /**
- * slugify(text) — Chuyển chuỗi tiếng Việt → slug URL-safe.
+ * slugify(text) — Tiếng Việt → slug URL-safe.
  * Ví dụ: "Hành Động" → "hanh-dong"
- *
- * @param {string} text
- * @returns {string}
  */
 function slugify(text) {
-    if (!text) return "";
+    if (!text) return '';
     return text.toString()
         .toLowerCase()
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') // Bỏ dấu thanh
+        .replace(/[\u0300-\u036f]/g, '')
         .replace(/đ/g, 'd').replace(/Đ/g, 'd')
         .trim()
         .replace(/\s+/g, '-')
@@ -159,376 +383,301 @@ function slugify(text) {
 }
 
 /**
- * updatePageTitle(prefix, content, isRaw) — Cập nhật <title> tab trình duyệt.
- *
- * @param {string}  prefix  - Tiền tố (không dùng trong output hiện tại, giữ lại để tương thích)
- * @param {string}  content - Nội dung (slug hoặc tên thô từ API)
- * @param {boolean} isRaw   - true: giữ nguyên content (tên phim từ API),
- *                            false: tra cứu tên đẹp qua getDisplayName()
+ * updatePageTitle(content, isRaw) — Cập nhật <title> tab.
+ * @param {string}  content - Slug hoặc tên thô từ API
+ * @param {boolean} isRaw   - true: giữ nguyên (tên phim); false: tra cứu getDisplayName
  */
-function updatePageTitle(prefix, content = "", isRaw = false) {
-    if (!content) {
-        document.title = NGUONC_CONFIG.DEFAULT_TITLE;
-        return;
-    }
-    // isRaw=true (tên phim từ API) → giữ nguyên; false (slug) → tra cứu tên có dấu
-    const displayContent = isRaw ? content : getDisplayName(content);
-    document.title = `${displayContent}`;
+function updatePageTitle(content = '', isRaw = false) {
+    if (!content) { document.title = NGUONC_CONFIG.DEFAULT_TITLE; return; }
+    document.title = isRaw ? content : getDisplayName(content);
 }
 
 /**
- * fetchNguonC(endpoint, page) — Fetch dữ liệu từ API NguonC.
- * Tự động gắn BASE_API nếu endpoint không phải URL đầy đủ.
- * Tự động thêm query ?page=N nếu có.
- * Trả về null nếu lỗi (không throw) để caller tự xử lý graceful.
- *
- * @param {string}      endpoint - Đường dẫn API hoặc URL đầy đủ
- * @param {number|null} page     - Số trang (null = không thêm param page)
- * @returns {Promise<object|null>}
- */
-async function fetchNguonC(endpoint, page = null) {
-    let finalUrl = endpoint.startsWith('http')
-        ? endpoint
-        : `${NGUONC_CONFIG.BASE_API}${endpoint}`;
-
-    if (page !== null) {
-        const separator = finalUrl.includes('?') ? '&' : '?';
-        finalUrl += `${separator}page=${page}`;
-    }
-
-    try {
-        const response = await fetch(finalUrl);
-        if (!response.ok) throw new Error("HTTP Status: " + response.status);
-        return await response.json();
-    } catch (error) {
-        // Trả null thay vì throw để tránh crash toàn bộ luồng
-        console.error('[VTFilms API] fetchNguonC lỗi:', finalUrl, error.message);
-        return null;
-    }
-}
-
-/**
- * updateURL(params) — Cập nhật query string trên URL mà không reload trang (SPA).
- * Xóa toàn bộ params cũ trước khi ghi params mới.
- *
- * @param {Object} params - Key-value pairs cần ghi vào URL
+ * updateURL(params) — Cập nhật query string không reload (SPA).
  */
 function updateURL(params = {}) {
     const url = new URL(window.location.href);
-    url.search = ""; // Reset hết query cũ
-    Object.keys(params).forEach(key => url.searchParams.set(key, params[key]));
+    url.search = '';
+    Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
     window.history.pushState({}, '', url);
 }
 
-// Xử lý nút Back/Forward của trình duyệt → re-render đúng route
+// Back/Forward trình duyệt → re-render đúng route
 window.onpopstate = () => checkRoute();
 
+// Debounce helper — tránh fire event liên tục (vd: search mỗi keystroke)
+function _debounce(fn, delay) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+    };
+}
+
 
 // ─────────────────────────────────────────────────────────────
-// 3. RENDER CARD PHIM
+// 6. RENDER CARD PHIM & SKELETON
 // ─────────────────────────────────────────────────────────────
+
+/** Placeholder GIF 1×1 trong suốt (dùng cho lazy-img) */
+const BLANK_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 /**
- * renderMovieCard(movie, mode) — Render HTML card cho 1 phim.
- *
- * @param {object} movie - Object phim từ API NguonC
- * @param {string} mode  - 'grid' (trang lưới) | 'card' (slider trang chủ)
- * @returns {string} HTML string
- *
- * Ảnh dùng kỹ thuật lazy-load:
- *   - src = placeholder GIF 1x1 trong suốt (base64)
- *   - data-src = URL thật → initLazyLoading() sẽ hoán đổi khi vào viewport
+ * renderMovieCard(movie, mode) — HTML card cho 1 phim.
+ * @param {object} movie
+ * @param {'grid'|'card'} mode
  */
 function renderMovieCard(movie, mode = 'grid') {
-    const year     = movie.category?.["3"]?.list?.[0]?.name || movie.year || '2026';
     const colClass = mode === 'grid' ? 'col' : 'movie-card-item';
-
     return `
     <div class="${colClass}">
       <div class="movie-item" title="${movie.name}"
            onclick="navigateToMovie('${movie.slug}')" style="cursor:pointer">
-
         <div class="poster-wrapper">
           <i class="fa-duotone fa-play play-overlay"></i>
-
-          <!-- Placeholder trong suốt → lazy load đổi thành ảnh thật -->
-          <img data-src="${movie.thumb_url}"
-               src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-               class="poster-img lazy-img"
-               alt="${movie.name}">
-
-          <!-- Badge chất lượng & ngôn ngữ (ẩn trên mobile) -->
+          <img data-src="${movie.thumb_url}" src="${BLANK_GIF}"
+               class="poster-img lazy-img" alt="${movie.name}">
           <div class="movie-badge position-absolute d-none d-md-block">
             <span class="text-warning fw-bold">${movie.quality || 'HD'}</span>
             <span class="text-white ms-1 border-start ps-2 border-secondary">${movie.language || 'Vietsub'}</span>
           </div>
-
-          <!-- Badge số tập hiện tại (ẩn trên mobile) -->
           <div class="movie-ep position-absolute d-none d-md-block">
             <span class="text-warning fw-normal">${movie.current_episode}</span>
           </div>
         </div>
-
         <div class="movie-info mt-2 text-center">
           <div class="movie-name text-truncate">${movie.name}</div>
           <div class="movie-origin text-secondary small text-truncate">${movie.original_name}</div>
         </div>
+      </div>
+    </div>`;
+}
 
+/**
+ * renderGridSkeleton(count) — N ô skeleton cho lưới phim.
+ * @param {number} count
+ */
+function renderGridSkeleton(count = 12) {
+    return Array(count).fill(0).map(() => `
+    <div class="col mb-4">
+      <div class="skeleton-item skeleton-poster mb-2"
+           style="width:100%; aspect-ratio:2/3; border-radius:12px;"></div>
+      <div class="skeleton-item my-2 mx-auto"
+           style="width:80%; height:16px; border-radius:4px;"></div>
+      <div class="skeleton-item mx-auto"
+           style="width:50%; height:12px; border-radius:4px;"></div>
+    </div>`).join('');
+}
+
+/**
+ * renderSectionSkeleton() — Skeleton placeholder cho 1 section trang chủ.
+ */
+function renderSectionSkeleton() {
+    return `
+    <div class="movie-section mb-3">
+      <div class="section-title-wrapper pb-3">
+        <div class="skeleton-item" style="width:200px; height:25px"></div>
+      </div>
+      <div class="d-flex gap-2 overflow-hidden">
+        ${Array(7).fill(0).map(() => `
+          <div class="skeleton-element" style="flex:1;">
+            <div class="skeleton-item skeleton-poster"></div>
+            <div class="skeleton-item skeleton-text my-2 mx-auto"></div>
+            <div class="skeleton-item skeleton-text short mx-auto"></div>
+          </div>`).join('')}
       </div>
     </div>`;
 }
 
 
 // ─────────────────────────────────────────────────────────────
-// 4. ĐIỀU HƯỚNG SPA
+// 7. ĐIỀU HƯỚNG SPA
 // ─────────────────────────────────────────────────────────────
 
-/**
- * triggerSearch() — Đọc input tìm kiếm → cập nhật URL → gọi checkRoute().
- * Yêu cầu tối thiểu 2 ký tự để tránh tìm kiếm không có nghĩa.
- */
 function triggerSearch() {
     const sInput  = document.getElementById('searchInput');
-    const keyword = sInput ? sInput.value.trim() : "";
+    const keyword = sInput ? sInput.value.trim() : '';
     if (keyword.length > 1) {
         updateURL({ search: keyword });
         checkRoute();
-        sInput.blur(); // Đóng bàn phím mobile
+        sInput.blur();
     }
 }
 
-/**
- * navigateToMovie(slug) — Điều hướng đến trang chi tiết phim.
- * Cập nhật URL với param ?watch=slug rồi gọi showMovieDetail().
- *
- * @param {string} slug - Slug phim
- */
 function navigateToMovie(slug) {
     updateURL({ watch: slug });
     showMovieDetail(slug);
 }
 
-/**
- * navigateToCategory(type, slug) — Điều hướng đến danh sách theo loại/quốc gia/danh mục.
- * Tự động đóng menu mobile sau khi điều hướng.
- *
- * @param {string} type - 'quoc-gia' | 'the-loai' | (slug danh mục khác)
- * @param {string} slug - Slug của mục đích đến
- */
 function navigateToCategory(type, slug) {
     let params = {};
-    if (type === 'quoc-gia')     params.country = slug;
-    else if (type === 'the-loai') params.type   = slug;
-    else                          params.cat     = slug || type;
-
+    if (type === 'quoc-gia')      params.country = slug;
+    else if (type === 'the-loai') params.type    = slug;
+    else                           params.cat     = slug || type;
     updateURL(params);
     checkRoute();
 
-    // Đóng menu mobile Bootstrap 5 nếu đang mở
     const navbarCollapse = document.getElementById('movieNavbar');
-    if (navbarCollapse && navbarCollapse.classList.contains('show')) {
-        const bsCollapse = bootstrap.Collapse.getInstance(navbarCollapse);
-        if (bsCollapse) bsCollapse.hide();
+    if (navbarCollapse?.classList.contains('show')) {
+        bootstrap.Collapse.getInstance(navbarCollapse)?.hide();
     }
 }
 
 
 // ─────────────────────────────────────────────────────────────
-// 5. INFINITE SCROLL
+// 8. INFINITE SCROLL
 // ─────────────────────────────────────────────────────────────
 
 /**
- * loadMoreMovies(isFirstLoad) — Tải 1 trang phim và append vào lưới.
- * Guard: thoát ngay nếu đang loading hoặc không còn trang nào.
- * Dùng Promise.all để delay tối thiểu 500ms (tránh flash skeleton quá nhanh).
- *
- * @param {boolean} isFirstLoad - true: ghi đè lưới; false: append thêm vào cuối
+ * loadMoreMovies(isFirstLoad) — Tải 1 trang phim, append vào lưới.
+ * Dùng FetchQueue nên tự động được rate-limit.
  */
 async function loadMoreMovies(isFirstLoad = false) {
     if (PAGING_STATE.isLoading || !PAGING_STATE.hasMore) return;
     PAGING_STATE.isLoading = true;
 
-    // Ẩn nút dự phòng "Tải thêm" trong khi đang fetch
     const btnLoadMore = document.getElementById('btnLoadMore');
     if (btnLoadMore) btnLoadMore.style.display = 'none';
 
-    // Hiện skeleton loading
     updateBottomLoader(true);
 
     try {
-        // Chạy song song: fetch API + delay 500ms để skeleton không nháy quá nhanh
+        // Chạy song song: fetch (qua queue) + delay tối thiểu 500ms
         const [data] = await Promise.all([
             fetchNguonC(PAGING_STATE.currentEndpoint, PAGING_STATE.currentPage),
-            new Promise(resolve => setTimeout(resolve, 500))
+            new Promise(r => setTimeout(r, 500))
         ]);
 
         const grid = document.querySelector('.movie-grid-row');
 
         if (grid && data?.items?.length > 0) {
             const html = data.items.map(m => renderMovieCard(m, 'grid')).join('');
-
-            if (isFirstLoad) {
-                grid.innerHTML = html; // Lần đầu: ghi đè skeleton
-            } else {
-                grid.insertAdjacentHTML('beforeend', html); // Tải thêm: append
-            }
+            if (isFirstLoad) grid.innerHTML = html;
+            else             grid.insertAdjacentHTML('beforeend', html);
 
             PAGING_STATE.currentPage++;
-            // Kiểm tra còn trang tiếp theo không (dựa trên total_page từ API)
             PAGING_STATE.hasMore = PAGING_STATE.currentPage <= (data.paginate?.total_page || 1);
-
         } else {
-            // Không có dữ liệu
             if (isFirstLoad && grid) {
                 grid.innerHTML = '<div class="text-danger text-center py-5 w-100">Không tìm thấy phim nào.</div>';
             }
             PAGING_STATE.hasMore = false;
         }
 
-    } catch (error) {
-        console.error('[VTFilms API] Lỗi loadMoreMovies:', error);
+    } catch (err) {
+        console.error('[VTFilms API] Lỗi loadMoreMovies:', err);
     } finally {
         PAGING_STATE.isLoading = false;
-
-        // Tắt skeleton, hiện thông báo hết kết quả nếu cần
-        const endMsg = PAGING_STATE.hasMore ? "" : "Không còn kết quả nào khác.";
-        updateBottomLoader(false, endMsg);
-        initLazyLoading(); // Kích hoạt lazy-load cho các card mới chèn vào
-
-        // Hiện lại nút dự phòng nếu còn trang
-        if (btnLoadMore && PAGING_STATE.hasMore) {
-            btnLoadMore.style.display = 'inline-block';
-        }
+        updateBottomLoader(false, PAGING_STATE.hasMore ? '' : 'Không còn kết quả nào khác.');
+        initLazyLoading();
+        if (btnLoadMore && PAGING_STATE.hasMore) btnLoadMore.style.display = 'inline-block';
     }
 }
 
 /**
- * updateBottomLoader(show, msg) — Điều khiển hiển thị skeleton / thông báo cuối trang.
- *
- * @param {boolean} show - true: hiện skeleton 12 ô; false: hiện thông báo hoặc trống
- * @param {string}  msg  - Thông báo hiện khi show=false (rỗng = ẩn luôn)
+ * updateBottomLoader(show, msg) — Điều khiển skeleton / thông báo cuối trang.
  */
-function updateBottomLoader(show, msg = "") {
+function updateBottomLoader(show, msg = '') {
     const loader = document.getElementById('bottom-loader');
     if (!loader) return;
-
     if (show) {
         loader.innerHTML = `
       <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-6 g-2 mt-1 text-start">
           ${renderGridSkeleton(12)}
-      </div>
-      <div class="py-3 text-center d-none">
-        <div class="spinner-border spinner-border-sm text-danger"></div> Đang tải thêm...
       </div>`;
     } else {
         loader.innerHTML = msg
             ? `<div class="py-4 text-center text-secondary fw-bold">${msg}</div>`
-            : "";
+            : '';
     }
 }
 
 
 // ─────────────────────────────────────────────────────────────
-// 6. ROUTER & INFINITE PAGE
+// 9. ROUTER & INFINITE PAGE
 // ─────────────────────────────────────────────────────────────
 
 /**
  * checkRoute() — Router SPA trung tâm.
- * Đọc query string trên URL → quyết định render trang nào.
- *
- * Ưu tiên xử lý (theo thứ tự):
- *   ?watch=slug   → Chi tiết phim
- *   ?search=key   → Trang tìm kiếm
- *   ?type=slug    → Danh sách thể loại
- *   ?country=slug → Danh sách quốc gia
- *   ?cat=slug     → Danh sách danh mục (phim-le, phim-bo, new, ...)
- *   (none)        → Trang chủ
+ * Ưu tiên: ?watch → ?search → ?type → ?country → ?cat → home
  */
 async function checkRoute() {
     const container = document.getElementById(NGUONC_CONFIG.CONTAINER_ID);
-    if (!container) return; // Guard: container chưa có trong DOM
+    if (!container) return;
+
+    // Hủy tất cả fetch đang chạy từ route cũ
+    _resetAbortController();
 
     const urlParams = new URLSearchParams(window.location.search);
-    container.innerHTML = '';          // Xóa nội dung cũ
+    container.innerHTML = '';
     PAGING_STATE.isInfiniteMode = false;
     window.scrollTo(0, 0);
 
     if (urlParams.has('watch')) {
-        // ── Trang chi tiết phim ──
         showMovieDetail(urlParams.get('watch'));
 
     } else if (urlParams.has('search')) {
-        // ── Kết quả tìm kiếm ──
         const key = urlParams.get('search');
-        updatePageTitle("Tìm kiếm", key, true); // Giữ nguyên keyword người dùng nhập
+        updatePageTitle(key, true);
         setupInfinitePage(
             `<i class="fa-duotone fa-search me-2"></i>Tìm kiếm: ${key}`,
             `${NGUONC_CONFIG.ENDPOINTS.search}${key}`
         );
 
     } else if (urlParams.has('type')) {
-        // ── Danh sách theo thể loại ──
         const slug = urlParams.get('type');
-        updatePageTitle("Thể loại", slug);
+        updatePageTitle(slug);
         setupInfinitePage(
             `<i class="fa-duotone fa-tags me-2"></i>Thể loại: ${getDisplayName(slug)}`,
             `${NGUONC_CONFIG.ENDPOINTS.category}${slug}`
         );
 
     } else if (urlParams.has('country')) {
-        // ── Danh sách theo quốc gia ──
         const slug = urlParams.get('country');
-        updatePageTitle("Quốc gia", slug);
+        updatePageTitle(slug);
         setupInfinitePage(
             `<i class="fa-duotone fa-earth-asia me-2"></i>Quốc gia: ${getDisplayName(slug)}`,
             `${NGUONC_CONFIG.ENDPOINTS.country}${slug}`
         );
 
     } else if (urlParams.has('cat')) {
-        // ── Danh sách theo danh mục (phim-le, phim-bo, new, ...) ──
-        const slug = urlParams.get('cat');
-        updatePageTitle("Danh mục", slug);
+        const slug     = urlParams.get('cat');
         const endpoint = (slug === 'new')
             ? NGUONC_CONFIG.ENDPOINTS.new
             : `${NGUONC_CONFIG.ENDPOINTS.list}${slug}`;
+        updatePageTitle(slug);
         setupInfinitePage(
             `<i class="fa-duotone fa-tags me-2"></i>${getDisplayName(slug)}`,
             endpoint
         );
 
     } else {
-        // ── Trang chủ ──
-        updatePageTitle("");
+        updatePageTitle('');
         loadHomePage();
     }
 }
 
 /**
  * setupInfinitePage(title, endpoint) — Chuẩn bị trang infinite scroll.
- * Reset PAGING_STATE, render khung HTML, load trang đầu, khởi tạo sentinel observer.
  *
- * @param {string} title    - Tiêu đề section (HTML string, có thể có icon)
- * @param {string} endpoint - API endpoint để fetch phim
+ * [v2.0] Thêm skeleton delay SKELETON_DELAY_MS trước khi fetch,
+ *        tạo trải nghiệm thị giác mượt mà hơn.
  */
 async function setupInfinitePage(title, endpoint) {
     const container = document.getElementById(NGUONC_CONFIG.CONTAINER_ID);
 
-    // Reset trạng thái phân trang
     PAGING_STATE.isInfiniteMode  = true;
     PAGING_STATE.currentPage     = 1;
     PAGING_STATE.hasMore         = true;
     PAGING_STATE.currentEndpoint = endpoint;
 
+    // Render skeleton ngay lập tức (không flash trắng)
     container.innerHTML = `
     <div class="infinite-wrapper">
       <h2 class="section-title mb-3 text-danger">${title}</h2>
-
-      <!-- Lưới phim (skeleton sẽ được thay bằng card thật) -->
       <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-6 g-2 movie-grid-row">
           ${renderGridSkeleton(12)}
       </div>
-
-      <!-- Khu vực phân trang: skeleton cuối + sentinel + nút dự phòng -->
       <div id="pagination-area" class="text-center py-3">
         <div id="bottom-loader"></div>
         <div id="infinite-sentinel" style="height: 20px;"></div>
@@ -541,61 +690,54 @@ async function setupInfinitePage(title, endpoint) {
       </div>
     </div>`;
 
+    // Delay skeleton (hiệu ứng thị giác + giảm flash nội dung)
+    await new Promise(r => setTimeout(r, NGUONC_CONFIG.SKELETON_DELAY_MS));
+
     // Load trang đầu tiên
     await loadMoreMovies(true);
 
-    // Thiết lập Intersection Observer cho sentinel (tự động load khi cuộn gần cuối)
-    if (window.movieObserver) window.movieObserver.disconnect(); // Hủy observer cũ trước
+    // Thiết lập sentinel observer cho auto-load khi cuộn
+    if (window.movieObserver) window.movieObserver.disconnect();
     const sentinel = document.getElementById('infinite-sentinel');
-    window.movieObserver = new IntersectionObserver((entries) => {
-        if (
-            entries[0].isIntersecting &&
-            PAGING_STATE.isInfiniteMode &&
-            !PAGING_STATE.isLoading &&
-            PAGING_STATE.hasMore
-        ) {
-            loadMoreMovies();
-        }
-    }, { rootMargin: '500px' }); // Đón đầu 500px trước khi sentinel vào viewport
-
-    window.movieObserver.observe(sentinel);
-}
-
-/**
- * renderGridSkeleton(count) — Render N ô skeleton placeholder cho lưới phim.
- * Dùng khi đang chờ API phản hồi để tránh layout shift.
- *
- * @param {number} count - Số ô skeleton cần render (mặc định 12)
- * @returns {string} HTML string
- */
-function renderGridSkeleton(count = 12) {
-    return Array(count).fill(0).map(() => `
-    <div class="col mb-4">
-      <div class="skeleton-item skeleton-poster mb-2"
-           style="width:100%; aspect-ratio:2/3; border-radius:12px;"></div>
-      <div class="skeleton-item my-2 mx-auto"
-           style="width:80%; height:16px; border-radius:4px;"></div>
-      <div class="skeleton-item mx-auto"
-           style="width:50%; height:12px; border-radius:4px;"></div>
-    </div>
-  `).join('');
+    if (sentinel) {
+        window.movieObserver = new IntersectionObserver(entries => {
+            if (
+                entries[0].isIntersecting &&
+                PAGING_STATE.isInfiniteMode &&
+                !PAGING_STATE.isLoading &&
+                PAGING_STATE.hasMore
+            ) {
+                loadMoreMovies();
+            }
+        }, { rootMargin: '500px' });
+        window.movieObserver.observe(sentinel);
+    }
 }
 
 
 // ─────────────────────────────────────────────────────────────
-// 7. TRANG CHỦ & CAROUSEL
+// 10. TRANG CHỦ — LAZY SECTION LOADING
+//
+//  [v2.0] Kiến trúc mới:
+//
+//    TRƯỚC (v1.x):
+//      Promise.all(18 requests đồng thời) → server block
+//
+//    SAU (v2.0):
+//      1. Render 3 skeleton ngay lập tức (HOME_INITIAL_COUNT)
+//      2. Load 3 section đầu qua FetchQueue (có rate-limit, cache)
+//      3. Render sentinel placeholder cho 15 section còn lại
+//      4. IntersectionObserver: khi sentinel sắp vào viewport
+//         → load section đó + delay HOME_SECTION_DELAY ms
+//      5. Mỗi section lazy: hiện skeleton → fetch → replace bằng nội dung thật
+//
+//  Lợi ích:
+//    - Không bao giờ gửi >3 request đồng thời (FetchQueue)
+//    - 15 section cuối không request nếu user không cuộn → tiết kiệm tài nguyên
+//    - Delay 300ms giữa sections: không burst, có hiệu ứng stagger đẹp
+//    - Cache: navigate back → không re-fetch
 // ─────────────────────────────────────────────────────────────
 
-/**
- * HOME_SECTIONS_LIST — Danh sách các section hiển thị trên trang chủ.
- * Mỗi section là 1 slider nằm ngang với tối đa 10 phim.
- *
- * Các type hợp lệ:
- *   'new'     → endpoint: /phim-moi-cap-nhat
- *   'search'  → endpoint: /search?keyword=slug
- *   'country' → endpoint: /quoc-gia/slug
- *   'list'    → endpoint: /danh-sach/slug (mặc định)
- */
 const HOME_SECTIONS_LIST = [
     { title: 'Phim mới cập nhật',          slug: 'new',                  type: 'new'     },
     { title: 'Phim đang chiếu',            slug: 'phim-dang-chieu',      type: 'list'    },
@@ -618,242 +760,216 @@ const HOME_SECTIONS_LIST = [
 ];
 
 /**
- * loadHomePage() — Tải toàn bộ trang chủ.
- * Chạy song song tất cả API requests + delay 1000ms (giữ skeleton đủ thời gian hiện).
- * Mỗi section hiển thị tối đa 10 phim dạng slider nằm ngang.
+ * _buildSectionJob(item) — Chuyển section config → { title, endpoint, navType, slug }.
  */
-async function loadHomePage() {
-    const container = document.getElementById(NGUONC_CONFIG.CONTAINER_ID);
+function _buildSectionJob(item) {
+    let endpoint, navType = 'cat';
+    if (item.type === 'new') {
+        endpoint = NGUONC_CONFIG.ENDPOINTS.new;
+    } else if (item.type === 'search') {
+        endpoint = `${NGUONC_CONFIG.ENDPOINTS.search}${item.slug}`;
+        navType  = 'search';
+    } else if (item.type === 'country') {
+        endpoint = `${NGUONC_CONFIG.ENDPOINTS.country}${item.slug}`;
+        navType  = 'quoc-gia';
+    } else {
+        endpoint = `${NGUONC_CONFIG.ENDPOINTS.list}${item.slug}`;
+    }
+    return { title: item.title, endpoint, navType, slug: item.slug };
+}
 
-    // Hiện skeleton tức thì để không flash trắng
-    renderHomeSkeleton();
-
-    // Xây dựng danh sách jobs: mỗi job = 1 section với endpoint tương ứng
-    const jobs = HOME_SECTIONS_LIST.map(item => {
-        let endpoint = '';
-        let navType  = 'cat'; // Param URL mặc định khi bấm "Xem thêm"
-
-        if (item.type === 'new') {
-            endpoint = NGUONC_CONFIG.ENDPOINTS.new;
-        } else if (item.type === 'search') {
-            endpoint = `${NGUONC_CONFIG.ENDPOINTS.search}${item.slug}`;
-            navType  = 'search';
-        } else if (item.type === 'country') {
-            endpoint = `${NGUONC_CONFIG.ENDPOINTS.country}${item.slug}`;
-            navType  = 'quoc-gia';
-        } else {
-            endpoint = `${NGUONC_CONFIG.ENDPOINTS.list}${item.slug}`;
-        }
-
-        return { title: item.title, endpoint, type: navType, slug: item.slug };
-    });
-
-    try {
-        // Tất cả API calls song song + đảm bảo skeleton hiện tối thiểu 1 giây
-        const [results] = await Promise.all([
-            Promise.all(jobs.map(job => fetchNguonC(job.endpoint, 1))),
-            new Promise(resolve => setTimeout(resolve, 1000))
-        ]);
-
-        container.replaceChildren(); // Xóa skeleton
-
-        results.forEach((data, i) => {
-            if (!data?.items) return; // Section không có dữ liệu → bỏ qua
-
-            const { title, type, slug } = jobs[i];
-            const sectionId  = `section-${i}`;
-            const top10      = data.items.slice(0, 10); // Tối đa 10 phim mỗi section
-
-            const sectionHtml = `
-    <div class="movie-section mb-3" id="${sectionId}">
+/**
+ * _renderSectionHTML(job, data) — Render HTML hoàn chỉnh cho 1 section.
+ */
+function _renderSectionHTML(job, data) {
+    const top10 = data.items.slice(0, 10);
+    return `
+    <div class="movie-section mb-3">
       <div class="section-title-wrapper d-flex justify-content-between align-items-center mb-3">
-        <h2 class="section-title bungee h4 mb-0 py-2">${title}</h2>
-        <div class="d-flex align-items-center gap-3">
-          <button onclick="handleViewAll('${type}', '${slug}')"
-                  class="btn-view-all btn btn-sm btn-dark d-flex align-items-center border-0 shadow-none">
-            Xem thêm
-            <i class="ms-1 fa-duotone fa-plus fa-sm"></i>
-          </button>
-        </div>
+        <h2 class="section-title bungee h4 mb-0 py-2">${job.title}</h2>
+        <button onclick="handleViewAll('${job.navType}', '${job.slug}')"
+                class="btn-view-all btn btn-sm btn-dark d-flex align-items-center border-0 shadow-none">
+          Xem thêm <i class="ms-1 fa-duotone fa-plus fa-sm"></i>
+        </button>
       </div>
-
-      <!-- Slider nằm ngang, cuộn ngang, ẩn scrollbar -->
-      <div class="movie-slider d-flex flex-nowrap overflow-x-auto gap-2 p-0"
-           id="slider-${sectionId}">
+      <div class="movie-slider d-flex flex-nowrap overflow-x-auto gap-2 p-0">
         ${top10.map(m => renderMovieCard(m, 'card')).join('')}
       </div>
     </div>`;
-
-            container.insertAdjacentHTML('beforeend', sectionHtml);
-        });
-
-        // Kích hoạt lazy-load và kéo chuột trên PC sau khi HTML đã render xong
-        setTimeout(() => {
-            initLazyLoading();
-            if (typeof initDragToScroll === 'function') initDragToScroll();
-        }, 100);
-
-    } catch (error) {
-        console.error('[VTFilms API] Lỗi loadHomePage:', error);
-        container.innerHTML = '<div class="text-center py-5 text-white">Không thể tải dữ liệu, vui lòng thử lại sau.</div>';
-    }
 }
 
 /**
- * renderHomeSkeleton() — Render skeleton placeholder cho trang chủ (10 section).
- * Gọi ngay lập tức trước khi fetch API để tránh layout trắng.
+ * loadHomeSection(index, containerEl) — Load và render 1 section trang chủ.
+ * Thay thế skeleton placeholder bằng nội dung thật.
+ *
+ * @param {number}      index       - Index trong HOME_SECTIONS_LIST
+ * @param {HTMLElement} containerEl - Element placeholder (id="home-section-{index}")
  */
-function renderHomeSkeleton() {
+async function loadHomeSection(index, containerEl) {
+    const item = HOME_SECTIONS_LIST[index];
+    if (!item || containerEl.dataset.loaded === '1') return;
+    containerEl.dataset.loaded = '1'; // Guard: không load lại
+
+    const job  = _buildSectionJob(item);
+    const data = await fetchNguonC(job.endpoint, 1);
+
+    if (!data?.items?.length) {
+        containerEl.innerHTML = ''; // Không có phim → ẩn section
+        return;
+    }
+
+    // Fade out skeleton → render nội dung → fade in
+    containerEl.style.transition = 'opacity .2s';
+    containerEl.style.opacity    = '0';
+    setTimeout(() => {
+        containerEl.outerHTML = _renderSectionHTML(job, data);
+        // outerHTML thay thế element → cần query lại để init lazy-load
+        initLazyLoading();
+        if (typeof initDragToScroll === 'function') initDragToScroll();
+        // Force opacity về 1 (element mới)
+        const newEl = document.querySelector(`.movie-section:nth-child(${index + 1})`);
+        if (newEl) { newEl.style.opacity = '1'; }
+    }, 200);
+}
+
+/**
+ * loadHomePage() — Tải trang chủ với lazy section loading.
+ *
+ * Luồng:
+ *   1. Render toàn bộ container: 3 skeleton trực tiếp + placeholders cho 15 section còn lại
+ *   2. Load ngay 3 section đầu (qua FetchQueue)
+ *   3. Dùng IntersectionObserver để tự động load section khi cuộn tới
+ */
+async function loadHomePage() {
     const container = document.getElementById(NGUONC_CONFIG.CONTAINER_ID);
+    const initial   = NGUONC_CONFIG.HOME_INITIAL_COUNT;
+    const total     = HOME_SECTIONS_LIST.length;
+
+    // Render khung HTML: 3 skeleton đầu + placeholder cho các section còn lại
     let html = '';
-    for (let i = 0; i < 10; i++) {
-        html += `
-      <div class="movie-section mb-3">
-        <div class="section-title-wrapper pb-3">
-          <div class="skeleton-item" style="width:200px; height:25px"></div>
-          <div class="d-none d-lg-block skeleton-item my-2"
-               style="width:160px; height:25px;"></div>
-          <div class="d-none d-xl-block skeleton-item"
-               style="width:120px; height:25px;"></div>
-        </div>
-        <div class="d-flex gap-2 overflow-hidden">
-          ${Array(7).fill(0).map(() => `
-            <div class="skeleton-element" style="flex:1;">
-              <div class="skeleton-item skeleton-poster"></div>
-              <div class="skeleton-item skeleton-text my-2 mx-auto"></div>
-              <div class="skeleton-item skeleton-text short mx-auto"></div>
-            </div>
-          `).join('')}
-        </div>
-      </div>`;
+    for (let i = 0; i < initial; i++) {
+        html += `<div id="home-section-${i}" data-loaded="0">${renderSectionSkeleton()}</div>`;
+    }
+    for (let i = initial; i < total; i++) {
+        // Sentinel placeholder: chỉ có text nhỏ, không chiếm nhiều space
+        html += `<div id="home-section-${i}" data-loaded="0" class="home-section-sentinel" style="min-height:2px;"></div>`;
     }
     container.innerHTML = html;
-}
 
+    // Load 3 section đầu ngay lập tức (song song qua FetchQueue, có rate-limit)
+    const initialLoads = [];
+    for (let i = 0; i < initial; i++) {
+        const el = document.getElementById(`home-section-${i}`);
+        if (el) initialLoads.push(loadHomeSection(i, el));
+    }
+    await Promise.all(initialLoads);
 
-// ─────────────────────────────────────────────────────────────
-// 8. PHIM LIÊN QUAN (trang xem phim)
-// ─────────────────────────────────────────────────────────────
+    // Thiết lập lazy observer cho 15 section còn lại
+    // Mỗi section: khi sentinel vào viewport → load section + delay trước section kế
+    let _lazyHomeObserver = null;
+    if (_lazyHomeObserver) _lazyHomeObserver.disconnect();
 
-/**
- * loadRelatedMovies(currentMovie) — Tải và hiển thị slider phim liên quan.
- * Tìm phim cùng thể loại đầu tiên (category ID "2"), loại bỏ phim đang xem.
- * Hiển thị tối đa 10 phim trong #relatedMoviesContainer.
- *
- * @param {object} currentMovie - Object phim đang xem (từ API chi tiết)
- */
-async function loadRelatedMovies(currentMovie) {
-    const genres = currentMovie.category?.["2"]?.list;
-    if (!genres || genres.length === 0) return; // Không có thể loại → bỏ qua
+    _lazyHomeObserver = new IntersectionObserver(async (entries) => {
+        for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            const el    = entry.target;
+            const index = parseInt(el.id.replace('home-section-', ''), 10);
 
-    const firstGenre = genres[0];
-    const genreSlug  = slugify(firstGenre.name);
-    const container  = document.getElementById('relatedMoviesContainer');
+            _lazyHomeObserver.unobserve(el); // Chỉ load 1 lần
+            await loadHomeSection(index, el);
 
-    try {
-        const data = await fetchNguonC(`${NGUONC_CONFIG.ENDPOINTS.category}${genreSlug}`);
-
-        if (data?.items?.length > 0) {
-            // Lọc bỏ phim đang xem để không lặp lại trong gợi ý
-            const relatedItems = data.items.filter(item => item.slug !== currentMovie.slug);
-            if (relatedItems.length === 0) return;
-
-            const limitedItems = relatedItems.slice(0, 10); // Tối đa 10
-
-            container.innerHTML = `
-        <div class="related-films-widget bg-dark-custom p-3 rounded-4">
-          <div class="section-title-wrapper d-flex justify-content-between align-items-center m-0 p-0">
-             <h2 class="section-title m-0 p-0 text-danger fs-6 fw-bold text-uppercase">
-                Có thể bạn quan tâm
-             </h2>
-             <a onclick="navigateToCategory('the-loai', '${genreSlug}')"
-                class="text-secondary small text-decoration-none cursor-pointer">
-                Xem thêm<i class="fa-duotone fa-angle-right ms-1"></i>
-             </a>
-          </div>
-          
-          <!-- Slider phim liên quan -->
-          <div class="movie-slider d-flex flex-nowrap overflow-x-auto gap-2 p-0 mt-3 scrollbar-hide">
-            ${limitedItems.map(m => renderMovieCard(m, 'card')).join('')}
-          </div>
-        </div>
-      `;
-
-            initLazyLoading();
-            if (typeof initDragToScroll === 'function') initDragToScroll();
-
-        } else {
-            container.innerHTML = ''; // Không có dữ liệu → ẩn container
+            // Delay trước khi cho phép section tiếp theo load (hiệu ứng stagger)
+            await new Promise(r => setTimeout(r, NGUONC_CONFIG.HOME_SECTION_DELAY));
         }
-    } catch (e) {
-        console.error('[VTFilms API] Lỗi loadRelatedMovies:', e);
-        container.innerHTML = '';
+    }, {
+        rootMargin: '400px 0px', // Đón đầu 400px trước khi vào màn hình
+        threshold:  0
+    });
+
+    for (let i = initial; i < total; i++) {
+        const sentinel = document.getElementById(`home-section-${i}`);
+        if (sentinel) _lazyHomeObserver.observe(sentinel);
     }
 }
 
 
 // ─────────────────────────────────────────────────────────────
-// 9. handleViewAll — NÚT "XEM THÊM" TRÊN TRANG CHỦ
+// 11. PHIM LIÊN QUAN
 // ─────────────────────────────────────────────────────────────
 
 /**
- * handleViewAll(type, slug) — Xử lý click nút "Xem thêm" của mỗi section.
- *
- * Logic:
- *   - type === 'search' → Dùng window.location (full reload) vì SPA không hỗ trợ
- *                         tốt keyword tìm kiếm khi back/forward.
- *   - type khác        → SPA mode: pushState + checkRoute() (không reload).
- *
- * @param {string} type - 'cat' | 'quoc-gia' | 'search'
- * @param {string} slug - Slug đích
+ * loadRelatedMovies(currentMovie) — Slider phim cùng thể loại.
+ * Loại bỏ phim đang xem, hiển thị tối đa 10 phim.
  */
+async function loadRelatedMovies(currentMovie) {
+    const genres = currentMovie.category?.['2']?.list;
+    if (!genres?.length) return;
+
+    const genreSlug = slugify(genres[0].name);
+    const container = document.getElementById('relatedMoviesContainer');
+    if (!container) return;
+
+    const data = await fetchNguonC(`${NGUONC_CONFIG.ENDPOINTS.category}${genreSlug}`);
+    if (!data?.items?.length) { container.innerHTML = ''; return; }
+
+    const related = data.items.filter(m => m.slug !== currentMovie.slug).slice(0, 10);
+    if (!related.length) { container.innerHTML = ''; return; }
+
+    container.innerHTML = `
+    <div class="related-films-widget bg-dark-custom p-3 rounded-4">
+      <div class="section-title-wrapper d-flex justify-content-between align-items-center m-0 p-0">
+        <h2 class="section-title m-0 p-0 text-danger fs-6 fw-bold text-uppercase">Có thể bạn quan tâm</h2>
+        <a onclick="navigateToCategory('the-loai', '${genreSlug}')"
+           class="text-secondary small text-decoration-none cursor-pointer">
+          Xem thêm<i class="fa-duotone fa-angle-right ms-1"></i>
+        </a>
+      </div>
+      <div class="movie-slider d-flex flex-nowrap overflow-x-auto gap-2 p-0 mt-3 scrollbar-hide">
+        ${related.map(m => renderMovieCard(m, 'card')).join('')}
+      </div>
+    </div>`;
+
+    initLazyLoading();
+    if (typeof initDragToScroll === 'function') initDragToScroll();
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// 12. handleViewAll — NÚT "XEM THÊM"
+// ─────────────────────────────────────────────────────────────
+
 window.handleViewAll = function(type, slug) {
-    // Search: dùng hard reload để URL sạch và back/forward hoạt động đúng
     if (type === 'search') {
         window.location.href = `?search=${encodeURIComponent(slug)}`;
         return;
     }
 
-    // SPA mode cho category và country
     const paramKey = (type === 'quoc-gia') ? 'country' : 'cat';
-    const newUrl   = `?${paramKey}=${slug}`;
-
-    window.history.pushState({ type, slug }, '', newUrl);
+    window.history.pushState({ type, slug }, '', `?${paramKey}=${slug}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Hiện spinner tạm thời trong container
     const container = document.getElementById(NGUONC_CONFIG.CONTAINER_ID);
-    if (container) {
-        container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border text-danger"></div></div>';
-    }
+    if (container) container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border text-danger"></div></div>';
 
     checkRoute();
 };
 
 
 // ─────────────────────────────────────────────────────────────
-// 10. CHI TIẾT PHIM
+// 13. CHI TIẾT PHIM
 // ─────────────────────────────────────────────────────────────
 
-/** currentMovieData — Lưu object phim đang xem (dùng bởi changeServer, playVideo). */
 let currentMovieData = null;
 
 /**
- * showMovieDetail(slug) — Tải và render trang chi tiết phim.
- * Luồng:
- *   1. Hiện skeleton loading
- *   2. Fetch chi tiết phim từ API
- *   3. Lưu lịch sử xem (nếu MovieHistoryManager tồn tại)
- *   4. Render HTML đầy đủ (player + info + server list + danh sách tập)
- *   5. Kích hoạt lazy-load + tải phim liên quan
- *
- * @param {string} slug - Slug phim
+ * showMovieDetail(slug) — Render trang chi tiết phim.
+ * Fetch không qua queue (useQueue=false) để ưu tiên tốc độ.
  */
 async function showMovieDetail(slug) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     const container = document.getElementById(NGUONC_CONFIG.CONTAINER_ID);
 
-    // ── Skeleton loading chi tiết phim ──
+    // Skeleton
     container.innerHTML = `
     <div class="movie-detail-wrapper">
       <div class="detail-content row g-3">
@@ -872,7 +988,6 @@ async function showMovieDetail(slug) {
             <div class="skeleton-item skeleton-text w-75"></div>
           </div>
         </div>
-        
         <div class="rightSidebar_movieDetail col-xl-3 col-lg-4 col-md-5 col-12">
           <div class="skeleton-item skeleton-poster shadow-sm"></div>
           <div class="bg-dark-custom p-3 rounded-4 mb-3">
@@ -882,27 +997,29 @@ async function showMovieDetail(slug) {
             <div class="skeleton-item skeleton-text w-100"></div>
           </div>
           <div class="bg-dark-custom p-3 rounded-4">
-             <div class="skeleton-item skeleton-text w-50 mb-3"></div>
-             <div class="row g-2">
-                ${Array(8).fill('<div class="col-3"><div class="skeleton-item" style="height:35px"></div></div>').join('')}
-             </div>
+            <div class="skeleton-item skeleton-text w-50 mb-3"></div>
+            <div class="row g-2">
+               ${Array(8).fill('<div class="col-3"><div class="skeleton-item" style="height:35px"></div></div>').join('')}
+            </div>
           </div>
         </div>
       </div>
     </div>`;
 
-    // ── Fetch chi tiết phim ──
-    const res   = await fetchNguonC(`https://phim.nguonc.com/api/film/${slug}`);
+    // Fetch không qua queue (ưu tiên cao — user đang chờ)
+    const res   = await fetchNguonC(`${NGUONC_CONFIG.DETAIL_API}${slug}`, null, false);
     const movie = res?.movie;
-    if (!movie) return; // API không trả về phim → giữ skeleton (không crash)
+    if (!movie) {
+        container.innerHTML = '<div class="text-center py-5 text-danger">Không thể tải phim, vui lòng thử lại.</div>';
+        return;
+    }
 
     currentMovieData = movie;
-    updatePageTitle("", movie.name, true); // Tên phim từ API → isRaw=true
+    updatePageTitle(movie.name, true);
 
-    // Helper: lấy tên danh mục theo ID
-    const getCat = (id) => movie.category?.[id]?.list.map(i => i.name).join(', ') || 'N/A';
+    const getCat = id => movie.category?.[id]?.list.map(i => i.name).join(', ') || 'N/A';
 
-    // ── Lưu lịch sử xem (nếu module MovieHistoryManager đã tải) ──
+    // Lưu lịch sử xem
     if (typeof MovieHistoryManager !== 'undefined') {
         MovieHistoryManager.add({
             slug:      movie.slug,
@@ -910,225 +1027,164 @@ async function showMovieDetail(slug) {
             thumb_url: movie.poster_url,
             quality:   movie.quality  || 'HD',
             lang:      movie.language || 'Vietsub',
-            category:  getCat("2"),
+            category:  getCat('2'),
             url:       window.location.href
         });
     }
 
-    // ── Render HTML chi tiết phim ──
     container.innerHTML = `
     <div class="movie-detail-wrapper">
-  <div class="detail-content row g-3">
-    <div class='leftPlayerContainer col-xl-9 col-lg-8 col-md-7 col-12'>
-      <div id="playerBox" class="rounded-4 shadow-lg mb-3"></div>
-      <div class="">
-        <div class="rounded-4 text-secondary bg-dark-custom p-3">
-          <h1 class="fs-5 text-danger text-uppercase fw-bold mb-2">${movie.name}</h1>
-          <h2 class="fs-6 fw-normal text-secondary mb-3">${movie.original_name}</h2>
-          <div class='film-description'>
-            <div class='mb-3 d-flex flex-wrap gap-1 pt-3'>
-              <span class="badge bg-danger fw-normal chat-luong">${movie.quality}</span>
-              <span class="badge bg-success fw-normal trang-thai">${movie.current_episode}</span>
-              <span class="badge bg-primary fw-normal thoi-luong">${movie.time || 'N/A'}</span>
-              <a onclick="shareNative()" class="badge bg-warning text-dark fw-normal"
-                 title="Chia sẻ phim">Chia sẻ</a>
+      <div class="detail-content row g-3">
+        <div class="leftPlayerContainer col-xl-9 col-lg-8 col-md-7 col-12">
+          <div id="playerBox" class="rounded-4 shadow-lg mb-3"></div>
+          <div class="rounded-4 text-secondary bg-dark-custom p-3">
+            <h1 class="fs-5 text-danger text-uppercase fw-bold mb-2">${movie.name}</h1>
+            <h2 class="fs-6 fw-normal text-secondary mb-3">${movie.original_name}</h2>
+            <div class="film-description">
+              <div class="mb-3 d-flex flex-wrap gap-1 pt-3">
+                <span class="badge bg-danger fw-normal">${movie.quality}</span>
+                <span class="badge bg-success fw-normal">${movie.current_episode}</span>
+                <span class="badge bg-primary fw-normal">${movie.time || 'N/A'}</span>
+                <a onclick="shareNative()" class="badge bg-warning text-dark fw-normal" title="Chia sẻ">Chia sẻ</a>
+              </div>
+              <div class="film-meta-descript" style="text-align:justify">${movie.description}</div>
             </div>
-            <div class='film-meta-descript' style='text-align:justify'>${movie.description}</div>
+          </div>
+        </div>
+
+        <div class="rightSidebar_movieDetail col-xl-3 col-lg-4 col-md-5 col-12">
+          <div class="film-thumb mb-3">
+            <img class="w-100 rounded-4 shadow lazy-img"
+                 src="${BLANK_GIF}" data-src="${movie.thumb_url}" />
+          </div>
+
+          <div class="movie-full-info p-3 bg-dark-custom rounded-4">
+            <h4 class="text-danger fs-6 fw-bold mb-3 text-uppercase">Thông tin phim</h4>
+            <div class="movie-full-info text-secondary">
+              <div class="info-item"><i class="fa-duotone fa-calendar me-1"></i>
+                <span class="fw-bold">Năm</span><span class="mx-0">•</span>
+                <span class="getInfo">${getCat('3')}</span></div>
+              <div class="info-item"><i class="fa-duotone fa-earth-asia me-1"></i>
+                <span class="fw-bold">Quốc gia</span><span class="mx-0">•</span>
+                <span class="getInfo">${getCat('4')}</span></div>
+              <div class="info-item"><i class="fa-duotone fa-closed-captioning me-1"></i>
+                <span class="fw-bold">Phiên bản</span><span class="mx-0">•</span>
+                <span class="getInfo">${movie.language}</span></div>
+              <div class="info-item"><i class="fa-duotone fa-tags me-1"></i>
+                <span class="fw-bold">Thể loại</span><span class="mx-0">•</span>
+                <span class="getInfo" title="${getCat('2')}">${getCat('2')}</span></div>
+              <div class="info-item"><i class="fa-duotone fa-film me-1"></i>
+                <span class="fw-bold">Phân loại</span><span class="mx-0">•</span>
+                <span class="getInfo">${getCat('1')}</span></div>
+              <div class="info-item"><i class="fa-duotone fa-user me-1"></i>
+                <span class="fw-bold">Đạo diễn</span><span class="mx-0">•</span>
+                <span class="getInfo">${movie.director || 'N/A'}</span></div>
+              <div class="info-item"><i class="fa-duotone fa-users me-1"></i>
+                <span class="fw-bold">Diễn viên</span><span class="mx-0">•</span>
+                <span class="getInfo" title="${movie.casts || 'N/A'}">${movie.casts || 'N/A'}</span></div>
+            </div>
+          </div>
+
+          <div class="rounded-4 bg-dark-custom server-selection text-secondary p-3 my-3 fw-bold">
+            <div class="p-0 m-0 fs-6 fw-bold text-danger text-uppercase">Phiên bản</div>
+            <div class="d-flex gap-2 mt-3" id="serverList">
+              ${movie.episodes.map((server, i) => `
+                <button class="outline-0 border-0 bg-transparent btn-change-server rounded-4 ${i === 0 ? 'active' : ''}"
+                        onclick="changeServer(${i}, this)">
+                  <img class="w-100 h-100 object-fit-cover lazy-img"
+                       src="${BLANK_GIF}" data-src="${movie.poster_url}" />
+                  <span class="server_name">${server.server_name}</span>
+                </button>`).join('')}
+            </div>
+          </div>
+
+          <div class="rounded-4 episode-selection bg-dark-custom text-secondary p-3">
+            <div class="fs-6 fw-bold text-danger text-uppercase">Danh sách Tập</div>
+            <div class="episode-list mt-3" id="episodeList"></div>
+          </div>
+
+          <div class="film-poster mt-3">
+            <img class="w-100 rounded-4 shadow lazy-img"
+                 src="${BLANK_GIF}" data-src="${movie.poster_url}" />
           </div>
         </div>
       </div>
-    </div>
 
-    <div class='rightSidebar_movieDetail col-xl-3 col-lg-4 col-md-5 col-12'>
-      <div class="film-thumb mb-3">
-        <img class="w-100 rounded-4 shadow lazy-img"
-             src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-             data-src="${movie.thumb_url}" />
-      </div>
+      <div id="relatedMoviesContainer" class="mt-3"></div>
+    </div>`;
 
-      <div class="movie-full-info p-3 bg-dark-custom rounded-4">
-        <h4 class='text-danger fs-6 fw-bold mb-3 text-uppercase'>Thông tin phim</h4>
-        <div class="movie-full-info text-secondary">
-          <div class="info-item">
-            <i class="fa-duotone fa-calendar me-1"></i>
-            <span class="fw-bold">Năm</span><span class='mx-0'>•</span>
-            <span class='getInfo'>${getCat("3")}</span>
-          </div>
-          <div class="info-item">
-            <i class="fa-duotone fa-earth-asia me-1"></i>
-            <span class="fw-bold">Quốc gia</span><span class='mx-0'>•</span>
-            <span class='getInfo'>${getCat("4")}</span>
-          </div>
-          <div class="info-item">
-            <i class="fa-duotone fa-closed-captioning me-1"></i>
-            <span class="fw-bold">Phiên bản</span><span class='mx-0'>•</span>
-            <span class='getInfo'>${movie.language}</span>
-          </div>
-          <div class="info-item">
-            <i class="fa-duotone fa-tags me-1"></i>
-            <span class="fw-bold">Thể loại</span><span class='mx-0'>•</span>
-            <span class='getInfo' title='${getCat("2")}'>${getCat("2")}</span>
-          </div>
-          <div class="info-item">
-            <i class="fa-duotone fa-film me-1"></i>
-            <span class="fw-bold">Phân loại</span><span class='mx-0'>•</span>
-            <span class='getInfo'>${getCat("1")}</span>
-          </div>
-          <div class="info-item">
-            <i class="fa-duotone fa-user me-1"></i>
-            <span class="fw-bold">Đạo diễn</span><span class='mx-0'>•</span>
-            <span class='getInfo'>${movie.director || 'N/A'}</span>
-          </div>
-          <div class="info-item">
-            <i class="fa-duotone fa-users me-1"></i>
-            <span class="fw-bold">Diễn viên</span><span class='mx-0'>•</span>
-            <span class='getInfo' title='${movie.casts || 'N/A'}'>${movie.casts || 'N/A'}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Chọn phiên bản (Vietsub, Thuyết minh, ...) -->
-      <div class="rounded-4 bg-dark-custom server-selection text-secondary p-3 my-3 fw-bold">
-        <div class="p-0 m-0 fs-6 fw-bold text-danger text-uppercase">Phiên bản</div>
-        <div class="d-flex gap-2 mt-3" id="serverList">
-          ${movie.episodes.map((server, index) => `
-            <button class="outline-0 border-0 bg-transparent btn-change-server rounded-4 ${index === 0 ? 'active' : ''}"
-                    onclick="changeServer(${index}, this)">
-              <img class="w-100 h-100 object-fit-cover lazy-img"
-                   src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                   data-src="${movie.poster_url}" />
-              <span class="server_name">${server.server_name}</span>
-            </button>
-          `).join('')}
-        </div>
-      </div>
-
-      <!-- Danh sách tập -->
-      <div class="rounded-4 episode-selection bg-dark-custom text-secondary p-3">
-        <div class="fs-6 fw-bold text-danger text-uppercase">Danh sách Tập</div>
-        <div class="episode-list mt-3" id="episodeList"></div>
-      </div>
-
-      <!-- Poster lớn -->
-      <div class="film-poster mt-3">
-        <img class="w-100 rounded-4 shadow lazy-img"
-             src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-             data-src="${movie.poster_url}" />
-      </div>
-    </div>
-  </div>
-
-    <!-- Container phim liên quan (được điền bởi loadRelatedMovies) -->
-    <div id="relatedMoviesContainer" class="mt-3"></div>
-</div>`;
-
-    // Kích hoạt server đầu tiên (cũng tự động chọn tập theo URL nếu có ?tap=N)
     changeServer(0);
     initLazyLoading();
     loadRelatedMovies(movie);
 }
 
-
 /**
- * changeServer(serverIndex, el) — Chuyển đổi phiên bản phim (Vietsub / Thuyết minh / ...).
- * Render lại danh sách tập tương ứng với server đã chọn.
- * Tự động chọn đúng tập từ URL (?tap=N) hoặc mặc định tập 1.
- *
- * @param {number}      serverIndex - Index server trong mảng episodes
- * @param {HTMLElement} el          - Nút server được click (để cập nhật class active)
+ * changeServer(serverIndex, el) — Đổi phiên bản (Vietsub / Thuyết minh / ...).
  */
 function changeServer(serverIndex, el) {
-    if (!currentMovieData || !currentMovieData.episodes[serverIndex]) return;
+    if (!currentMovieData?.episodes[serverIndex]) return;
 
-    // Cập nhật class active trên nút server
     if (el) {
-        document.querySelectorAll('#serverList button').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('#serverList button').forEach(b => b.classList.remove('active'));
         el.classList.add('active');
     }
 
-    const episodes         = currentMovieData.episodes[serverIndex].items;
-    const episodeContainer = document.getElementById('episodeList');
-    const isSingleEpisode  = episodes.length <= 1;
+    const episodes  = currentMovieData.episodes[serverIndex].items;
+    const epCont    = document.getElementById('episodeList');
+    const isSingle  = episodes.length <= 1;
 
-    // Layout khác nhau cho phim lẻ vs phim bộ
-    if (isSingleEpisode) {
-        episodeContainer.classList.add('single-episode-layout');
-        episodeContainer.classList.remove('grid-episode-layout');
-        episodeContainer.style.display = 'block';
+    if (isSingle) {
+        epCont.classList.add('single-episode-layout');
+        epCont.classList.remove('grid-episode-layout');
+        epCont.style.display = 'block';
     } else {
-        episodeContainer.classList.add('grid-episode-layout');
-        episodeContainer.classList.remove('single-episode-layout');
+        epCont.classList.add('grid-episode-layout');
+        epCont.classList.remove('single-episode-layout');
     }
 
-    // Render các nút chọn tập
-    episodeContainer.innerHTML = episodes.map((ep, i) => {
-        const extraClass = isSingleEpisode ? 'px-4 py-2 w-auto' : '';
+    epCont.innerHTML = episodes.map((ep, i) => {
+        const extra = isSingle ? 'px-4 py-2 w-auto' : '';
         return `
-      <button class="btn btn-outline-danger btn-episode ${extraClass}"
-              id="ep-${i}"
+      <button class="btn btn-outline-danger btn-episode ${extra}" id="ep-${i}"
               onclick="window.scrollTo({top:0, behavior:'smooth'}); playVideo('${ep.embed}', this)">
           ${ep.name}
       </button>`;
     }).join('');
 
-    // Chọn đúng tập từ URL (?tap=N) hoặc mặc định tập đầu
     if (episodes.length > 0) {
-        const urlParams  = new URLSearchParams(window.location.search);
-        const targetTap  = urlParams.get('tap');
-        const allButtons = episodeContainer.querySelectorAll('.btn-episode');
-
-        // Tìm nút có tên tập khớp với URL
-        let targetButton = Array.from(allButtons).find(btn => btn.innerText.trim() === targetTap);
-        if (!targetButton) targetButton = document.getElementById('ep-0'); // Fallback: tập 1
-
-        if (targetButton) {
-            const btnIndex    = targetButton.id.replace('ep-', '');
-            const correctEmbed = episodes[btnIndex].embed;
-            playVideo(correctEmbed, targetButton);
-            // Không scrollIntoView để tránh tự động cuộn xuống khi mới vào trang
-        }
+        const targetTap = new URLSearchParams(window.location.search).get('tap');
+        const allBtns   = epCont.querySelectorAll('.btn-episode');
+        let   target    = Array.from(allBtns).find(b => b.innerText.trim() === targetTap);
+        if (!target) target = document.getElementById('ep-0');
+        if (target) playVideo(episodes[target.id.replace('ep-', '')].embed, target);
     }
 }
 
-
 /**
- * playVideo(url, el) — Load URL embed vào #playerBox và cập nhật URL với ?tap=N.
- * Dùng replaceState (không pushState) để không làm rối lịch sử trình duyệt.
- *
- * @param {string}      url - URL embed của tập phim
- * @param {HTMLElement} el  - Nút tập được click (để cập nhật class active + lấy tên tập)
+ * playVideo(url, el) — Load iframe vào #playerBox, cập nhật ?tap= trên URL.
  */
 function playVideo(url, el) {
     const box = document.getElementById('playerBox');
     if (box) box.innerHTML = `<iframe src="${url}" allowfullscreen></iframe>`;
 
     if (el) {
-        // Cập nhật class active trên danh sách tập
         document.querySelectorAll('.btn-episode').forEach(b => b.classList.remove('active'));
         el.classList.add('active');
 
-        // Cập nhật ?tap=N trên URL (replaceState để không push vào lịch sử)
         const episode   = el.innerText.trim();
         const urlParams = new URLSearchParams(window.location.search);
-
         if (urlParams.get('tap') !== episode) {
             urlParams.set('tap', episode);
-            const newUrl = window.location.pathname + '?' + urlParams.toString();
-            window.history.replaceState({ episode }, '', newUrl);
+            window.history.replaceState({ episode }, '', window.location.pathname + '?' + urlParams.toString());
         }
     }
 }
 
 
 // ─────────────────────────────────────────────────────────────
-// 11. KHỞI CHẠY
+// 14. KHỞI CHẠY
 // ─────────────────────────────────────────────────────────────
 
-/**
- * initDynamicMenu() — Render động menu Thể loại và Quốc gia từ MOVIE_MENU_DATA.
- * Gọi 1 lần duy nhất khi trang load xong.
- * Mục tiêu: không hardcode HTML menu, chỉ cần sửa MOVIE_MENU_DATA để cập nhật.
- */
 function initDynamicMenu() {
     const genreMenu   = document.getElementById('menu-the-loai');
     const countryMenu = document.getElementById('menu-quoc-gia');
@@ -1148,76 +1204,56 @@ function initDynamicMenu() {
     }
 }
 
-/**
- * DOMContentLoaded — Entry point khởi chạy toàn bộ ứng dụng.
- * Thứ tự: render menu → check route → gắn event listener tìm kiếm + đóng menu mobile.
- */
 document.addEventListener('DOMContentLoaded', () => {
-    initDynamicMenu(); // Render menu nav động
-    checkRoute();      // Xác định trang cần hiện dựa trên URL hiện tại
+    initDynamicMenu();
+    checkRoute();
 
-    // Gắn event tìm kiếm
-    const sInput = document.getElementById('searchInput');
-    const sBtn   = document.getElementById('searchBtn');
+    // Search: debounce 400ms để không fire request mỗi keystroke
+    const sInput  = document.getElementById('searchInput');
+    const sBtn    = document.getElementById('searchBtn');
+    const _search = _debounce(triggerSearch, 400);
+
     if (sInput && sBtn) {
-        sBtn.onclick         = () => triggerSearch();
-        sInput.onkeyup       = (e) => { if (e.key === 'Enter') triggerSearch(); };
+        sBtn.onclick   = triggerSearch; // Nút bấm → không cần debounce
+        sInput.onkeyup = e => { if (e.key === 'Enter') triggerSearch(); else _search(); };
     }
 
-    // Đóng menu mobile khi click ra ngoài (Bootstrap 5)
-    document.addEventListener('click', function(event) {
+    // Đóng menu mobile khi click ra ngoài
+    document.addEventListener('click', e => {
         const navbarCollapse = document.getElementById('movieNavbar');
         const navbarToggler  = document.querySelector('.navbar-toggler');
-
-        if (navbarCollapse && navbarCollapse.classList.contains('show')) {
-            if (
-                !navbarCollapse.contains(event.target) &&
-                !navbarToggler.contains(event.target)
-            ) {
-                const bsCollapse = bootstrap.Collapse.getInstance(navbarCollapse);
-                if (bsCollapse) {
-                    bsCollapse.hide();
-                } else {
-                    // Fallback nếu instance Bootstrap chưa khởi tạo
-                    new bootstrap.Collapse(navbarCollapse).hide();
-                }
-            }
+        if (navbarCollapse?.classList.contains('show') &&
+            !navbarCollapse.contains(e.target) &&
+            !navbarToggler?.contains(e.target)) {
+            const bsCollapse = bootstrap.Collapse.getInstance(navbarCollapse);
+            if (bsCollapse) bsCollapse.hide();
+            else new bootstrap.Collapse(navbarCollapse).hide();
         }
     });
 });
 
 /**
- * refreshHome() — Reset toàn bộ UI về trang chủ.
- * Gọi khi user click logo hoặc nút "Trang chủ".
- * Thực hiện: xóa query URL → reset title → scroll lên → xóa search → đóng menu → load home.
+ * refreshHome() — Reset về trang chủ (click logo).
  */
 function refreshHome() {
-    // Xóa query string, giữ lại pathname (SPA mode)
     window.history.pushState({}, '', window.location.pathname);
-
-    document.title = "VT Films";
+    document.title = 'VT Films';
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Reset ô tìm kiếm
-    const searchInput = document.querySelector('#searchInput') || document.querySelector('input[name="q"]');
-    if (searchInput) {
-        searchInput.value = '';
-        searchInput.blur();
-    }
+    const searchInput = document.querySelector('#searchInput');
+    if (searchInput) { searchInput.value = ''; searchInput.blur(); }
 
-    // Đóng menu mobile nếu đang mở
     const navbarCollapse = document.querySelector('.navbar-collapse.show');
     if (navbarCollapse) {
-        const bsCollapse = bootstrap.Collapse.getInstance(navbarCollapse);
-        if (bsCollapse) {
-            bsCollapse.hide();
-        } else {
-            navbarCollapse.classList.remove('show'); // Fallback
-        }
+        const bsc = bootstrap.Collapse.getInstance(navbarCollapse);
+        if (bsc) bsc.hide();
+        else navbarCollapse.classList.remove('show');
     }
 
-    // Load lại dữ liệu trang chủ
-    if (typeof loadHomePage === 'function') loadHomePage();
+    // Clear cache nếu muốn force refresh dữ liệu
+    // ApiCache.clear(); // Bỏ comment dòng này nếu muốn luôn lấy data mới khi về home
+
+    loadHomePage();
 }
 
 
