@@ -22,95 +22,82 @@
  *                      createdAt, lastLoginAt
  *        [NEW] Phân quyền admin / user, logic write 3 mức, 0 reads
  *  v6.0  [NEW] Hệ thống xác minh user (Verification Gate)
- *        ── User side ──
- *        [NEW] Sau login, user thường phải chờ admin xác minh trước khi dùng app
- *        [NEW] Overlay "Chờ xác minh" — hiện thay vì app, tồn tại qua reload/thoát
- *        [NEW] Realtime onSnapshot trên users/{uid} → khi admin duyệt → hiệu ứng
- *              thành công → reload tự động → vào app bình thường
- *        [NEW] Overlay "Bị từ chối" khi admin reject
- *        ── Admin side ──
- *        [NEW] Dropdown Bootstrap realtime — danh sách user đang chờ xác minh
- *        [NEW] Nút "Chấp nhận" → updateDoc verifiedUser: true (realtime phía user)
- *        [NEW] Nút "Từ chối" → updateDoc verifiedUser: "rejected"
- *        [NEW] Hiển thị tối đa 5 user, nút "Tải thêm" khi có nhiều hơn
- *        [NEW] Badge đếm số user đang chờ trên icon chuông
- *        ── Firestore ──
- *        [NEW] Field verifiedUser: false (default) | true (approved) | "rejected"
- *        [NEW] Admin bypass xác minh hoàn toàn
- *        [OPT] localStorage cache trạng thái xác minh — không đọc Firestore khi reload
- *              → 'approved': show app ngay, không cần listener
- *              → 'pending': show pending overlay ngay + start onSnapshot listener
- *              → 'rejected': show rejection overlay ngay, không cần listener
- *        [UPD] Firestore Security Rules cập nhật đầy đủ (xem cuối file)
+ *  v6.1  [FIX] Admin UID → verifiedUser: true khi tạo document (bypass xác minh)
+ *        [NEW] Admin panel: 3 tabs Bootstrap — Chờ duyệt / Đã duyệt / Từ chối
+ *        [NEW] Tab "Đã duyệt": nút Thu hồi → verifiedUser:'revoked'
+ *        [NEW] Tab "Từ chối": nút Phê duyệt lại → verifiedUser: true
+ *        [NEW] verifiedUser: 'revoked' — trạng thái mới (phân biệt với 'rejected')
+ *  v6.2  ── BUG FIX & REFACTOR ──
+ *  v6.3  ── BẢO MẬT & RELOAD ──
+ *  v6.3.1 ── FIX RELOAD LOOP ──
+ *        [FIX] Bug: reload vô hạn khi user bị rejected/revoked.
+ *              Nguyên nhân: profileSaved flag bị mất → syncUserDoc gọi setDoc
+ *              → Firestore tạo optimistic snapshot (verifiedUser:false) trước khi
+ *              server từ chối write → unified listener nhận snapshot giả → lưu
+ *              'pending' vào cache → snapshot thật 'rejected' đến → thấy
+ *              pending→rejected là "thay đổi" → onTransitionRejected() → reload → loop.
+ *        [FIX] syncUserDoc: thêm guard verifyStatus cache !== null làm signal
+ *              user đã có Firestore doc → skip setDoc, restore profileSaved flag,
+ *              chỉ updateDoc lastLoginAt. Ngăn optimistic snapshot giả hoàn toàn.
+ *        [FIX] startUnifiedListener: xóa _initialized flag phức tạp, thay bằng
+ *              pure compare: _lastStatus = initialStatus (từ localStorage cache).
+ *              newStatus === _lastStatus → skip (no transition, refresh cache).
+ *              newStatus !== _lastStatus → real change → trigger transition.
+ *              Đơn giản hơn, đúng hơn, không bị ảnh hưởng bởi optimistic writes.
+ *        [SEC] Thay d-none bằng remove() cho mọi trạng thái không phải 'approved'
+ *              → SPA: user không thể xóa d-none bằng DevTools để bypass auth
+ *        [NEW] Mọi thay đổi status từ admin → remove app → show overlay → reload()
+ *              → UI luôn sạch và đồng bộ sau mỗi hành động admin
+ *        [NEW] VTFilms_applyOverlayContent(state) — Layer A: chỉ update DOM, không reload
+ *              → Dùng trong antiFlash (sau reload) để tránh vòng lặp
+ *        [UPD] onTransition* functions — Layer B: luôn kết thúc bằng reload()
+ *        [UPD] antiFlash: remove() thay d-none, gọi applyOverlayContent (Layer A)
+ *        [UPD] startListener: replace hideApp → removeApp, gọi applyOverlayContent
+ *        [REM] VTFilms_hideApp() — không cần thiết nữa (luôn dùng removeApp)
+ *        [FIX] Bug: approve → revoke → approve lại → user vẫn bị revoke
+ *              → Nguyên nhân: handleRevocation auto sign-out → listener bị hủy
+ *              → Fix: bỏ hoàn toàn auto sign-out, giữ user đăng nhập, giữ listener
+ *        [FIX] Overlay transition mượt mà: fadeOut → update content → fadeIn
+ *              Không còn giật, nháy flash khi chuyển trạng thái
+ *        [FIX] Admin panel tab click tự đóng dropdown
+ *              → Fix: partial re-render (chỉ cập nhật badge/tabs/list, không rebuild toàn bộ)
+ *              → Dropdown state được giữ nguyên khi switch tab
+ *        [REFACTOR] Thay startVerifyListener + startRevokeListener bằng 1 unified listener
+ *              → VTFilms_startUnifiedListener: 1 onSnapshot duy nhất, xử lý mọi transition
+ *              → Không tự hủy khi nhận trạng thái, luôn lắng nghe tiếp tục (trừ khi đăng xuất)
+ *              → Tránh transition redundant: chỉ trigger khi status THAY ĐỔI
+ *        [NEW] VTFilms_hideApp() — ẩn app bằng d-none (thay remove()) để giữ trong DOM
+ *              → Khi admin approve lại sau revoke: show app ngay, không cần reload
+ *        [NEW] VTFilms_overlayTransition(updateFn) — smooth fadeOut→update→fadeIn
+ *        [NEW] Transition functions: onTransitionApproved/Rejected/Revoked/Pending
+ *        [UPD] antiFlash: dùng d-none thay remove() cho trạng thái pending/rejected/revoked
+ *        [UPD] signOut: luôn xóa verifyStatus (không cần giữ 'revoked' nữa vì không auto logout)
+ *        [UPD] Admin container thêm class 'dropdown' để Bootstrap dropdown hoạt động đúng
+ *        [REM] VTFilms_handleRevocation: bỏ auto sign-out setTimeout
+ *        [REM] startVerifyListener, startRevokeListener (gộp vào unified listener)
  *
  * ─────────────────────────────────────────────────────────────
- * CẤU TRÚC FIRESTORE (v6.0)
+ * LUỒNG TRẠNG THÁI v6.2 (State Machine)
  *
- *   users/{uid}
- *     uid            string     Firebase UID
- *     email          string     Email Google
- *     displayName    string     Tên hiển thị
- *     photoURL       string     URL ảnh đại diện
- *     provider       string     "google"
- *     role           string     "admin" | "user"
- *     verifiedUser   mixed      false (pending) | true (approved) | "rejected"
- *     createdAt      timestamp  Lần đầu đăng nhập (không ghi đè)
- *     lastLoginAt    timestamp  Lần đăng nhập/mở tab gần nhất
+ *   pending  → (admin approve)  → approved  ✓ show app, no reload
+ *   pending  → (admin reject)   → rejected  ✗ update overlay
+ *   approved → (admin revoke)   → revoked   🔒 hide app, show overlay
+ *   revoked  → (admin approve)  → approved  ✓ show app, no reload ← BUG FIXED
+ *   rejected → (admin approve)  → approved  ✓ show app, no reload
+ *
+ *   Không còn: tự động đăng xuất, tự động reload
+ *   User tự đăng xuất nếu muốn qua nút Đăng xuất
  *
  * ─────────────────────────────────────────────────────────────
- * LUỒNG XÁC MINH
- *
- *   User thường đăng nhập lần đầu:
- *     syncUserDoc → verifiedUser: false → showPendingOverlay
- *     → startVerifyListener (onSnapshot) → admin duyệt → verifiedUser: true
- *     → showVerifySuccess → delay 2s → reload → vào app bình thường
- *
- *   User reload khi đang chờ:
- *     antiFlash đọc cache verifyStatus = 'pending'
- *     → showPendingOverlay ngay (không chờ Firebase)
- *     → startListener → startVerifyListener tiếp tục lắng nghe
- *
- *   User đã được duyệt (reload / mở tab mới):
- *     antiFlash đọc cache verifyStatus = 'approved'
- *     → giữ app, không cần onSnapshot nữa
- *
- *   Admin đăng nhập: bypass hoàn toàn, không cần xác minh
- *
- * ─────────────────────────────────────────────────────────────
- * STORAGE ĐƯỢC DÙNG (v6.0)
- *
- *   localStorage['VTFilms_userCache']      { uid, name, email, avatar, role }
- *     Mục đích: anti-flash UI
- *     Tồn tại: đến khi đăng xuất
- *
- *   localStorage['VTFilms_profileSaved']   uid (string)
- *     Mục đích: biết user đã có document Firestore chưa
- *     Tồn tại: đến khi đăng xuất
- *
- *   localStorage['VTFilms_verifyStatus']   JSON { uid, status }
- *     Mục đích: cache trạng thái xác minh, tránh đọc Firestore khi reload
- *     status: 'pending' | 'approved' | 'rejected'
- *     Tồn tại: đến khi đăng xuất
- *
- *   sessionStorage['VTFilms_tabActive']    "1"
- *     Mục đích: guard lastLoginAt trong tab
- *     Tồn tại: đến khi đóng tab
- *
- * ─────────────────────────────────────────────────────────────
- * API CÔNG KHAI
- *   window.VTFilms_USER                  → Object user (null nếu chưa login)
- *   window.VTFilms_USER.role             → "admin" | "user"
- *   window.VTFilms_Auth.signOut()        → Đăng xuất + redirect về trang chủ
- *   window.VTFilms_Auth.getUser()        → Lấy user hiện tại
- *   window.VTFilms_Auth.isAdmin()        → true nếu role === "admin"
- *   window.VTFilms_Auth.isVerified()     → true nếu đã được xác minh
- *   window.VTFilms_Auth._openPopup()     → Dùng trong HTML onclick
- *   window.addEventListener('vtfilms:auth-ready', cb)
+ * verifiedUser field values:
+ *   false      → pending (chờ admin duyệt)
+ *   true       → approved (được phê duyệt)
+ *   'rejected' → từ chối (user chưa từng được duyệt)
+ *   'revoked'  → thu hồi (user đã từng được duyệt nhưng bị thu hồi)
  */
 
 
 // ── 1. IMPORT FIREBASE v12.9.0 ────────────────────────────────────────────────
-// [v6.0] Thêm: onSnapshot, collection, query, where, orderBy (cho realtime panels)
 import { initializeApp }   from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js';
 import { getAnalytics }    from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-analytics.js';
 import {
@@ -124,19 +111,19 @@ import {
 import {
     getFirestore,
     doc,
-    collection,          // [v6.0] Query collection users
-    query,               // [v6.0] Build Firestore query
-    where,               // [v6.0] Filter verifiedUser == false
-    orderBy,             // [v6.0] Sort by createdAt desc
+    collection,
+    query,
+    where,
+    orderBy,
     setDoc,
     updateDoc,
-    onSnapshot,          // [v6.0] Realtime listener (user verify + admin panel)
+    onSnapshot,
     serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
 
 // ── 2. HẰNG SỐ & CẤU HÌNH ────────────────────────────────────────────────────
-const VTFilms_VERSION = '6.0';
+const VTFilms_VERSION = '6.3.1';
 
 // Admin UIDs — thêm UID vào đây để cấp quyền admin. Mọi UID khác = "user".
 const VTFilms_ADMIN_UIDS = [
@@ -144,15 +131,13 @@ const VTFilms_ADMIN_UIDS = [
 ];
 
 // ── Storage Keys ──
-const VTFilms_CACHE_KEY   = 'VTFilms_userCache';     // localStorage: UI anti-flash
-const VTFilms_PROFILE_KEY = 'VTFilms_profileSaved';  // localStorage: flag document Firestore đã tạo
-const VTFilms_VERIFY_KEY  = 'VTFilms_verifyStatus';  // [v6.0] localStorage: cache trạng thái xác minh
-const VTFilms_TAB_KEY     = 'VTFilms_tabActive';     // sessionStorage: guard lastLoginAt
+const VTFilms_CACHE_KEY   = 'VTFilms_userCache';
+const VTFilms_PROFILE_KEY = 'VTFilms_profileSaved';
+const VTFilms_VERIFY_KEY  = 'VTFilms_verifyStatus';
+const VTFilms_TAB_KEY     = 'VTFilms_tabActive';
 
-/** Google OAuth Client ID. */
 const VTFilms_CLIENT_ID = '891750241616-234jksd5e2b301g838gr6t650hdobptk.apps.googleusercontent.com';
 
-/** Wrapper log có màu, dễ filter trong DevTools. */
 const VTFilms_log = {
     info:  (m, ...a) => console.log( `%c[VTFilms v${VTFilms_VERSION}]`,   'color:#dc3545;font-weight:bold', '→', m, ...a),
     ok:    (m, ...a) => console.log( `%c[VTFilms v${VTFilms_VERSION}] ✓`, 'color:#28a745;font-weight:bold', m, ...a),
@@ -182,21 +167,12 @@ VTFilms_log.ok('Firebase sẵn sàng.');
 
 
 // ── 4. HELPERS: PHÂN QUYỀN ───────────────────────────────────────────────────
-
-/**
- * Xác định role dựa trên UID.
- * Admin bypass toàn bộ xác minh.
- * @param {string} uid
- * @returns {'admin' | 'user'}
- */
 function VTFilms_getRole(uid) {
     return VTFilms_ADMIN_UIDS.includes(uid) ? 'admin' : 'user';
 }
 
 
-// ── 5. STORAGE: localStorage (cache UI + flags) ──────────────────────────────
-
-/** Lưu { uid, name, email, avatar, role } vào localStorage. */
+// ── 5. STORAGE: localStorage ──────────────────────────────────────────────────
 function VTFilms_saveCache(user) {
     try {
         localStorage.setItem(VTFilms_CACHE_KEY, JSON.stringify({
@@ -207,29 +183,24 @@ function VTFilms_saveCache(user) {
     } catch (e) { VTFilms_log.warn('Lưu cache thất bại:', e.message); }
 }
 
-/** Đọc cache UI. @returns {{ uid, name, email, avatar, role } | null} */
 function VTFilms_getCache() {
     try { return JSON.parse(localStorage.getItem(VTFilms_CACHE_KEY)); } catch (_) { return null; }
 }
 
-/** Xóa cache UI. */
 function VTFilms_clearCache() {
     try { localStorage.removeItem(VTFilms_CACHE_KEY); } catch (_) {}
     VTFilms_log.info('Cache UI đã xóa.');
 }
 
-/** Kiểm tra user đã có document Firestore chưa (so sánh uid). */
 function VTFilms_isProfileSaved(uid) {
     try { return localStorage.getItem(VTFilms_PROFILE_KEY) === uid; } catch (_) { return false; }
 }
 
-/** Đánh dấu document Firestore đã tạo. */
 function VTFilms_markProfileSaved(uid) {
     try { localStorage.setItem(VTFilms_PROFILE_KEY, uid); } catch (_) {}
     VTFilms_log.info(`Profile flag lưu OK (uid: ${uid}).`);
 }
 
-/** Xóa profile flag khi đăng xuất. */
 function VTFilms_clearProfileFlag() {
     try { localStorage.removeItem(VTFilms_PROFILE_KEY); } catch (_) {}
     VTFilms_log.info('Profile flag đã xóa.');
@@ -237,35 +208,18 @@ function VTFilms_clearProfileFlag() {
 
 
 // ── 6. STORAGE: VERIFY STATUS CACHE ──────────────────────────────────────────
-// [v6.0] Lưu trạng thái xác minh vào localStorage để persist qua reload/thoát trang.
-// Không đọc Firestore khi reload — chỉ đọc từ cache này.
-//
-// Format: JSON { uid: string, status: 'pending' | 'approved' | 'rejected' }
-//
-// 'pending'  → hiện pending overlay ngay, start onSnapshot để chờ admin duyệt
-// 'approved' → show app ngay, không cần listener
-// 'rejected' → hiện rejection overlay ngay, không cần listener
+// Format: JSON { uid: string, status: 'pending'|'approved'|'rejected'|'revoked' }
+// [v6.2] 'revoked' không cần persist qua đăng xuất vì không còn auto-logout
 
-/**
- * Đọc trạng thái xác minh từ cache.
- * @param {string} uid
- * @returns {'pending' | 'approved' | 'rejected' | null} null = chưa có cache
- */
 function VTFilms_getVerifyStatus(uid) {
     try {
         const raw = localStorage.getItem(VTFilms_VERIFY_KEY);
         if (!raw) return null;
         const data = JSON.parse(raw);
-        // Chỉ trả về status nếu uid khớp (tránh dùng nhầm cache của user khác)
         return data.uid === uid ? data.status : null;
     } catch (_) { return null; }
 }
 
-/**
- * Lưu trạng thái xác minh.
- * @param {string} uid
- * @param {'pending' | 'approved' | 'rejected'} status
- */
 function VTFilms_saveVerifyStatus(uid, status) {
     try {
         localStorage.setItem(VTFilms_VERIFY_KEY, JSON.stringify({ uid, status }));
@@ -273,26 +227,21 @@ function VTFilms_saveVerifyStatus(uid, status) {
     } catch (e) { VTFilms_log.warn('Lưu verify status thất bại:', e.message); }
 }
 
-/** Xóa verify status khi đăng xuất. */
 function VTFilms_clearVerifyStatus() {
     try { localStorage.removeItem(VTFilms_VERIFY_KEY); } catch (_) {}
     VTFilms_log.info('Verify status đã xóa.');
 }
 
 
-// ── 7. STORAGE: sessionStorage (guard tab lastLoginAt) ───────────────────────
-
-/** Kiểm tra tab này đã updateDoc lastLoginAt chưa. */
+// ── 7. STORAGE: sessionStorage ────────────────────────────────────────────────
 function VTFilms_isTabActive() {
     try { return !!sessionStorage.getItem(VTFilms_TAB_KEY); } catch (_) { return false; }
 }
 
-/** Đánh dấu tab đã updateDoc. */
 function VTFilms_markTabActive() {
     try { sessionStorage.setItem(VTFilms_TAB_KEY, '1'); } catch (_) {}
 }
 
-/** Xóa tab guard khi đăng xuất. */
 function VTFilms_clearTabGuard() {
     try { sessionStorage.removeItem(VTFilms_TAB_KEY); } catch (_) {}
     VTFilms_log.info('Tab guard đã xóa.');
@@ -300,18 +249,6 @@ function VTFilms_clearTabGuard() {
 
 
 // ── 8. FIRESTORE: SYNC USER DOCUMENT ─────────────────────────────────────────
-// [v6.0] Thêm verifiedUser: false vào setDoc khi tạo mới.
-// Logic 3 mức giữ nguyên như v5.0.
-
-/**
- * Đồng bộ document users/{uid} lên Firestore.
- *
- *   Mức 1 — User MỚI: setDoc full (bao gồm verifiedUser: false)
- *   Mức 2 — User cũ, tab mới: updateDoc chỉ lastLoginAt
- *   Mức 3 — Reload cùng tab: SKIP hoàn toàn
- *
- * 0 reads, tối đa 1 write/tab.
- */
 async function VTFilms_syncUserDoc(fbUser) {
     const uid  = fbUser.uid;
     const role = VTFilms_getRole(uid);
@@ -323,28 +260,48 @@ async function VTFilms_syncUserDoc(fbUser) {
     }
 
     if (!VTFilms_isProfileSaved(uid)) {
-        // [v6.0] Thêm verifiedUser: false — admin bypass (role admin không cần xác minh,
-        // nhưng field vẫn được set để nhất quán — admin access do role, không do verifiedUser)
-        VTFilms_log.info(`User mới (${fbUser.email}) → tạo document Firestore (verifiedUser: false)...`);
-        try {
-            await setDoc(ref, {
-                uid,
-                email:        fbUser.email,
-                displayName:  fbUser.displayName || 'Người dùng',
-                photoURL:     fbUser.photoURL    || null,
-                provider:     'google',
-                role,
-                verifiedUser: false, // [v6.0] Mặc định chờ xác minh
-                createdAt:    serverTimestamp(),
-                lastLoginAt:  serverTimestamp(),
-            });
-            VTFilms_markProfileSaved(uid);
-            VTFilms_markTabActive();
-            VTFilms_log.ok(`Document tạo mới OK: users/${uid} (role: ${role}, verifiedUser: false)`);
-        } catch (err) {
-            VTFilms_log.error('setDoc thất bại:', err.message);
+        // [v6.3.1] FIX RELOAD LOOP: Kiểm tra kép — verifyStatus cache là signal tin cậy
+        // rằng user đã có Firestore document, dù profileSaved flag bị mất.
+        //
+        // Tại sao cần fix:
+        //   profileSaved flag có thể bị mất (user clear storage một phần, hoặc đăng xuất
+        //   trước đó xóa flag nhưng để lại verifyStatus). Nếu không có guard này,
+        //   syncUserDoc sẽ gọi setDoc → Firestore tạo OPTIMISTIC LOCAL SNAPSHOT với
+        //   verifiedUser:false → unified listener nhận snapshot giả → lưu 'pending' vào cache
+        //   → snapshot thật đến → thấy pending→rejected là "thay đổi" → reload → loop vô hạn.
+        //
+        // Fix: nếu verifyStatus cache != null → đây là user cũ → KHÔNG setDoc.
+        //       Restore profileSaved flag và chỉ updateDoc lastLoginAt.
+        const cachedVerifyStatus = VTFilms_getVerifyStatus(uid);
+        if (cachedVerifyStatus !== null) {
+            VTFilms_log.info(`syncUserDoc: verifyStatus cache='${cachedVerifyStatus}' tồn tại → user cũ, profileSaved flag bị mất → restore flag, skip setDoc.`);
+            VTFilms_markProfileSaved(uid); // Khôi phục flag để tránh lặp lại lần sau
+            // Fall through xuống updateDoc lastLoginAt bên dưới
+        } else {
+            // Thực sự là user mới — chưa có document lẫn verifyStatus cache
+            const isAdmin       = role === 'admin';
+            const verifiedValue = isAdmin ? true : false;
+            VTFilms_log.info(`User mới (${fbUser.email}) → tạo document Firestore (verifiedUser: ${verifiedValue}, role: ${role})...`);
+            try {
+                await setDoc(ref, {
+                    uid,
+                    email:        fbUser.email,
+                    displayName:  fbUser.displayName || 'Người dùng',
+                    photoURL:     fbUser.photoURL    || null,
+                    provider:     'google',
+                    role,
+                    verifiedUser: verifiedValue,
+                    createdAt:    serverTimestamp(),
+                    lastLoginAt:  serverTimestamp(),
+                });
+                VTFilms_markProfileSaved(uid);
+                VTFilms_markTabActive();
+                VTFilms_log.ok(`Document tạo mới OK: users/${uid} (role: ${role}, verifiedUser: ${verifiedValue})`);
+            } catch (err) {
+                VTFilms_log.error('setDoc thất bại:', err.message);
+            }
+            return;
         }
-        return;
     }
 
     VTFilms_log.info(`User cũ, tab mới (${fbUser.email}) → cập nhật lastLoginAt...`);
@@ -360,15 +317,24 @@ async function VTFilms_syncUserDoc(fbUser) {
 
 // ── 9. QUẢN LÝ DOM ───────────────────────────────────────────────────────────
 
-/** Xóa #VT-Films-App khỏi DOM. */
+/**
+ * [v6.3] Xóa hoàn toàn #VT-Films-App khỏi DOM.
+ *
+ * BẮT BUỘC dùng remove() thay vì d-none cho mọi trạng thái không phải 'approved'.
+ * Lý do bảo mật (SPA/JS): nếu chỉ ẩn bằng d-none, user có thể mở DevTools
+ * → xóa class d-none → tiếp tục dùng app mà không cần reload.
+ * remove() loại bỏ hoàn toàn khỏi DOM — không thể khôi phục mà không reload trang.
+ *
+ * Sau khi admin approve → reload() → app được tải lại sạch từ HTML gốc.
+ */
 function VTFilms_removeApp() {
     const el = document.getElementById('VT-Films-App');
-    if (!el) { VTFilms_log.warn('#VT-Films-App không tìm thấy.'); return; }
+    if (!el) return; // Đã bị remove trước đó hoặc không tồn tại
     el.remove();
-    VTFilms_log.ok('#VT-Films-App đã xóa khỏi DOM.');
+    VTFilms_log.ok('#VT-Films-App đã xóa khỏi DOM (security).');
 }
 
-/** Hiện #VT-Films-App: remove class d-none. */
+/** Hiện #VT-Films-App (remove class d-none) — chỉ gọi khi status = approved. */
 function VTFilms_showApp() {
     const el = document.getElementById('VT-Films-App');
     if (!el) return;
@@ -376,7 +342,6 @@ function VTFilms_showApp() {
     VTFilms_log.ok('#VT-Films-App hiển thị (d-none removed).');
 }
 
-/** Reload trang sau đăng nhập / sau xác minh thành công. */
 function VTFilms_reloadPage() {
     VTFilms_log.info('Reload trang...');
     window.location.reload();
@@ -384,8 +349,6 @@ function VTFilms_reloadPage() {
 
 
 // ── 10. OVERLAY ĐĂNG NHẬP ────────────────────────────────────────────────────
-// [UNCHANGED từ v5.0 — giữ nguyên toàn bộ HTML]
-
 function VTFilms_showOverlay() {
     if (document.getElementById('VTFilms-overlay')) return;
     VTFilms_log.info('Tạo overlay đăng nhập...');
@@ -441,17 +404,15 @@ function VTFilms_showOverlay() {
     VTFilms_log.ok('Overlay đăng nhập đã chèn vào DOM.');
 }
 
-/** Fade-out overlay đăng nhập, remove sau 1.5s. */
 function VTFilms_hideOverlay() {
     const el = document.getElementById('VTFilms-overlay');
     if (!el) return;
     el.style.transition = 'opacity .3s ease';
     el.style.opacity    = '0';
-    setTimeout(() => el.remove(), 1500);
+    setTimeout(() => el.remove(), 350);
     VTFilms_log.info('Overlay đăng nhập ẩn dần...');
 }
 
-/** Toggle loading state trong overlay đăng nhập. */
 function VTFilms_setLoading(show, errorMsg = '') {
     const popup   = document.getElementById('VTFilms-popup-btn');
     const gBtn    = document.getElementById('VTFilms-g-btn');
@@ -472,16 +433,6 @@ function VTFilms_setLoading(show, errorMsg = '') {
 
 
 // ── 11. OVERLAY CHỜ XÁC MINH ─────────────────────────────────────────────────
-// [v6.0] Hiện sau khi user đăng nhập nhưng chưa được admin duyệt.
-// Persist qua reload/thoát bằng localStorage verifyStatus = 'pending'.
-// onSnapshot lắng nghe realtime → khi admin duyệt → chuyển sang success state.
-
-/**
- * Tạo overlay "Chờ xác minh" — thay thế app, hiện thông tin user + spinner chờ.
- * ID: VTFilms-pending-overlay
- *
- * @param {{ name, email, avatar } | null} user — Object user hoặc cache
- */
 function VTFilms_showPendingOverlay(user) {
     if (document.getElementById('VTFilms-pending-overlay')) return;
     VTFilms_log.info(`Hiện pending overlay cho user: ${user?.email || 'unknown'}`);
@@ -493,7 +444,7 @@ function VTFilms_showPendingOverlay(user) {
     const overlay = document.createElement('div');
     overlay.id        = 'VTFilms-pending-overlay';
     overlay.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center';
-    overlay.style.zIndex = '99998'; // Dưới overlay đăng nhập (99999) một bậc
+    overlay.style.cssText = 'z-index:99998;opacity:0;transition:opacity .35s ease';
 
     overlay.innerHTML = `
         <div class="card text-center shadow-lg"
@@ -546,168 +497,390 @@ function VTFilms_showPendingOverlay(user) {
         </div>`;
 
     document.body.appendChild(overlay);
-    VTFilms_log.ok('Pending overlay đã chèn vào DOM.');
+    // Fade in ngay sau khi thêm vào DOM
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+    });
+    VTFilms_log.ok('Pending overlay đã chèn vào DOM (fade-in).');
 }
 
-/**
- * Chuyển pending overlay sang trạng thái "Xác thực thành công".
- * Hiệu ứng: đổi nội dung → delay 2.5s → fade out → reload.
+/** [v6.2] Smooth overlay content transition: fadeOut card → update content → fadeIn card.
+ *  @param {function(overlay: HTMLElement): void} updateFn — callback nhận overlay element để cập nhật nội dung
+ *  @param {number} [fadeDuration=280] — thời gian fade ms
  */
-function VTFilms_showVerifySuccess() {
+function VTFilms_overlayTransition(updateFn, fadeDuration = 280) {
     const overlay = document.getElementById('VTFilms-pending-overlay');
-    VTFilms_log.ok('Xác thực thành công! Hiện hiệu ứng success...');
-
-    if (overlay) {
-        // Cập nhật nội dung overlay → success state
-        const icon    = overlay.querySelector('#VTFilms-pending-icon');
-        const title   = overlay.querySelector('#VTFilms-pending-title');
-        const msg     = overlay.querySelector('#VTFilms-pending-msg');
-        const spinner = overlay.querySelector('#VTFilms-pending-spinner');
-
-        if (icon)    { icon.innerHTML = '<i class="fad fa-circle-check text-success fa-2x"></i>'; icon.style.animation = 'none'; }
-        if (title)   { title.textContent = 'Xác thực thành công!'; title.className = 'fw-semibold h5 text-success mb-2'; }
-        if (msg)     { msg.innerHTML = 'Tài khoản của bạn đã được phê duyệt'; }
-        if (spinner) { spinner.innerHTML = `<i class="fad fa-spinner-third fa-spin me-2"></i>Đang tải dữ liệu`; }
-
-        // Sau 2.5s → fade out → reload
-        setTimeout(() => {
-            overlay.style.transition = 'opacity .5s ease';
-            overlay.style.opacity    = '0';
-            setTimeout(() => {
-                overlay.remove();
-                VTFilms_log.info('Pending overlay đã xóa → reload trang...');
-                window.location.reload();
-            }, 600);
-        }, 3000);
-    } else {
-        // Không có overlay (hiếm gặp) → reload luôn
-        setTimeout(() => window.location.reload(), 1000);
+    if (!overlay) {
+        // Overlay chưa tồn tại — gọi updateFn với null để caller biết
+        updateFn(null);
+        return;
     }
+    const card = overlay.querySelector('.card');
+    if (!card) { updateFn(overlay); return; }
+
+    // Bước 1: fade out card
+    card.style.transition = `opacity ${fadeDuration}ms ease`;
+    card.style.opacity    = '0';
+
+    // Bước 2: cập nhật nội dung sau khi fade out xong
+    setTimeout(() => {
+        updateFn(overlay);
+        // Bước 3: fade in card với nội dung mới
+        card.style.opacity = '1';
+    }, fadeDuration);
 }
 
-/**
- * Chuyển pending overlay sang trạng thái "Bị từ chối".
- * User thấy thông báo, có thể đăng xuất.
- */
-function VTFilms_showVerifyRejected() {
-    const overlay = document.getElementById('VTFilms-pending-overlay');
-    VTFilms_log.warn('Tài khoản bị từ chối bởi Admin.');
-
-    if (overlay) {
-        const icon    = overlay.querySelector('#VTFilms-pending-icon');
-        const title   = overlay.querySelector('#VTFilms-pending-title');
-        const msg     = overlay.querySelector('#VTFilms-pending-msg');
-        const spinner = overlay.querySelector('#VTFilms-pending-spinner');
-
-        if (icon)    icon.innerHTML = '<i class="fad fa-ban fa-2x text-danger"></i>';
-        if (title)   { title.textContent = 'Tài khoản bị từ chối'; title.className = 'fw-semibold h5 text-danger mb-2'}
-        if (msg)     msg.innerHTML = 'Liên hệ <b>Vũ Trường</b> để được hỗ trợ';
-        // if (spinner) spinner.classList.add('d-none');
-		if (spinner) { spinner.innerHTML = `admin@vutruong.vn`; }
-    }
-}
-
-/** Remove pending overlay (dùng khi đăng xuất hoặc đã approved). */
+/** Remove pending overlay (dùng khi đăng xuất hoặc transition sang approved + show app). */
 function VTFilms_hidePendingOverlay() {
     const el = document.getElementById('VTFilms-pending-overlay');
     if (!el) return;
-    el.style.transition = 'opacity .3s ease';
+    el.style.transition = 'opacity .35s ease';
     el.style.opacity    = '0';
-    setTimeout(() => el.remove(), 400);
+    setTimeout(() => el.remove(), 380);
     VTFilms_log.info('Pending overlay ẩn dần...');
 }
 
 
-// ── 12. REALTIME LISTENER: XÁC MINH USER ─────────────────────────────────────
-// [v6.0] onSnapshot trên users/{uid} để nhận kết quả xác minh realtime từ admin.
-// Tự hủy sau khi nhận được kết quả (approved/rejected).
+// ── 12. TRANSITION FUNCTIONS (v6.3) ──────────────────────────────────────────
+//
+// Kiến trúc 2 layer — tránh vòng lặp reload:
+//
+//   Layer A — applyOverlayContent(state):
+//     Chỉ cập nhật DOM overlay. KHÔNG remove app, KHÔNG reload.
+//     Dùng bởi: antiFlash() sau khi page vừa được load/reload.
+//     Gọi thẳng, không trigger side effect.
+//
+//   Layer B — onTransition*(state):
+//     Full transition triggered bởi unified listener (admin thay đổi realtime).
+//     1. Lưu status mới vào localStorage cache.
+//     2. remove() app khỏi DOM (bảo mật — không dùng d-none).
+//     3. Hiện overlay với nội dung tương ứng.
+//     4. Sau delay ngắn → window.location.reload().
+//     Sau reload, antiFlash đọc cache → gọi Layer A → hiện đúng overlay ngay.
+//
+// Flow sau reload: antiFlash → applyOverlayContent → startListener → startUnifiedListener
+//   → snapshot đầu bị skip (initialStatus khớp cache) → tiếp tục lắng nghe.
 
-/** Giữ hàm unsubscribe để cleanup khi đăng xuất. */
+/**
+ * [v6.3] Layer A: Cập nhật nội dung overlay theo trạng thái.
+ * KHÔNG remove app, KHÔNG reload — chỉ cập nhật DOM.
+ * Dùng trong antiFlash (sau reload) để tránh vòng lặp.
+ *
+ * @param {'pending'|'rejected'|'revoked'} state
+ */
+function VTFilms_applyOverlayContent(state) {
+    const overlay = document.getElementById('VTFilms-pending-overlay');
+    if (!overlay) return;
+
+    const configs = {
+        pending: {
+            icon:    '<i class="fa-duotone fa-solid fa-hourglass-clock fa-2x text-warning fa-fade" style="--fa-animation-duration: 2s;"></i>',
+            title:   'Tài khoản đang chờ xác thực',
+            titleCls:'fw-semibold h5 text-warning mb-2',
+            msg:     'Liên hệ <b>Vũ Trường</b> để được cấp quyền sử dụng',
+            spinner: '<i class="fad fa-spinner-third fa-spin me-1"></i>Đang chờ xác thực',
+        },
+        rejected: {
+            icon:    '<i class="fad fa-ban fa-2x text-danger"></i>',
+            title:   'Tài khoản bị từ chối',
+            titleCls:'fw-semibold h5 text-danger mb-2',
+            msg:     'Liên hệ <b>Vũ Trường</b> để được hỗ trợ',
+            spinner: 'admin@vutruong.vn',
+        },
+        revoked: {
+            icon:    '<i class="fad fa-lock fa-2x text-warning"></i>',
+            title:   'Quyền truy cập bị thu hồi',
+            titleCls:'fw-semibold h5 text-warning mb-2',
+            msg:     'Liên hệ <b>Vũ Trường</b> để được hỗ trợ',
+            spinner: 'admin@vutruong.vn',
+        },
+    };
+
+    const cfg = configs[state] || configs.pending;
+
+    // Dùng VTFilms_overlayTransition để animation mượt (fadeOut card → update → fadeIn)
+    VTFilms_overlayTransition((ov) => {
+        if (!ov) return;
+        const icon    = ov.querySelector('#VTFilms-pending-icon');
+        const title   = ov.querySelector('#VTFilms-pending-title');
+        const msg     = ov.querySelector('#VTFilms-pending-msg');
+        const spinner = ov.querySelector('#VTFilms-pending-spinner');
+        if (icon)    { icon.innerHTML = cfg.icon; }
+        if (title)   { title.innerHTML = cfg.title; title.className = cfg.titleCls; }
+        if (msg)     { msg.innerHTML = cfg.msg; }
+        if (spinner) { spinner.innerHTML = cfg.spinner; }
+    });
+
+    VTFilms_log.info(`applyOverlayContent: state="${state}" applied.`);
+}
+
+/**
+ * [v6.3] Layer B: Transition APPROVED (triggered bởi admin realtime).
+ *
+ * Luồng:
+ *   1. Hiện overlay success (fadeIn nội dung mới).
+ *   2. Sau 2.5s: overlay fade out → reload().
+ *   3. Sau reload: antiFlash đọc 'approved' → giữ app → startUnifiedListener.
+ *
+ * Lý do reload thay vì show app trực tiếp:
+ *   → Đảm bảo HTML/JS được tải sạch, không có state cũ còn sót lại.
+ *   → App được load lại từ đầu với session đã xác minh.
+ */
+function VTFilms_onTransitionApproved() {
+    VTFilms_log.ok('Transition → APPROVED: hiện overlay success → reload...');
+
+    // Hiện overlay nếu chưa có (trường hợp user không có pending overlay)
+    if (!document.getElementById('VTFilms-pending-overlay')) {
+        const cache = VTFilms_getCache();
+        VTFilms_showPendingOverlay(cache || {});
+    }
+
+    // Cập nhật nội dung overlay → success state
+    VTFilms_overlayTransition((overlay) => {
+        if (!overlay) return;
+        const icon    = overlay.querySelector('#VTFilms-pending-icon');
+        const title   = overlay.querySelector('#VTFilms-pending-title');
+        const msg     = overlay.querySelector('#VTFilms-pending-msg');
+        const spinner = overlay.querySelector('#VTFilms-pending-spinner');
+        if (icon)    { icon.innerHTML = '<i class="fad fa-circle-check text-success fa-2x"></i>'; }
+        if (title)   { title.textContent = 'Xác thực thành công!'; title.className = 'fw-semibold h5 text-success mb-2'; }
+        if (msg)     { msg.innerHTML = 'Tài khoản của bạn đã được phê duyệt'; }
+        if (spinner) { spinner.innerHTML = '<i class="fad fa-spinner-third fa-spin me-2"></i>Đang tải...'; }
+    });
+
+    // Sau 2.5s: fade out overlay → reload (để app load sạch từ HTML gốc)
+    setTimeout(() => {
+        const pendingOverlay = document.getElementById('VTFilms-pending-overlay');
+        if (pendingOverlay) {
+            pendingOverlay.style.transition = 'opacity .4s ease';
+            pendingOverlay.style.opacity    = '0';
+            setTimeout(() => { window.location.reload(); }, 420);
+        } else {
+            window.location.reload();
+        }
+    }, 2500);
+}
+
+/**
+ * [v6.3] Layer B: Transition REJECTED (triggered bởi admin realtime).
+ *
+ * Luồng:
+ *   1. remove() app khỏi DOM ngay lập tức (bảo mật).
+ *   2. Hiện/cập nhật overlay → "Tài khoản bị từ chối".
+ *   3. Sau 2.5s → reload().
+ *   4. Sau reload: antiFlash đọc 'rejected' → remove app → show overlay.
+ */
+function VTFilms_onTransitionRejected() {
+    VTFilms_log.warn('Transition → REJECTED: remove app, hiện overlay, reload...');
+
+    // Bảo mật: remove app ngay lập tức (không để user tiếp tục dùng)
+    VTFilms_removeApp();
+
+    // Đảm bảo có overlay
+    const hasOverlay = !!document.getElementById('VTFilms-pending-overlay');
+    if (!hasOverlay) {
+        const cache = VTFilms_getCache();
+        VTFilms_showPendingOverlay(cache || {});
+        // Chờ overlay fade in xong rồi cập nhật nội dung
+        setTimeout(() => VTFilms_applyOverlayContent('rejected'), 80);
+    } else {
+        VTFilms_applyOverlayContent('rejected');
+    }
+
+    // Reload sau 2.5s (đủ thời gian user đọc thông báo)
+    setTimeout(() => { window.location.reload(); }, 2500);
+}
+
+/**
+ * [v6.3] Layer B: Transition REVOKED (triggered bởi admin realtime).
+ *
+ * Luồng:
+ *   1. remove() app khỏi DOM ngay lập tức (bảo mật).
+ *   2. Hiện/cập nhật overlay → "Quyền truy cập bị thu hồi".
+ *   3. Sau 2.5s → reload().
+ *   4. Sau reload: antiFlash đọc 'revoked' → remove app → show overlay.
+ */
+function VTFilms_onTransitionRevoked() {
+    VTFilms_log.warn('Transition → REVOKED: remove app, hiện overlay, reload...');
+
+    // Bảo mật: remove app ngay lập tức
+    VTFilms_removeApp();
+
+    const hasOverlay = !!document.getElementById('VTFilms-pending-overlay');
+    if (!hasOverlay) {
+        const cache = VTFilms_getCache();
+        VTFilms_showPendingOverlay(cache || {});
+        setTimeout(() => VTFilms_applyOverlayContent('revoked'), 80);
+    } else {
+        VTFilms_applyOverlayContent('revoked');
+    }
+
+    // Reload sau 2.5s
+    setTimeout(() => { window.location.reload(); }, 2500);
+}
+
+/**
+ * [v6.3] Layer B: Transition PENDING (triggered bởi admin realtime — hiếm gặp).
+ *
+ * Luồng:
+ *   1. remove() app.
+ *   2. Hiện pending overlay.
+ *   3. Reload sau 1s (không cần chờ lâu).
+ */
+function VTFilms_onTransitionPending() {
+    VTFilms_log.info('Transition → PENDING: remove app, reload...');
+    VTFilms_removeApp();
+
+    if (!document.getElementById('VTFilms-pending-overlay')) {
+        const cache = VTFilms_getCache();
+        VTFilms_showPendingOverlay(cache || {});
+    }
+
+    setTimeout(() => { window.location.reload(); }, 1200);
+}
+
+// ── Backward-compat aliases ────────────────────────────────────────────────────
+function VTFilms_showVerifyRejected() { VTFilms_onTransitionRejected(); }
+function VTFilms_showRevokedState()   { VTFilms_onTransitionRevoked();  }
+function VTFilms_showVerifySuccess()  { VTFilms_onTransitionApproved(); }
+
+
+// ── 13. UNIFIED REALTIME LISTENER (v6.2) ─────────────────────────────────────
+// Thay thế hoàn toàn startVerifyListener + startRevokeListener của v6.1.
+//
+// 1 onSnapshot duy nhất cho mọi trạng thái.
+// Giữ kết nối liên tục — KHÔNG tự hủy sau khi nhận trạng thái.
+// Chỉ trigger UI transition khi status THỰC SỰ THAY ĐỔI (tránh redundant transition).
+//
+// Fix bug: approve → revoke → approve lại:
+//   v6.1: revoke → handleRevocation → unsubscribe listener → auto signout → listener mất
+//   v6.2: revoke → onTransitionRevoked (không signout, không unsubscribe)
+//         → listener tiếp tục → approve lại → onTransitionApproved → show app ✓
+
+/** Hàm unsubscribe duy nhất cho unified listener. */
 let VTFilms_verifyUnsubscribe = null;
 
 /**
- * Bắt đầu lắng nghe trạng thái xác minh realtime.
- * Chạy onSnapshot trên users/{uid}:
- *   verifiedUser === true       → showVerifySuccess → reload
- *   verifiedUser === "rejected" → showVerifyRejected → lưu cache
- *   verifiedUser === false      → vẫn đang chờ, tiếp tục lắng nghe
+ * Bắt đầu unified realtime listener.
+ * Chạy 1 onSnapshot liên tục trên users/{uid}.
+ * Chỉ trigger transition UI khi verifiedUser THAY ĐỔI so với status trước.
  *
  * @param {import('firebase/auth').User} fbUser
+ * @param {string} initialStatus — status hiện tại từ cache ('pending'|'approved'|'rejected'|'revoked'|null)
+ *        Nếu truyền vào, snapshot đầu tiên sẽ bị bỏ qua (antiFlash + startListener đã xử lý UI).
  */
-function VTFilms_startVerifyListener(fbUser) {
+function VTFilms_startUnifiedListener(fbUser, initialStatus) {
     // Dọn dẹp listener cũ nếu có
     if (VTFilms_verifyUnsubscribe) {
         VTFilms_verifyUnsubscribe();
         VTFilms_verifyUnsubscribe = null;
     }
 
-    VTFilms_log.info(`Bắt đầu onSnapshot xác minh cho uid: ${fbUser.uid}...`);
+    VTFilms_log.info(`Unified listener START uid: ${fbUser.uid}, initialStatus: ${initialStatus}`);
+
     const ref = doc(VTFilms_db, 'users', fbUser.uid);
+
+    // [v6.3.1] FIX RELOAD LOOP: Bỏ _initialized flag, dùng pure compare logic.
+    //
+    // Cơ chế hoạt động:
+    //   _lastStatus = initialStatus (từ localStorage cache — source of truth khi khởi động)
+    //
+    //   Mỗi snapshot đến:
+    //     a) newStatus === _lastStatus → skip (no transition, chỉ refresh cache).
+    //        → Xử lý init case (snapshot đầu giống initialStatus) ✓
+    //        → Xử lý no-change case ✓
+    //     b) newStatus !== _lastStatus → status thực sự thay đổi → trigger transition.
+    //        → Admin đổi trong lúc online ✓
+    //        → Admin đổi trong lúc offline (snapshot đầu khác initialStatus) ✓
+    //
+    // Tại sao an toàn hơn _initialized:
+    //   v6.3 dùng _initialized để skip snapshot đầu vô điều kiện, nhưng nếu
+    //   có optimistic snapshot giả (do setDoc lỗi), _lastStatus bị set sai giá trị
+    //   → snapshot thật trông như "thay đổi" → reload vô hạn.
+    //
+    //   v6.3.1: _lastStatus = initialStatus (từ cache, không bị optimistic write ảnh hưởng).
+    //   Khi snapshot đầu đến với cùng value → skip. Optimistic snapshot (nếu còn) cũng
+    //   bị lọc nếu nó trùng với initialStatus, hoặc nếu khác → server sẽ revert → snapshot
+    //   tiếp theo trùng initialStatus → skip. Không còn reload giả.
+    let _lastStatus = initialStatus || null;
 
     VTFilms_verifyUnsubscribe = onSnapshot(ref, (snap) => {
         if (!snap.exists()) {
-            VTFilms_log.warn('onSnapshot: document users/' + fbUser.uid + ' chưa tồn tại.');
+            VTFilms_log.warn(`Unified listener: users/${fbUser.uid} chưa tồn tại.`);
             return;
         }
 
-        const data           = snap.data();
-        const verifiedStatus = data.verifiedUser;
-        VTFilms_log.info(`onSnapshot users/${fbUser.uid}: verifiedUser = ${JSON.stringify(verifiedStatus)}`);
+        const v = snap.data().verifiedUser;
+        // Normalize verifiedUser field → status string
+        let newStatus;
+        if      (v === true)        newStatus = 'approved';
+        else if (v === false)       newStatus = 'pending';
+        else if (v === 'rejected')  newStatus = 'rejected';
+        else if (v === 'revoked')   newStatus = 'revoked';
+        else                        newStatus = 'pending'; // fallback an toàn
 
-        if (verifiedStatus === true) {
-            // ✅ Admin đã duyệt
-            VTFilms_log.ok('Admin đã xác minh tài khoản → cập nhật cache → success UI...');
-            VTFilms_saveVerifyStatus(fbUser.uid, 'approved');
-            // Dừng listener (không cần lắng nghe nữa)
-            if (VTFilms_verifyUnsubscribe) { VTFilms_verifyUnsubscribe(); VTFilms_verifyUnsubscribe = null; }
-            VTFilms_showVerifySuccess();
+        VTFilms_log.info(`Unified listener snapshot: verifiedUser=${JSON.stringify(v)} → newStatus=${newStatus}, lastStatus=${_lastStatus}`);
 
-        } else if (verifiedStatus === 'rejected') {
-            // 🚫 Admin đã từ chối
-            VTFilms_log.warn('Admin đã từ chối tài khoản → cập nhật cache → rejection UI...');
-            VTFilms_saveVerifyStatus(fbUser.uid, 'rejected');
-            if (VTFilms_verifyUnsubscribe) { VTFilms_verifyUnsubscribe(); VTFilms_verifyUnsubscribe = null; }
-            VTFilms_showVerifyRejected();
-
-        } else {
-            // ⏳ Vẫn đang chờ (verifiedUser === false)
-            VTFilms_log.info('Vẫn đang chờ admin xác minh...');
-            VTFilms_saveVerifyStatus(fbUser.uid, 'pending');
+        // Không thay đổi → refresh cache silently, không trigger transition
+        if (newStatus === _lastStatus) {
+            VTFilms_saveVerifyStatus(fbUser.uid, newStatus); // Giữ cache tươi
+            VTFilms_log.info(`Unified listener: status không đổi (${newStatus}) → skip transition.`);
+            return;
         }
+
+        // Status THAY ĐỔI (admin vừa cập nhật) → lưu cache + trigger transition UI
+        VTFilms_log.ok(`Unified listener: transition ${_lastStatus} → ${newStatus}`);
+        _lastStatus = newStatus;
+        VTFilms_saveVerifyStatus(fbUser.uid, newStatus);
+
+        if      (newStatus === 'approved')  VTFilms_onTransitionApproved();
+        else if (newStatus === 'rejected')  VTFilms_onTransitionRejected();
+        else if (newStatus === 'revoked')   VTFilms_onTransitionRevoked();
+        else                                VTFilms_onTransitionPending();
+
     }, (err) => {
-        VTFilms_log.error('onSnapshot xác minh lỗi:', err.message);
+        VTFilms_log.error('Unified listener lỗi:', err.message);
     });
 }
 
-/** Dừng listener xác minh (gọi khi đăng xuất). */
+/** Dừng unified listener (gọi khi đăng xuất). */
 function VTFilms_stopVerifyListener() {
     if (VTFilms_verifyUnsubscribe) {
         VTFilms_verifyUnsubscribe();
         VTFilms_verifyUnsubscribe = null;
-        VTFilms_log.info('Verify listener đã dừng.');
+        VTFilms_log.info('Unified listener đã dừng.');
     }
 }
 
+// Alias để không break code nào dùng stopVerifyListener
+const VTFilms_stopRevokeListener = VTFilms_stopVerifyListener;
 
-// ── 13. ADMIN PANEL: DANH SÁCH USER CHỜ XÁC MINH ────────────────────────────
-// [v6.0] Chỉ render cho admin (role === 'admin').
-// Dùng onSnapshot query users collection where verifiedUser == false.
-// Hiện tối đa 5 user, nút "Tải thêm" để xem thêm.
-// Inject vào #vt-admin-info nếu có, không thì inject trước #vt-user-info.
 
-/** Danh sách user đang chờ (nhận từ onSnapshot). */
-let VTFilms_pendingUsers = [];
+// ── 14. ADMIN PANEL: QUẢN LÝ USER (v6.2) ─────────────────────────────────────
+// 3 tabs Bootstrap: Chờ duyệt / Đã duyệt / Từ chối.
+// [v6.2] FIX: Tab click không còn đóng dropdown.
+//   → renderAdminPanel() lần đầu: full HTML (tạo dropdown trigger + menu).
+//   → renderAdminPanel() các lần sau: chỉ cập nhật badge, tabs, list → dropdown giữ nguyên state.
+//   → switchTab(): gọi renderAdminTabContent() thay vì renderAdminPanel() full.
 
-/** Số lượng đang hiển thị trong dropdown. */
-let VTFilms_pendingVisible = 5;
+let VTFilms_pendingUsers    = [];
+let VTFilms_pendingVisible  = 5;
+let VTFilms_adminPendingUnsub = null;
 
-/** Hàm unsubscribe admin panel listener. */
-let VTFilms_adminUnsubscribe = null;
+let VTFilms_approvedUsers   = [];
+let VTFilms_approvedVisible = 5;
+let VTFilms_adminApprovedUnsub = null;
+
+let VTFilms_rejectedUsers   = [];
+let VTFilms_rejectedVisible = 5;
+let VTFilms_adminRejectedUnsub = null;
+
+let VTFilms_adminActiveTab  = 'pending';
+let VTFilms_adminUnsubscribe = null; // backward compat
 
 /**
  * Lấy/tạo container cho admin panel.
- * Ưu tiên #vt-admin-info → inject trước #vt-user-info → fallback fixed bottom-right.
- * @returns {HTMLElement}
+ * [v6.2] Thêm class 'dropdown' để Bootstrap dropdown định vị đúng.
  */
 function VTFilms_getAdminContainer() {
     let container = document.getElementById('vt-admin-info');
@@ -715,7 +888,8 @@ function VTFilms_getAdminContainer() {
 
     container = document.createElement('div');
     container.id        = 'vt-admin-info';
-    container.className = 'me-1';
+    // [v6.2] Thêm 'dropdown' để Bootstrap quản lý positioning
+    container.className = 'me-1 dropdown';
 
     const userInfo = document.getElementById('vt-user-info');
     if (userInfo?.parentElement) {
@@ -730,206 +904,356 @@ function VTFilms_getAdminContainer() {
 }
 
 /**
- * Render admin panel dropdown vào container.
- * Gọi lại mỗi khi VTFilms_pendingUsers thay đổi (từ onSnapshot).
+ * [v6.2] Chuyển tab admin panel.
+ * Chỉ cập nhật nội dung tab (không rebuild toàn bộ dropdown) → dropdown giữ nguyên state.
+ */
+function VTFilms_adminSwitchTab(tab) {
+    VTFilms_adminActiveTab = tab;
+    VTFilms_log.info(`Admin panel chuyển tab: ${tab}`);
+    VTFilms_renderAdminTabContent(); // [v6.2] Partial update thay vì full render
+}
+
+/** Helper tạo HTML cho 1 user item trong danh sách admin. */
+function VTFilms_adminUserItemHTML(u, tab) {
+    const name   = u.displayName || u.email || 'Unknown';
+    const email  = u.email || '';
+    const uid    = u.uid;
+    const avatar = u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6c757d&color=fff&size=45`;
+    const ts     = u.createdAt?.toDate ? u.createdAt.toDate().toLocaleDateString('vi-VN') : '—';
+
+    let actionHTML = '';
+    if (tab === 'pending') {
+        actionHTML = `
+            <div class="d-flex gap-2">
+                <a class="btn btn-sm btn-success flex-fill rounded-pill small"
+                   onclick="window.VTFilms_Auth._adminApprove('${uid}', this)" role="button">
+                    <i class="fad fa-check me-2"></i>Chấp nhận
+                </a>
+                <a class="btn btn-sm btn-outline-danger flex-fill rounded-pill small"
+                   onclick="window.VTFilms_Auth._adminReject('${uid}', this)" role="button">
+                    <i class="fad fa-xmark me-2"></i>Từ chối
+                </a>
+            </div>`;
+    } else if (tab === 'approved') {
+        actionHTML = `
+            <div class="d-flex gap-2">
+                <a class="btn btn-sm btn-outline-warning flex-fill rounded-pill small"
+                   onclick="window.VTFilms_Auth._adminRevoke('${uid}', this)" role="button">
+                    <i class="fad fa-lock me-2"></i>Thu hồi
+                </a>
+            </div>`;
+    } else if (tab === 'rejected') {
+        const isRevoked = u.verifiedUser === 'revoked';
+        const statusBadge = isRevoked
+            ? `<span class="badge bg-warning text-dark ms-1" style="font-size:9px">Thu hồi</span>`
+            : `<span class="badge bg-danger ms-1" style="font-size:9px">Từ chối</span>`;
+        actionHTML = `
+            <div class="d-flex gap-2">
+                <a class="btn btn-sm btn-outline-success flex-fill rounded-pill small"
+                   onclick="window.VTFilms_Auth._adminReapprove('${uid}', this)" role="button">
+                    <i class="fad fa-rotate-left me-2"></i>Phê duyệt lại
+                </a>
+            </div>`;
+        return `
+            <li>
+                <div class="dropdown-item-text text-light m-0 p-3">
+                    <div class="d-flex align-items-start gap-2 mb-3">
+                        <img src="${avatar}" class="rounded-circle flex-shrink-0"
+                             width="45" height="45" style="object-fit:cover"
+                             onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6c757d&color=fff&size=45'"
+                             alt="${name}">
+                        <div class="overflow-hidden flex-grow-1">
+                            <div class="fw-semibold text-truncate d-flex align-items-center gap-1">
+                                ${name}${statusBadge}
+                            </div>
+                            <div class="text-truncate opacity-75 small">${email}</div>
+                        </div>
+                        <div class="flex-shrink-0 small opacity-50">${ts}</div>
+                    </div>
+                    ${actionHTML}
+                </div>
+            </li>`;
+    }
+
+    return `
+        <li>
+            <div class="dropdown-item-text text-light m-0 p-3">
+                <div class="d-flex align-items-start gap-2 mb-3">
+                    <img src="${avatar}" class="rounded-circle flex-shrink-0"
+                         width="45" height="45" style="object-fit:cover"
+                         onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6c757d&color=fff&size=45'"
+                         alt="${name}">
+                    <div class="overflow-hidden flex-grow-1">
+                        <div class="fw-semibold text-truncate">${name}</div>
+                        <div class="text-truncate opacity-75 small">${email}</div>
+                    </div>
+                    <div class="flex-shrink-0 small opacity-50">${ts}</div>
+                </div>
+                ${actionHTML}
+            </div>
+        </li>`;
+}
+
+/** Helper tính HTML badge, tabs, list cho tab hiện tại. */
+function VTFilms_computePanelParts() {
+    const tab = VTFilms_adminActiveTab;
+
+    let users, visible;
+    if      (tab === 'pending')  { users = VTFilms_pendingUsers;  visible = VTFilms_pendingVisible; }
+    else if (tab === 'approved') { users = VTFilms_approvedUsers; visible = VTFilms_approvedVisible; }
+    else                         { users = VTFilms_rejectedUsers; visible = VTFilms_rejectedVisible; }
+
+    const shown   = users.slice(0, visible);
+    const hasMore = users.length > visible;
+
+    const emptyMsg = {
+        pending:  '<i class="fad fa-circle-check me-1 text-success"></i>Không có user nào đang chờ',
+        approved: '<i class="fad fa-users me-1 text-secondary"></i>Chưa có user nào được duyệt',
+        rejected: '<i class="fad fa-circle-xmark me-1 text-secondary"></i>Chưa có user nào bị từ chối',
+    };
+
+    const itemsHTML = shown.length === 0
+        ? `<li><span class="dropdown-item-text text-secondary small py-3 d-block text-center">${emptyMsg[tab]}</span></li>`
+        : shown.map(u => VTFilms_adminUserItemHTML(u, tab)).join('');
+
+    const loadMoreHTML = hasMore ? `
+        <li>
+            <a class="dropdown-item text-center text-info small py-2" role="button"
+               onclick="window.VTFilms_Auth._adminLoadMore('${tab}')">
+                <i class="fad fa-chevron-down me-1"></i>
+                Tải thêm (còn ${users.length - visible} user)
+            </a>
+        </li>` : '';
+
+    const pendingTotal = VTFilms_pendingUsers.length;
+    const badgeInner   = pendingTotal > 0
+        ? `<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+               style="margin:.25rem -.25rem 0">${pendingTotal > 99 ? '99+' : pendingTotal}</span>`
+        : '';
+
+    const tabDefs = [
+        { key: 'pending',  label: 'Chờ duyệt', count: VTFilms_pendingUsers.length,  badge: 'bg-warning text-dark' },
+        { key: 'approved', label: 'Đã duyệt',  count: VTFilms_approvedUsers.length, badge: 'bg-success' },
+        { key: 'rejected', label: 'Từ chối',   count: VTFilms_rejectedUsers.length, badge: 'bg-danger' },
+    ];
+
+    const tabsInner = tabDefs.map(t => `
+        <li class="nav-item">
+            <a class="nav-link py-1 px-2 small ${t.key === tab ? 'active' : 'text-secondary'}"
+               role="button" onclick="window.VTFilms_Auth._adminSwitchTab('${t.key}')"
+               style="font-size:12px;border-radius:6px">
+                ${t.label}
+                <span class="badge ${t.count > 0 ? t.badge : 'bg-secondary'} ms-1"
+                      style="font-size:9px">${t.count}</span>
+            </a>
+        </li>`
+    ).join('');
+
+    return { badgeInner, tabsInner, listHTML: itemsHTML + loadMoreHTML, shown, users };
+}
+
+/**
+ * [v6.2] Full render admin panel — chỉ gọi 1 lần đầu tiên khi panel chưa tồn tại.
+ * Sau đó dùng renderAdminTabContent() để partial update.
  */
 function VTFilms_renderAdminPanel() {
     const container = VTFilms_getAdminContainer();
-    const total     = VTFilms_pendingUsers.length;
-    const visible   = VTFilms_pendingUsers.slice(0, VTFilms_pendingVisible);
-    const hasMore   = total > VTFilms_pendingVisible;
+    const { badgeInner, tabsInner, listHTML, shown, users } = VTFilms_computePanelParts();
 
-    // ── Tạo HTML các item user ──
-    const itemsHTML = visible.length === 0
-        ? `<li><span class="dropdown-item-text text-secondary small py-2 d-block text-center">
-               <i class="fad fa-circle-check me-1 text-success"></i>
-               Không có user nào đang chờ
-           </span></li>`
-        : visible.map(u => {
-            const name   = u.displayName || u.email || 'Unknown';
-            const email  = u.email || '';
-            const uid    = u.uid;
-            const avatar = u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6c757d&color=fff&size=36`;
-            const ts     = u.createdAt?.toDate ? u.createdAt.toDate().toLocaleDateString('vi-VN') : '—';
+    // [v6.2] Kiểm tra xem dropdown trigger đã tồn tại chưa
+    const alreadyRendered = !!container.querySelector('[data-bs-toggle="dropdown"]');
 
-            return `
-                <li>
-                    <div class="dropdown-item-text text-light m-0 p-3">
-                        <!-- Avatar + tên + email -->
-                        <div class="d-flex align-items-start gap-2 mb-3">
-                            <img src="${avatar}" class="rounded-circle flex-shrink-0 border-0"
-                                 width="45" height="45" style="object-fit:cover"
-                                 onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6c757d&color=fff&size=45'"
-                                 alt="${name}">
-                            <div class="overflow-hidden flex-grow-1">
-                                <div class="fw-semibold text-truncate">${name}</div>
-                                <div class="text-truncate opacity-75 small">${email}</div>
-                            </div>
-                            <div class="flex-shrink-0 small opacity-50">${ts}</div>
-                        </div>
+    if (alreadyRendered) {
+        // Partial update: chỉ cập nhật badge + tabs + list — GIỮ NGUYÊN dropdown trigger và menu structure
+        const badgeWrap = container.querySelector('#vtfilms-admin-badge');
+        if (badgeWrap) badgeWrap.innerHTML = badgeInner;
 
-                        <!-- Nút Chấp nhận / Từ chối -->
-                        <div class="d-flex gap-2">
-                            <a class="btn btn-sm btn-success flex-fill rounded-pill small"
-                                    onclick="window.VTFilms_Auth._adminApprove('${uid}', this)" role="button">
-                                <i class="fad fa-check me-2"></i>Duyệt
-                            </a>
-                            <a class="btn btn-sm btn-outline-danger flex-fill rounded-pill small"
-                                    onclick="window.VTFilms_Auth._adminReject('${uid}', this)" role="button">
-                                <i class="fad fa-xmark me-2"></i>Biến
-                            </a>
-                        </div>
+        const tabsUl = container.querySelector('#vtfilms-admin-tabs');
+        if (tabsUl) tabsUl.innerHTML = tabsInner;
 
-                    </div>
-                </li>`;
-        }).join('');
+        const listUl = container.querySelector('#vtfilms-admin-list');
+        if (listUl) listUl.innerHTML = listHTML;
 
-    // ── Nút "Tải thêm" ──
-    const loadMoreHTML = hasMore ? `
-        <li>
-            <button class="dropdown-item text-center text-info small py-2"
-                    style="font-size:12px"
-                    onclick="window.VTFilms_Auth._adminLoadMore()">
-                <i class="fa-regular fa-chevron-down me-1"></i>
-                Tải thêm (còn ${total - VTFilms_pendingVisible} user)
-            </button>
-        </li>` : '';
+        VTFilms_log.info(`Admin panel partial update: tab=${VTFilms_adminActiveTab}, ${Math.min(shown.length, users.length)}/${users.length}.`);
+        return;
+    }
 
-    // ── Badge số user đang chờ ──
-    const badgeHTML = total > 0
-        ? `<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-               style="margin:.25rem -.25rem 0">${total > 99 ? '99+' : total}</span>`
-        : '';
-
-    // ── Render dropdown ──
+    // Full render: tạo lần đầu
     container.innerHTML = `
-        <div class="dropdown-menu-end">
-            <a class="nav-link position-relative admin-bell-icon border-0 shadow-none"
-                    data-bs-toggle="dropdown" aria-expanded="false" role="button">
-                <i class="fad fa-bell"></i>
-                ${badgeHTML}
-            </a>
-            <div class="dropdown-menu dropdown-menu-end history-dropdown p-0 shadow-lg mt-1 rounded-3 slideIn animate"
-                 style="min-width:max-content;max-height:80vh;overflow-y:auto">
+        <a class="nav-link position-relative admin-bell-icon border-0 shadow-none"
+           data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside" role="button">
+            <i class="fad fa-bell"></i>
+            <span id="vtfilms-admin-badge">${badgeInner}</span>
+        </a>
+        <div class="dropdown-menu dropdown-menu-end history-dropdown p-0 shadow-lg mt-1 rounded-3 slideIn animate"
+             style="min-width:420px;max-width:500px;max-height:80vh;overflow-y:auto">
 
-                <!-- Header -->
-                <div class="px-3 py-2 d-flex align-items-center justify-content-between gap-3"
-                     style="border-bottom:1px solid rgba(255,255,255,.08)">
-                    <span class="fw-bold dropdown-item-text text-light p-0 text-uppercase small">
-                        Danh sách user chờ phê duyệt
-                    </span>
-                    <span class="badge small rounded-pill ${total > 0 ? 'bg-warning text-dark' : 'bg-secondary'}">
-                        ${total}
-                    </span>
+            <!-- Header + Tabs -->
+            <div class="px-3 pt-3 pb-0">
+                <div class="fw-bold dropdown-item-text text-light p-0 text-uppercase small mb-2">
+                    Quản lý người dùng
                 </div>
-
-                <!-- Danh sách -->
-                ${itemsHTML}
-                ${loadMoreHTML}
-
+                <ul class="nav nav-pills gap-1 mb-0" id="vtfilms-admin-tabs">
+                    ${tabsInner}
+                </ul>
             </div>
+
+            <hr class="my-2 opacity-10">
+
+            <!-- Danh sách theo tab -->
+            <ul class="list-unstyled mb-0" id="vtfilms-admin-list">
+                ${listHTML}
+            </ul>
+
         </div>`;
 
-    VTFilms_log.info(`Admin panel render: ${total} user đang chờ (hiện ${Math.min(visible.length, total)}).`);
+    VTFilms_log.ok(`Admin panel full render: tab=${VTFilms_adminActiveTab}, ${Math.min(shown.length, users.length)}/${users.length}.`);
 }
 
 /**
- * Admin chấp nhận user: updateDoc verifiedUser = true.
- * Realtime → trigger onSnapshot phía user → showVerifySuccess.
- *
- * @param {string} uid — UID của user cần duyệt
- * @param {HTMLElement} btn — Nút đã bấm (để show loading state)
+ * [v6.2] Partial update — chỉ cập nhật tabs active state + list content.
+ * Gọi khi switch tab để giữ nguyên dropdown state (không đóng dropdown).
  */
+function VTFilms_renderAdminTabContent() {
+    const container = VTFilms_getAdminContainer();
+    const tabsUl = container.querySelector('#vtfilms-admin-tabs');
+    const listUl = container.querySelector('#vtfilms-admin-list');
+
+    if (!tabsUl || !listUl) {
+        // Panel chưa render lần đầu → full render
+        VTFilms_renderAdminPanel();
+        return;
+    }
+
+    const { badgeInner, tabsInner, listHTML, shown, users } = VTFilms_computePanelParts();
+
+    const badgeWrap = container.querySelector('#vtfilms-admin-badge');
+    if (badgeWrap) badgeWrap.innerHTML = badgeInner;
+
+    tabsUl.innerHTML = tabsInner;
+    listUl.innerHTML = listHTML;
+
+    VTFilms_log.info(`Admin panel tab switch: ${VTFilms_adminActiveTab}, ${Math.min(shown.length, users.length)}/${users.length}.`);
+}
+
+
+// ── ACTION FUNCTIONS ──────────────────────────────────────────────────────────
+
 async function VTFilms_adminApprove(uid, btn) {
     VTFilms_log.info(`Admin approve uid: ${uid}...`);
-    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
-
+    if (btn) { btn.setAttribute('disabled', ''); btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
     try {
-        await updateDoc(doc(VTFilms_db, 'users', uid), {
-            verifiedUser: true,          // [v6.0] Phê duyệt: boolean true
-        });
-        VTFilms_log.ok(`Đã approve uid: ${uid} → verifiedUser: true`);
-        // onSnapshot phía user tự trigger — không cần làm gì thêm
+        await updateDoc(doc(VTFilms_db, 'users', uid), { verifiedUser: true });
+        VTFilms_log.ok(`Approve OK: users/${uid} → verifiedUser: true`);
     } catch (err) {
-        VTFilms_log.error(`Approve uid ${uid} thất bại:`, err.message);
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-regular fa-check me-1"></i>Chấp nhận'; }
+        VTFilms_log.error(`Approve ${uid} thất bại:`, err.message);
+        if (btn) { btn.removeAttribute('disabled'); btn.innerHTML = '<i class="fad fa-check me-2"></i>Duyệt'; }
     }
 }
 
-/**
- * Admin từ chối user: updateDoc verifiedUser = "rejected".
- * Dùng string "rejected" thay vì false để loại khỏi query pending
- * (where verifiedUser == false sẽ không khớp string "rejected").
- *
- * @param {string} uid
- * @param {HTMLElement} btn
- */
 async function VTFilms_adminReject(uid, btn) {
     VTFilms_log.info(`Admin reject uid: ${uid}...`);
-    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
-
+    if (btn) { btn.setAttribute('disabled', ''); btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
     try {
-        await updateDoc(doc(VTFilms_db, 'users', uid), {
-            verifiedUser: 'rejected',    // [v6.0] Từ chối: string "rejected" → loại khỏi pending query
-        });
-        VTFilms_log.ok(`Đã reject uid: ${uid} → verifiedUser: "rejected"`);
+        await updateDoc(doc(VTFilms_db, 'users', uid), { verifiedUser: 'rejected' });
+        VTFilms_log.ok(`Reject OK: users/${uid} → verifiedUser: "rejected"`);
     } catch (err) {
-        VTFilms_log.error(`Reject uid ${uid} thất bại:`, err.message);
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-regular fa-xmark me-1"></i>Từ chối'; }
+        VTFilms_log.error(`Reject ${uid} thất bại:`, err.message);
+        if (btn) { btn.removeAttribute('disabled'); btn.innerHTML = '<i class="fad fa-xmark me-2"></i>Biến'; }
     }
 }
 
-/**
- * Tải thêm 5 user trong dropdown admin.
- * Dữ liệu đã có trong VTFilms_pendingUsers (từ onSnapshot) — chỉ tăng số hiển thị.
- */
-function VTFilms_adminLoadMore() {
-    VTFilms_pendingVisible += 5;
-    VTFilms_log.info(`Admin load more: hiện ${VTFilms_pendingVisible} user.`);
+async function VTFilms_adminRevoke(uid, btn) {
+    VTFilms_log.info(`Admin revoke uid: ${uid}...`);
+    if (btn) { btn.setAttribute('disabled', ''); btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+    try {
+        await updateDoc(doc(VTFilms_db, 'users', uid), { verifiedUser: 'revoked' });
+        VTFilms_log.ok(`Revoke OK: users/${uid} → verifiedUser: "revoked"`);
+    } catch (err) {
+        VTFilms_log.error(`Revoke ${uid} thất bại:`, err.message);
+        if (btn) { btn.removeAttribute('disabled'); btn.innerHTML = '<i class="fad fa-lock me-2"></i>Thu hồi'; }
+    }
+}
+
+async function VTFilms_adminReapprove(uid, btn) {
+    VTFilms_log.info(`Admin reapprove uid: ${uid}...`);
+    if (btn) { btn.setAttribute('disabled', ''); btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+    try {
+        await updateDoc(doc(VTFilms_db, 'users', uid), { verifiedUser: true });
+        VTFilms_log.ok(`Reapprove OK: users/${uid} → verifiedUser: true`);
+    } catch (err) {
+        VTFilms_log.error(`Reapprove ${uid} thất bại:`, err.message);
+        if (btn) { btn.removeAttribute('disabled'); btn.innerHTML = '<i class="fad fa-rotate-left me-2"></i>Phê duyệt lại'; }
+    }
+}
+
+function VTFilms_adminLoadMore(tab) {
+    if (tab === 'pending')  VTFilms_pendingVisible  += 5;
+    if (tab === 'approved') VTFilms_approvedVisible += 5;
+    if (tab === 'rejected') VTFilms_rejectedVisible += 5;
+    VTFilms_log.info(`Admin load more tab "${tab}".`);
     VTFilms_renderAdminPanel();
 }
 
 /**
- * Bắt đầu admin panel: onSnapshot query users where verifiedUser == false.
- * Realtime — tự cập nhật khi có user mới hoặc admin duyệt.
- * Chỉ gọi cho admin sau khi app đã hiện.
+ * Khởi động admin panel: 3 onSnapshot queries realtime.
+ * [v6.2] Mỗi lần data thay đổi → renderAdminPanel() (partial update nếu đã render).
  */
 function VTFilms_startAdminPanel() {
-    // Dọn dẹp listener cũ
-    if (VTFilms_adminUnsubscribe) { VTFilms_adminUnsubscribe(); VTFilms_adminUnsubscribe = null; }
+    if (VTFilms_adminPendingUnsub)   { VTFilms_adminPendingUnsub();   VTFilms_adminPendingUnsub   = null; }
+    if (VTFilms_adminApprovedUnsub)  { VTFilms_adminApprovedUnsub();  VTFilms_adminApprovedUnsub  = null; }
+    if (VTFilms_adminRejectedUnsub)  { VTFilms_adminRejectedUnsub();  VTFilms_adminRejectedUnsub  = null; }
+    VTFilms_adminUnsubscribe = null;
 
-    VTFilms_log.info('Khởi động admin panel — onSnapshot users (verifiedUser == false)...');
+    VTFilms_log.info('Khởi động admin panel (3 onSnapshot queries)...');
 
-    // Query: users where verifiedUser == false, sắp xếp theo createdAt desc (mới nhất trước)
-    const q = query(
+    const qPending = query(
         collection(VTFilms_db, 'users'),
-        where('verifiedUser', '==', false),  // Chỉ pending (không lấy true hoặc "rejected")
+        where('verifiedUser', '==', false),
         orderBy('createdAt', 'desc')
     );
-
-    VTFilms_adminUnsubscribe = onSnapshot(q, (snapshot) => {
-        VTFilms_pendingUsers    = snapshot.docs.map(d => d.data());
-        VTFilms_pendingVisible  = 5; // Reset về 5 mỗi khi data thay đổi
-        VTFilms_log.info(`Admin panel cập nhật: ${VTFilms_pendingUsers.length} user đang chờ.`);
+    VTFilms_adminPendingUnsub = onSnapshot(qPending, (snap) => {
+        VTFilms_pendingUsers   = snap.docs.map(d => d.data());
+        VTFilms_pendingVisible = 5;
+        VTFilms_log.info(`Admin panel [pending] cập nhật: ${VTFilms_pendingUsers.length} user.`);
         VTFilms_renderAdminPanel();
-    }, (err) => {
-        VTFilms_log.error('Admin panel onSnapshot lỗi:', err.message);
-    });
+    }, err => VTFilms_log.error('Admin pending onSnapshot lỗi:', err.message));
+
+    const qApproved = query(
+        collection(VTFilms_db, 'users'),
+        where('verifiedUser', '==', true),
+        orderBy('lastLoginAt', 'desc')
+    );
+    VTFilms_adminApprovedUnsub = onSnapshot(qApproved, (snap) => {
+        VTFilms_approvedUsers   = snap.docs.map(d => d.data()).filter(u => u.role !== 'admin');
+        VTFilms_approvedVisible = 5;
+        VTFilms_log.info(`Admin panel [approved] cập nhật: ${VTFilms_approvedUsers.length} user.`);
+        VTFilms_renderAdminPanel();
+    }, err => VTFilms_log.error('Admin approved onSnapshot lỗi:', err.message));
+
+    const qRejected = query(
+        collection(VTFilms_db, 'users'),
+        where('verifiedUser', 'in', ['rejected', 'revoked']),
+        orderBy('lastLoginAt', 'desc')
+    );
+    VTFilms_adminRejectedUnsub = onSnapshot(qRejected, (snap) => {
+        VTFilms_rejectedUsers   = snap.docs.map(d => d.data());
+        VTFilms_rejectedVisible = 5;
+        VTFilms_log.info(`Admin panel [rejected/revoked] cập nhật: ${VTFilms_rejectedUsers.length} user.`);
+        VTFilms_renderAdminPanel();
+    }, err => VTFilms_log.error('Admin rejected onSnapshot lỗi:', err.message));
 }
 
-/** Dừng admin panel listener (gọi khi đăng xuất). */
 function VTFilms_stopAdminPanel() {
-    if (VTFilms_adminUnsubscribe) {
-        VTFilms_adminUnsubscribe();
-        VTFilms_adminUnsubscribe = null;
-        VTFilms_log.info('Admin panel listener đã dừng.');
-    }
+    if (VTFilms_adminPendingUnsub)  { VTFilms_adminPendingUnsub();  VTFilms_adminPendingUnsub  = null; }
+    if (VTFilms_adminApprovedUnsub) { VTFilms_adminApprovedUnsub(); VTFilms_adminApprovedUnsub = null; }
+    if (VTFilms_adminRejectedUnsub) { VTFilms_adminRejectedUnsub(); VTFilms_adminRejectedUnsub = null; }
+    VTFilms_adminUnsubscribe = null;
+    VTFilms_log.info('Admin panel: tất cả 3 listeners đã dừng.');
 }
 
 
-// ── 14. GOOGLE IDENTITY SERVICES (GSI) ───────────────────────────────────────
-// [UNCHANGED từ v5.0]
-
+// ── 15. GOOGLE IDENTITY SERVICES (GSI) ───────────────────────────────────────
 function VTFilms_initGSI() {
     if (!window.google?.accounts?.id) {
         VTFilms_log.warn('GSI chưa sẵn sàng, thử lại sau 600ms...');
@@ -990,20 +1314,23 @@ async function VTFilms_openPopup() {
 }
 
 
-// ── 15. ĐĂNG XUẤT ────────────────────────────────────────────────────────────
-// [v6.0] Thêm: dừng verify listener, dừng admin panel, xóa verify status cache
+// ── 16. ĐĂNG XUẤT ────────────────────────────────────────────────────────────
+// [v6.2] Luôn xóa verifyStatus (không cần giữ 'revoked' vì không còn auto-logout)
 
 async function VTFilms_signOut() {
     VTFilms_log.info('Bắt đầu đăng xuất...');
     try {
         window.google?.accounts?.id?.disableAutoSelect();
-        VTFilms_stopVerifyListener();   // [v6.0] Dừng realtime verify listener
-        VTFilms_stopAdminPanel();       // [v6.0] Dừng admin panel listener
+        VTFilms_stopVerifyListener();
+        VTFilms_stopAdminPanel();
         VTFilms_clearCache();
         VTFilms_clearProfileFlag();
-        VTFilms_clearVerifyStatus();    // [v6.0] Xóa verify status cache
+        VTFilms_clearVerifyStatus(); // [v6.2] Luôn xóa — không cần giữ 'revoked'
         VTFilms_clearTabGuard();
-        VTFilms_hidePendingOverlay();   // [v6.0] Xóa pending overlay nếu có
+        VTFilms_hidePendingOverlay();
+        // [v6.3] Xóa app khỏi DOM trước khi signOut (bảo mật)
+        const _appEl = document.getElementById('VT-Films-App');
+        if (_appEl) _appEl.remove();
         await VTFilms_fbSignOut(VTFilms_auth);
         VTFilms_log.ok('Đăng xuất thành công → redirect trang chủ...');
         window.location.href = window.location.pathname;
@@ -1013,9 +1340,7 @@ async function VTFilms_signOut() {
 }
 
 
-// ── 16. QUẢN LÝ USER OBJECT ───────────────────────────────────────────────────
-// [UNCHANGED từ v5.0]
-
+// ── 17. QUẢN LÝ USER OBJECT ───────────────────────────────────────────────────
 function VTFilms_buildUser(fbUser) {
     const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(fbUser.displayName || 'U')}&background=dc3545&color=fff&size=128`;
     const role     = VTFilms_getRole(fbUser.uid);
@@ -1051,13 +1376,13 @@ function VTFilms_renderDropdown(user) {
         : '';
     el.innerHTML = `
         <div class="dropdown">
-            <a class="nav-link p-0 m-0" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <a class="nav-link p-0 m-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
                 <img src="${user.avatar}" class="rounded-circle" width="45" height="45"
                      style="object-fit:cover" alt="${user.name}"
                      onerror="this.src='${fallback}'">
             </a>
             <ul class="dropdown-menu dropdown-menu-end slideIn animate border-0 shadow-none history-dropdown"
-				style="min-width: max-content">
+			    style="min-width: max-content">
                 <li class="mb-2">
                     <div class="dropdown-item-text text-light d-flex align-items-center gap-2">
                         <img src="${user.avatar}" class="rounded-circle flex-shrink-0"
@@ -1089,20 +1414,31 @@ function VTFilms_renderDropdown(user) {
 }
 
 
-// ── 17. ANTI-FLASH ────────────────────────────────────────────────────────────
-// [v6.0] Cập nhật: đọc verifyStatus cache để hiện đúng UI ngay lập tức.
+// ── 18. ANTI-FLASH (v6.3) ────────────────────────────────────────────────────
+// Chạy đồng bộ ngay khi module load — trước khi Firebase phản hồi.
+// Đọc localStorage cache để hiện đúng UI ngay lập tức (không flash).
 //
-//  Không có cache → chắc chắn chưa login → show login overlay
-//  Cache có, role admin → keep app (admin không cần xác minh)
-//  Cache có, verifyStatus 'approved' → keep app
-//  Cache có, verifyStatus 'rejected' → remove app, show rejection overlay
-//  Cache có, verifyStatus 'pending' hoặc null → remove app, show pending overlay
+// [v6.3] THAY ĐỔI QUAN TRỌNG:
+//   Tất cả trạng thái không phải 'approved' → remove() app khỏi DOM (KHÔNG d-none).
+//   Lý do: SPA/JS app — user có thể xóa class d-none bằng DevTools để bypass.
+//   remove() đảm bảo app KHÔNG thể khôi phục mà không reload trang.
+//
+//   Dùng Layer A (applyOverlayContent) — KHÔNG gọi onTransition* (Layer B).
+//   Layer B có reload() → sẽ gây vòng lặp reload vô hạn nếu gọi trong antiFlash.
+//
+//  Không có cache              → remove app + show login overlay
+//  Cache có, role admin        → giữ app (admin bypass xác minh)
+//  verifyStatus 'approved'     → giữ app bình thường (startUnifiedListener sau)
+//  verifyStatus 'pending'/null → remove app + show pending overlay (default content)
+//  verifyStatus 'rejected'     → remove app + show overlay + applyOverlayContent('rejected')
+//  verifyStatus 'revoked'      → remove app + show overlay + applyOverlayContent('revoked')
 
 function VTFilms_antiFlash() {
     const cache = VTFilms_getCache();
 
+    // Không có cache → chưa login
     if (!cache) {
-        VTFilms_log.info('Anti-flash: không có cache → login overlay...');
+        VTFilms_log.info('Anti-flash: không có cache → remove app, login overlay...');
         const appEl = document.getElementById('VT-Films-App');
         if (appEl) appEl.remove();
         VTFilms_showOverlay();
@@ -1119,42 +1455,37 @@ function VTFilms_antiFlash() {
     VTFilms_log.info(`Anti-flash: user (${cache.name}), verifyStatus = ${verifyStatus}`);
 
     if (verifyStatus === 'approved') {
-        // Đã được duyệt → giữ app bình thường
+        // Đã approved → giữ app hiển thị bình thường
         VTFilms_log.info('Anti-flash: approved → giữ UI, chờ Firebase...');
-
-    } else if (verifyStatus === 'rejected') {
-        // Bị từ chối → remove app, show rejection overlay ngay
-        VTFilms_log.warn('Anti-flash: rejected → xóa UI, hiện rejection overlay...');
-        const appEl = document.getElementById('VT-Films-App');
-        if (appEl) appEl.remove();
-        VTFilms_showPendingOverlay(cache);    // Hiện overlay
-        VTFilms_showVerifyRejected();         // Ngay lập tức set sang rejection state
-
-    } else {
-        // 'pending' hoặc null (chưa có cache verify) → remove app, show pending overlay
-        VTFilms_log.info('Anti-flash: pending/unknown → xóa UI, hiện pending overlay...');
-        const appEl = document.getElementById('VT-Films-App');
-        if (appEl) appEl.remove();
-        VTFilms_showPendingOverlay(cache);
+        return;
     }
+
+    // Mọi trạng thái khác: remove app ngay (bảo mật SPA)
+    const appEl = document.getElementById('VT-Films-App');
+    if (appEl) {
+        appEl.remove();
+        VTFilms_log.info('Anti-flash: app removed (security — non-approved state).');
+    }
+
+    // Hiện pending overlay (content mặc định = pending)
+    VTFilms_showPendingOverlay(cache);
+
+    // Cập nhật content nếu cần — dùng Layer A (không reload)
+    if (verifyStatus === 'rejected') {
+        VTFilms_log.warn('Anti-flash: rejected → applyOverlayContent(rejected)...');
+        setTimeout(() => VTFilms_applyOverlayContent('rejected'), 50);
+    } else if (verifyStatus === 'revoked') {
+        VTFilms_log.warn('Anti-flash: revoked → applyOverlayContent(revoked)...');
+        setTimeout(() => VTFilms_applyOverlayContent('revoked'), 50);
+    }
+    // 'pending' hoặc null → content mặc định của VTFilms_showPendingOverlay đã đúng
 }
 
 
-// ── 18. AUTH STATE LISTENER (TRUNG TÂM ĐIỀU PHỐI) ────────────────────────────
-// [v6.0] Thêm verification gate trước khi show app cho user thường.
-//
-// Đã đăng nhập:
-//   1. Build user, setUser (cache + dispatch)
-//   2. syncUserDoc (0 reads, tối đa 1 write/tab)
-//   3. Nếu admin → bypass xác minh → showApp + renderDropdown + startAdminPanel
-//   4. Nếu user thường + approved (cache) → showApp + renderDropdown
-//   5. Nếu user thường + pending/null → showPendingOverlay + startVerifyListener
-//   6. Nếu user thường + rejected (cache) → showPendingOverlay (rejection state)
-//
-// Chưa đăng nhập:
-//   1. Clear tất cả storage + listeners
-//   2. Remove app, show login overlay
-//   3. Init GSI
+// ── 19. AUTH STATE LISTENER ───────────────────────────────────────────────────
+// [v6.2] Dùng VTFilms_startUnifiedListener cho tất cả user.
+//        Truyền initialStatus để listener không trigger transition ở snapshot đầu.
+//        Không còn startVerifyListener / startRevokeListener riêng biệt.
 
 function VTFilms_startListener() {
     VTFilms_log.info('Bắt đầu lắng nghe onAuthStateChanged...');
@@ -1166,12 +1497,11 @@ function VTFilms_startListener() {
             const user = VTFilms_buildUser(fbUser);
             VTFilms_setUser(user);
 
-            // Sync Firestore (tối đa 1 write/tab, 0 reads)
             VTFilms_syncUserDoc(fbUser).catch(e =>
                 VTFilms_log.warn('syncUserDoc lỗi (không ảnh hưởng app):', e.message)
             );
 
-            VTFilms_hideOverlay(); // Ẩn login overlay nếu đang hiện
+            VTFilms_hideOverlay();
 
             // ── Admin: bypass toàn bộ verification ──
             if (user.role === 'admin') {
@@ -1181,7 +1511,7 @@ function VTFilms_startListener() {
                 } else {
                     VTFilms_showApp();
                     VTFilms_renderDropdown(user);
-                    VTFilms_startAdminPanel();   // [v6.0] Bắt đầu admin panel realtime
+                    VTFilms_startAdminPanel();
                 }
                 return;
             }
@@ -1191,53 +1521,69 @@ function VTFilms_startListener() {
             VTFilms_log.info(`Verify status từ cache: ${verifyStatus}`);
 
             if (verifyStatus === 'approved') {
-                // Đã được duyệt trước đó → show app bình thường
-                VTFilms_log.ok('User đã approved (cache) → show app.');
+                // Đã được duyệt → show app + bắt đầu unified listener (initialStatus='approved')
+                VTFilms_log.ok('User đã approved (cache) → show app + unified listener.');
                 VTFilms_hidePendingOverlay();
-                if (!document.getElementById('VT-Films-App')) {
+                const appEl = document.getElementById('VT-Films-App');
+                if (!appEl) {
                     VTFilms_reloadPage();
                 } else {
                     VTFilms_showApp();
                     VTFilms_renderDropdown(user);
+                    // [v6.2] Unified listener — sẽ chỉ trigger khi status thay đổi
+                    VTFilms_startUnifiedListener(fbUser, 'approved');
                 }
 
             } else if (verifyStatus === 'rejected') {
-                // Đã bị từ chối → show rejection (antiFlash đã làm, đây là fallback)
                 VTFilms_log.warn('User rejected (cache) → đảm bảo rejection overlay hiện.');
                 if (!document.getElementById('VTFilms-pending-overlay')) {
+                    // [v6.3] antiFlash đã xử lý, đây là fallback (nếu antiFlash miss)
+                    VTFilms_removeApp();
                     VTFilms_showPendingOverlay(user);
-                    VTFilms_showVerifyRejected();
+                    // Dùng Layer A — KHÔNG gọi onTransitionRejected (Layer B) vì có reload()
+                    setTimeout(() => VTFilms_applyOverlayContent('rejected'), 50);
                 }
+                // Unified listener — lắng nghe để nhận khi admin phê duyệt lại
+                VTFilms_startUnifiedListener(fbUser, 'rejected');
+
+            } else if (verifyStatus === 'revoked') {
+                VTFilms_log.warn('User revoked (cache) → đảm bảo revoked overlay hiện.');
+                if (!document.getElementById('VTFilms-pending-overlay')) {
+                    VTFilms_removeApp();
+                    VTFilms_showPendingOverlay(user);
+                    // Dùng Layer A — KHÔNG gọi onTransitionRevoked (Layer B) vì có reload()
+                    setTimeout(() => VTFilms_applyOverlayContent('revoked'), 50);
+                }
+                // Unified listener — lắng nghe để nhận khi admin phê duyệt lại
+                VTFilms_startUnifiedListener(fbUser, 'revoked');
 
             } else {
-                // 'pending' hoặc null → cần xác minh
-                VTFilms_log.info('User chưa/đang chờ xác minh → pending overlay + verify listener...');
-
-                // Đảm bảo pending overlay đang hiển thị
+                // 'pending' hoặc null
+                VTFilms_log.info('User chưa/đang chờ xác minh → pending overlay + unified listener...');
                 if (!document.getElementById('VTFilms-pending-overlay')) {
-                    const appEl = document.getElementById('VT-Films-App');
-                    if (appEl) appEl.remove();
+                    // [v6.3] remove() thay vì hideApp() — bảo mật SPA
+                    VTFilms_removeApp();
                     VTFilms_showPendingOverlay(user);
                 }
-
-                // Bắt đầu lắng nghe realtime để nhận kết quả từ admin
-                VTFilms_startVerifyListener(fbUser);
+                // Unified listener — initialStatus='pending'
+                VTFilms_startUnifiedListener(fbUser, verifyStatus || 'pending');
             }
 
         } else {
             // ── Chưa / vừa đăng xuất ──
             VTFilms_log.info('Firebase: chưa đăng nhập → dọn dẹp toàn bộ...');
             VTFilms_setUser(null);
-            VTFilms_stopVerifyListener();   // [v6.0]
-            VTFilms_stopAdminPanel();       // [v6.0]
+            VTFilms_stopVerifyListener();
+            VTFilms_stopAdminPanel();
             VTFilms_clearProfileFlag();
-            VTFilms_clearVerifyStatus();    // [v6.0]
             VTFilms_clearTabGuard();
+            // [v6.2] Luôn xóa verifyStatus khi logout (không cần giữ 'revoked')
+            VTFilms_clearVerifyStatus();
 
             const appEl = document.getElementById('VT-Films-App');
             if (appEl) { appEl.remove(); VTFilms_log.ok('#VT-Films-App đã xóa.'); }
 
-            VTFilms_hidePendingOverlay();   // [v6.0] Xóa pending overlay nếu còn
+            VTFilms_hidePendingOverlay();
 
             if (!document.getElementById('VTFilms-overlay')) VTFilms_showOverlay();
 
@@ -1249,9 +1595,7 @@ function VTFilms_startListener() {
 }
 
 
-// ── 19. EXPORT GLOBAL API ─────────────────────────────────────────────────────
-// [v6.0] Thêm: isVerified(), _adminApprove(), _adminReject(), _adminLoadMore()
-
+// ── 20. EXPORT GLOBAL API ─────────────────────────────────────────────────────
 window.VTFilms_USER = null;
 
 window.VTFilms_Auth = {
@@ -1261,18 +1605,27 @@ window.VTFilms_Auth = {
     isVerified:       () => {
         const u = window.VTFilms_USER;
         if (!u) return false;
-        if (u.role === 'admin') return true;             // Admin luôn verified
+        if (u.role === 'admin') return true;
         return VTFilms_getVerifyStatus(u.uid) === 'approved';
     },
+    isRevoked:        () => {
+        const u = window.VTFilms_USER;
+        if (!u) return false;
+        return VTFilms_getVerifyStatus(u.uid) === 'revoked';
+    },
     _openPopup:       VTFilms_openPopup,
-    _adminApprove:    VTFilms_adminApprove,    // [v6.0] Dùng trong HTML button onclick
-    _adminReject:     VTFilms_adminReject,     // [v6.0] Dùng trong HTML button onclick
-    _adminLoadMore:   VTFilms_adminLoadMore,   // [v6.0] Dùng trong HTML button onclick
+    // ── Admin actions ──
+    _adminApprove:    VTFilms_adminApprove,
+    _adminReject:     VTFilms_adminReject,
+    _adminRevoke:     VTFilms_adminRevoke,
+    _adminReapprove:  VTFilms_adminReapprove,
+    _adminSwitchTab:  VTFilms_adminSwitchTab,
+    _adminLoadMore:   VTFilms_adminLoadMore,
     version:          VTFilms_VERSION,
 };
 
 
-// ── 20. KHỞI CHẠY ─────────────────────────────────────────────────────────────
+// ── 21. KHỞI CHẠY ─────────────────────────────────────────────────────────────
 VTFilms_log.info(`===== vtfilms-module.js v${VTFilms_VERSION} khởi chạy =====`);
 VTFilms_antiFlash();      // Bước 1: Anti-flash UI (đọc cache, hiện đúng overlay ngay)
 VTFilms_startListener();  // Bước 2: Firebase onAuthStateChanged
