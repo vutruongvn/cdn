@@ -1079,9 +1079,11 @@ body.light-mode .text-light {
 }
 
 body.light-mode .btn:hover {
+    /*
     color: var(--bs-dark);
     background-color: rgba(0, 0, 0, .1);
     border-color: var(--bs-dark)
+    */
 }
 
 body.light-mode #movieList .movie-detail-wrapper .detail-content .text-secondary,
@@ -1160,3 +1162,4 @@ body.light-mode {
 /* ==============================
 ALL CSS for VT Films - films.vutruong.vn
 ============================== */
+
