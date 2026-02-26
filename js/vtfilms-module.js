@@ -2,98 +2,21 @@
  * vtfilms-module.js — VT Films Firebase Auth Module
  * films.vutruong.vn
  *
- * CHANGELOG
- *  v1.0  Khởi tạo: Firebase Auth + Google One Tap
- *  v1.1  Cải thiện UX overlay
- *  v1.2  Sửa One Tap không render → dùng renderButton()
- *  v2.0  Refactor: Remove DOM thay CSS opacity, Bootstrap 5 thuần
- *  v3.0  Fix Firebase CDN link, auto-reload sau login, anti-flash localStorage
- *        Fix One Tap tự đóng (cancel_on_tap_outside: false), đổi tiền tố VTFilms_
- *  v3.1  [FIX] One Tap callback gọi Popup → double login
- *          → Dùng signInWithCredential(JWT) cho One Tap, không mở thêm popup
- *        [REMOVED] Ánh sáng nền trang trí trong overlay
- *  v3.2  [FIX] Xóa lazy load API (không tương thích với kiến trúc hiện tại)
- *        [NEW] Remove class d-none khỏi #VT-Films-App sau khi Firebase xác nhận login
- *  v4.0  [NEW] Đăng xuất → redirect về trang chủ ngay lập tức
- *        [NEW] Thu thập & lưu thông tin phiên đăng nhập vào Firestore
- *  v4.1  [OPT] Giảm dữ liệu session 15 → 6 fields, guard bằng sessionStorage
- *  v5.0  [REFACTOR] Bỏ subcollection sessions, flat document users/{uid}
- *        [NEW] Fields: uid, email, displayName, photoURL, provider, role,
- *                      createdAt, lastLoginAt
- *        [NEW] Phân quyền admin / user, logic write 3 mức, 0 reads
- *  v6.0  [NEW] Hệ thống xác minh user (Verification Gate)
- *  v6.1  [FIX] Admin UID → verifiedUser: true khi tạo document (bypass xác minh)
- *        [NEW] Admin panel: 3 tabs Bootstrap — Chờ duyệt / Đã duyệt / Từ chối
- *        [NEW] Tab "Đã duyệt": nút Thu hồi → verifiedUser:'revoked'
- *        [NEW] Tab "Từ chối": nút Phê duyệt lại → verifiedUser: true
- *        [NEW] verifiedUser: 'revoked' — trạng thái mới (phân biệt với 'rejected')
- *  v6.2  ── BUG FIX & REFACTOR ──
- *  v6.3  ── BẢO MẬT & RELOAD ──
- *  v6.3.1 ── FIX RELOAD LOOP ──
- *        [FIX] Bug: reload vô hạn khi user bị rejected/revoked.
- *              Nguyên nhân: profileSaved flag bị mất → syncUserDoc gọi setDoc
- *              → Firestore tạo optimistic snapshot (verifiedUser:false) trước khi
- *              server từ chối write → unified listener nhận snapshot giả → lưu
- *              'pending' vào cache → snapshot thật 'rejected' đến → thấy
- *              pending→rejected là "thay đổi" → onTransitionRejected() → reload → loop.
- *        [FIX] syncUserDoc: thêm guard verifyStatus cache !== null làm signal
- *              user đã có Firestore doc → skip setDoc, restore profileSaved flag,
- *              chỉ updateDoc lastLoginAt. Ngăn optimistic snapshot giả hoàn toàn.
- *        [FIX] startUnifiedListener: xóa _initialized flag phức tạp, thay bằng
- *              pure compare: _lastStatus = initialStatus (từ localStorage cache).
- *              newStatus === _lastStatus → skip (no transition, refresh cache).
- *              newStatus !== _lastStatus → real change → trigger transition.
- *              Đơn giản hơn, đúng hơn, không bị ảnh hưởng bởi optimistic writes.
- *        [SEC] Thay d-none bằng remove() cho mọi trạng thái không phải 'approved'
- *              → SPA: user không thể xóa d-none bằng DevTools để bypass auth
- *        [NEW] Mọi thay đổi status từ admin → remove app → show overlay → reload()
- *              → UI luôn sạch và đồng bộ sau mỗi hành động admin
- *        [NEW] VTFilms_applyOverlayContent(state) — Layer A: chỉ update DOM, không reload
- *              → Dùng trong antiFlash (sau reload) để tránh vòng lặp
- *        [UPD] onTransition* functions — Layer B: luôn kết thúc bằng reload()
- *        [UPD] antiFlash: remove() thay d-none, gọi applyOverlayContent (Layer A)
- *        [UPD] startListener: replace hideApp → removeApp, gọi applyOverlayContent
- *        [REM] VTFilms_hideApp() — không cần thiết nữa (luôn dùng removeApp)
- *        [FIX] Bug: approve → revoke → approve lại → user vẫn bị revoke
- *              → Nguyên nhân: handleRevocation auto sign-out → listener bị hủy
- *              → Fix: bỏ hoàn toàn auto sign-out, giữ user đăng nhập, giữ listener
- *        [FIX] Overlay transition mượt mà: fadeOut → update content → fadeIn
- *              Không còn giật, nháy flash khi chuyển trạng thái
- *        [FIX] Admin panel tab click tự đóng dropdown
- *              → Fix: partial re-render (chỉ cập nhật badge/tabs/list, không rebuild toàn bộ)
- *              → Dropdown state được giữ nguyên khi switch tab
- *        [REFACTOR] Thay startVerifyListener + startRevokeListener bằng 1 unified listener
- *              → VTFilms_startUnifiedListener: 1 onSnapshot duy nhất, xử lý mọi transition
- *              → Không tự hủy khi nhận trạng thái, luôn lắng nghe tiếp tục (trừ khi đăng xuất)
- *              → Tránh transition redundant: chỉ trigger khi status THAY ĐỔI
- *        [NEW] VTFilms_hideApp() — ẩn app bằng d-none (thay remove()) để giữ trong DOM
- *              → Khi admin approve lại sau revoke: show app ngay, không cần reload
- *        [NEW] VTFilms_overlayTransition(updateFn) — smooth fadeOut→update→fadeIn
- *        [NEW] Transition functions: onTransitionApproved/Rejected/Revoked/Pending
- *        [UPD] antiFlash: dùng d-none thay remove() cho trạng thái pending/rejected/revoked
- *        [UPD] signOut: luôn xóa verifyStatus (không cần giữ 'revoked' nữa vì không auto logout)
- *        [UPD] Admin container thêm class 'dropdown' để Bootstrap dropdown hoạt động đúng
- *        [REM] VTFilms_handleRevocation: bỏ auto sign-out setTimeout
- *        [REM] startVerifyListener, startRevokeListener (gộp vào unified listener)
+ * CHANGELOG (từ v6.0 — xem git history cho v1–v5)
  *
- * ─────────────────────────────────────────────────────────────
- * LUỒNG TRẠNG THÁI v6.2 (State Machine)
- *
- *   pending  → (admin approve)  → approved  ✓ show app, no reload
- *   pending  → (admin reject)   → rejected  ✗ update overlay
- *   approved → (admin revoke)   → revoked   🔒 hide app, show overlay
- *   revoked  → (admin approve)  → approved  ✓ show app, no reload ← BUG FIXED
- *   rejected → (admin approve)  → approved  ✓ show app, no reload
- *
- *   Không còn: tự động đăng xuất, tự động reload
- *   User tự đăng xuất nếu muốn qua nút Đăng xuất
- *
- * ─────────────────────────────────────────────────────────────
- * verifiedUser field values:
- *   false      → pending (chờ admin duyệt)
- *   true       → approved (được phê duyệt)
- *   'rejected' → từ chối (user chưa từng được duyệt)
- *   'revoked'  → thu hồi (user đã từng được duyệt nhưng bị thu hồi)
+ *  v6.0  Hệ thống xác minh user (Verification Gate), admin panel
+ *  v6.1  verifiedUser:'revoked', admin 3 tabs, nút Thu hồi / Phê duyệt lại
+ *  v6.2  Unified listener, overlay transition mượt, fix tab dropdown, bỏ auto sign-out
+ *  v6.3  Bảo mật SPA: remove() thay d-none, mọi transition kết thúc bằng reload()
+ *         Layer A (applyOverlayContent) / Layer B (onTransition*) tránh reload loop
+ *  v6.3.1 Fix reload vô hạn: guard verifyStatus trong syncUserDoc;
+ *         pure compare _lastStatus=initialStatus trong unified listener
+ *  v6.4  ── CLEANUP & OPTIMIZE ──
+ *        [REM] Dead code: aliases showVerifyRejected / showRevokedState / showVerifySuccess
+ *        [REM] VTFilms_stopRevokeListener, VTFilms_adminUnsubscribe, VTFilms_reloadPage
+ *        [MERGE] onTransitionRejected + onTransitionRevoked → onTransitionBlocked(state)
+ *        [STD] setTimeout delay chuẩn hóa 50ms trong toàn bộ overlay transitions
+ *        [OPT] VTFilms_DEBUG flag — tắt log khi production
  */
 
 
@@ -123,7 +46,12 @@ import {
 
 
 // ── 2. HẰNG SỐ & CẤU HÌNH ────────────────────────────────────────────────────
-const VTFilms_VERSION = '6.3.1';
+const VTFilms_VERSION = '6.4';
+
+// ── DEBUG FLAG ────────────────────────────────────────────────────────────────
+// true  → in log đầy đủ ra console (dùng khi development/debug)
+// false → tắt log info/ok, chỉ giữ warn/error (dùng khi production)
+const VTFilms_DEBUG = true;
 
 // Admin UIDs — thêm UID vào đây để cấp quyền admin. Mọi UID khác = "user".
 const VTFilms_ADMIN_UIDS = [
@@ -139,8 +67,8 @@ const VTFilms_TAB_KEY     = 'VTFilms_tabActive';
 const VTFilms_CLIENT_ID = '891750241616-234jksd5e2b301g838gr6t650hdobptk.apps.googleusercontent.com';
 
 const VTFilms_log = {
-    info:  (m, ...a) => console.log( `%c[VTFilms v${VTFilms_VERSION}]`,   'color:#dc3545;font-weight:bold', '→', m, ...a),
-    ok:    (m, ...a) => console.log( `%c[VTFilms v${VTFilms_VERSION}] ✓`, 'color:#28a745;font-weight:bold', m, ...a),
+    info:  (m, ...a) => VTFilms_DEBUG && console.log( `%c[VTFilms v${VTFilms_VERSION}]`,   'color:#dc3545;font-weight:bold', '→', m, ...a),
+    ok:    (m, ...a) => VTFilms_DEBUG && console.log( `%c[VTFilms v${VTFilms_VERSION}] ✓`, 'color:#28a745;font-weight:bold', m, ...a),
     warn:  (m, ...a) => console.warn( `[VTFilms v${VTFilms_VERSION}] ⚠`, m, ...a),
     error: (m, ...a) => console.error(`[VTFilms v${VTFilms_VERSION}] ✗`, m, ...a),
 };
@@ -342,10 +270,6 @@ function VTFilms_showApp() {
     VTFilms_log.ok('#VT-Films-App hiển thị (d-none removed).');
 }
 
-function VTFilms_reloadPage() {
-    VTFilms_log.info('Reload trang...');
-    window.location.reload();
-}
 
 
 // ── 10. OVERLAY ĐĂNG NHẬP ────────────────────────────────────────────────────
@@ -662,62 +586,39 @@ function VTFilms_onTransitionApproved() {
 }
 
 /**
- * [v6.3] Layer B: Transition REJECTED (triggered bởi admin realtime).
+ * [v6.4] Layer B: Transition REJECTED hoặc REVOKED (triggered bởi admin realtime).
+ * Gộp từ onTransitionRejected + onTransitionRevoked — logic hoàn toàn giống nhau,
+ * chỉ khác state string truyền vào applyOverlayContent.
  *
  * Luồng:
- *   1. remove() app khỏi DOM ngay lập tức (bảo mật).
- *   2. Hiện/cập nhật overlay → "Tài khoản bị từ chối".
- *   3. Sau 2.5s → reload().
- *   4. Sau reload: antiFlash đọc 'rejected' → remove app → show overlay.
+ *   1. remove() app khỏi DOM ngay (bảo mật SPA — không dùng d-none).
+ *   2. Tạo overlay nếu chưa có → applyOverlayContent(state) cập nhật nội dung.
+ *   3. Sau 2.5s → reload() để UI sạch, đồng bộ với Firestore.
+ *
+ * @param {'rejected'|'revoked'} state
  */
-function VTFilms_onTransitionRejected() {
-    VTFilms_log.warn('Transition → REJECTED: remove app, hiện overlay, reload...');
+function VTFilms_onTransitionBlocked(state) {
+    VTFilms_log.warn(`Transition → ${state.toUpperCase()}: remove app, hiện overlay, reload...`);
 
-    // Bảo mật: remove app ngay lập tức (không để user tiếp tục dùng)
+    // Bảo mật: xóa app ngay lập tức khỏi DOM
     VTFilms_removeApp();
 
-    // Đảm bảo có overlay
-    const hasOverlay = !!document.getElementById('VTFilms-pending-overlay');
-    if (!hasOverlay) {
-        const cache = VTFilms_getCache();
-        VTFilms_showPendingOverlay(cache || {});
-        // Chờ overlay fade in xong rồi cập nhật nội dung
-        setTimeout(() => VTFilms_applyOverlayContent('rejected'), 80);
+    // Đảm bảo có overlay — nếu chưa có thì tạo mới (pendingOverlay là base)
+    if (!document.getElementById('VTFilms-pending-overlay')) {
+        VTFilms_showPendingOverlay(VTFilms_getCache() || {});
+        // Chờ overlay fade-in (50ms) rồi cập nhật nội dung
+        setTimeout(() => VTFilms_applyOverlayContent(state), 50);
     } else {
-        VTFilms_applyOverlayContent('rejected');
+        VTFilms_applyOverlayContent(state);
     }
 
-    // Reload sau 2.5s (đủ thời gian user đọc thông báo)
+    // Sau 2.5s: reload để tải lại UI sạch từ HTML gốc
     setTimeout(() => { window.location.reload(); }, 2500);
 }
 
-/**
- * [v6.3] Layer B: Transition REVOKED (triggered bởi admin realtime).
- *
- * Luồng:
- *   1. remove() app khỏi DOM ngay lập tức (bảo mật).
- *   2. Hiện/cập nhật overlay → "Quyền truy cập bị thu hồi".
- *   3. Sau 2.5s → reload().
- *   4. Sau reload: antiFlash đọc 'revoked' → remove app → show overlay.
- */
-function VTFilms_onTransitionRevoked() {
-    VTFilms_log.warn('Transition → REVOKED: remove app, hiện overlay, reload...');
-
-    // Bảo mật: remove app ngay lập tức
-    VTFilms_removeApp();
-
-    const hasOverlay = !!document.getElementById('VTFilms-pending-overlay');
-    if (!hasOverlay) {
-        const cache = VTFilms_getCache();
-        VTFilms_showPendingOverlay(cache || {});
-        setTimeout(() => VTFilms_applyOverlayContent('revoked'), 80);
-    } else {
-        VTFilms_applyOverlayContent('revoked');
-    }
-
-    // Reload sau 2.5s
-    setTimeout(() => { window.location.reload(); }, 2500);
-}
+// Alias shorthand để unified listener gọi gọn
+function VTFilms_onTransitionRejected() { VTFilms_onTransitionBlocked('rejected'); }
+function VTFilms_onTransitionRevoked()  { VTFilms_onTransitionBlocked('revoked');  }
 
 /**
  * [v6.3] Layer B: Transition PENDING (triggered bởi admin realtime — hiếm gặp).
@@ -739,10 +640,7 @@ function VTFilms_onTransitionPending() {
     setTimeout(() => { window.location.reload(); }, 1200);
 }
 
-// ── Backward-compat aliases ────────────────────────────────────────────────────
-function VTFilms_showVerifyRejected() { VTFilms_onTransitionRejected(); }
-function VTFilms_showRevokedState()   { VTFilms_onTransitionRevoked();  }
-function VTFilms_showVerifySuccess()  { VTFilms_onTransitionApproved(); }
+
 
 
 // ── 13. UNIFIED REALTIME LISTENER (v6.2) ─────────────────────────────────────
@@ -852,8 +750,6 @@ function VTFilms_stopVerifyListener() {
     }
 }
 
-// Alias để không break code nào dùng stopVerifyListener
-const VTFilms_stopRevokeListener = VTFilms_stopVerifyListener;
 
 
 // ── 14. ADMIN PANEL: QUẢN LÝ USER (v6.2) ─────────────────────────────────────
@@ -876,7 +772,6 @@ let VTFilms_rejectedVisible = 5;
 let VTFilms_adminRejectedUnsub = null;
 
 let VTFilms_adminActiveTab  = 'pending';
-let VTFilms_adminUnsubscribe = null; // backward compat
 
 /**
  * Lấy/tạo container cho admin panel.
@@ -1203,7 +1098,6 @@ function VTFilms_startAdminPanel() {
     if (VTFilms_adminPendingUnsub)   { VTFilms_adminPendingUnsub();   VTFilms_adminPendingUnsub   = null; }
     if (VTFilms_adminApprovedUnsub)  { VTFilms_adminApprovedUnsub();  VTFilms_adminApprovedUnsub  = null; }
     if (VTFilms_adminRejectedUnsub)  { VTFilms_adminRejectedUnsub();  VTFilms_adminRejectedUnsub  = null; }
-    VTFilms_adminUnsubscribe = null;
 
     VTFilms_log.info('Khởi động admin panel (3 onSnapshot queries)...');
 
@@ -1248,7 +1142,6 @@ function VTFilms_stopAdminPanel() {
     if (VTFilms_adminPendingUnsub)  { VTFilms_adminPendingUnsub();  VTFilms_adminPendingUnsub  = null; }
     if (VTFilms_adminApprovedUnsub) { VTFilms_adminApprovedUnsub(); VTFilms_adminApprovedUnsub = null; }
     if (VTFilms_adminRejectedUnsub) { VTFilms_adminRejectedUnsub(); VTFilms_adminRejectedUnsub = null; }
-    VTFilms_adminUnsubscribe = null;
     VTFilms_log.info('Admin panel: tất cả 3 listeners đã dừng.');
 }
 
@@ -1507,7 +1400,7 @@ function VTFilms_startListener() {
             if (user.role === 'admin') {
                 VTFilms_log.ok('Admin đăng nhập → bypass xác minh, show app trực tiếp.');
                 if (!document.getElementById('VT-Films-App')) {
-                    VTFilms_reloadPage();
+                    window.location.reload();
                 } else {
                     VTFilms_showApp();
                     VTFilms_renderDropdown(user);
@@ -1526,7 +1419,7 @@ function VTFilms_startListener() {
                 VTFilms_hidePendingOverlay();
                 const appEl = document.getElementById('VT-Films-App');
                 if (!appEl) {
-                    VTFilms_reloadPage();
+                    window.location.reload();
                 } else {
                     VTFilms_showApp();
                     VTFilms_renderDropdown(user);
