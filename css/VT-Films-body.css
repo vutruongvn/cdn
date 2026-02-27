@@ -1117,8 +1117,93 @@ body.light-mode {
     transition: width .5s ease;
 }
 
+		.light-mode .card,
+ 		.light-mode .modal .modal-dialog .modal-content{background: #fff !important}
+		body, a {color: #eee}
+		.admin-bell-icon{ line-height: 45px; width: 45px; text-align: center; border-radius: 100%; background: rgba(255, 255, 255, .1); }
+		body.light-mode .admin-bell-icon{ background: rgba(0,0,0, .1); color:var(--bs-dark)!important }
+		.dropdown-item:hover,
+ 		.dropdown-item:active {background:rgba(255,255,255,.1)}
+		body.light-mode .dropdown-item:hover,
+ 		body.light-mode .dropdown-item:active {background:rgba(0,0,0,.1)}
+		body.light-mode #VTFilms-pending-spinner {background: rgba(0,0,0,.05) !important; border: 1px solid rgba(0,0,0,.1) !important;}
+		body.light-mode .card .text-white { --bs-text-opacity: 1; color: rgba(var(--bs-dark-rgb),var(--bs-text-opacity)) !important; }
+
+/* ── AUTO DARK MODE THEO HỆ THỐNG VỚI 3 TÙY CHỌN ── */
+:root {
+  --switcher-bg: rgba(0, 0, 0, .1);
+  --slider-bg: #ffffff;
+  --icon-active: #0d6efd;
+  --icon-inactive: #6c757d;
+}
+
+[data-bs-theme='dark'] {
+  --switcher-bg: #2b3035;
+  --slider-bg: #495057;
+  --icon-active: #3ea6ff;
+  --icon-inactive: #adb5bd;
+}
+
+.theme-options-wrapper {
+  background: var(--switcher-bg);
+  border-radius: 100px;
+  position: relative;
+  z-index: 1;
+  padding: 4px; /* Khoảng cách đệm giữa khung và thanh trượt */
+  height: 45px;  /* Chiều cao tổng theo yêu cầu của bạn */
+  display: inline-flex; /* Để khung co giãn theo số lượng icon */
+  align-items: center;
+}
+
+.theme-options-wrapper input[type="radio"] {
+  display: none;
+}
+
+.theme-option {
+  width: 44px;    /* Tăng nhẹ chiều rộng để cân đối với chiều cao 45px */
+  height: 37px;   /* Chiều cao nội tại (45px - 4px padding trên - 4px padding dưới) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  transition: color 0.3s ease;
+  color: var(--icon-inactive);
+  margin: 0;
+  font-size: 1.1rem; /* Làm icon to rõ hơn một chút */
+}
+
+.theme-options-wrapper input:checked + .theme-option {
+  color: var(--icon-active);
+}
+
+/* Hiệu ứng thanh trượt (Cục trắng) */
+.selection-slider {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 44px;    /* Khớp với width của .theme-option */
+  height: 37px;   /* Khớp với height của .theme-option */
+  background: var(--slider-bg);
+  border-radius: 100px; /* Bo tròn dạng viên thuốc */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+  z-index: 0;
+}
+
+/* Logic di chuyển slider - Tính toán dựa trên width 44px */
+#theme-light:checked ~ .selection-slider { transform: translateX(0); }
+#theme-dark:checked ~ .selection-slider { transform: translateX(44px); }
+#theme-system:checked ~ .selection-slider { transform: translateX(88px); }
+
+.theme-option:hover {
+  color: var(--icon-active);
+  opacity: 0.8;
+}
 /* ==============================
 ALL CSS for VT Films - films.vutruong.vn
 ============================== */
+
 
 
