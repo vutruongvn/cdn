@@ -1108,7 +1108,7 @@ function VTFilms_renderAdminPanel() {
             <i class="fad fa-bell"></i>
             <span id="vtfilms-admin-badge">${badgeInner}</span>
         </a>
-        <div class="dropdown-menu dropdown-menu-end history-dropdown p-0 shadow-lg mt-1 rounded-3 slideIn animate"
+        <div class="dropdown-menu dropdown-menu-end history-dropdown p-0 m-0 shadow-lg rounded-3 slideIn animate"
              style="min-width:420px;max-width:500px;max-height:80vh;overflow-y:auto">
 
             <!-- Header + Tabs -->
@@ -1540,14 +1540,6 @@ function VTFilms_renderDropdown(user) {
                             <div class="text-secondary text-truncate small">${user.email}</div>
                         </div>
                     </div>
-                </li>
-
-
-                <li>
-                    <a class="dropdown-item dropdown-item-text text-light d-flex align-items-center gap-2 nav-toggle-theme-btn shadow-none py-2 small"
-                       id="themeToggler" onclick="toggleTheme()" role="button">
-                        <i class="fa-duotone fa-sun" id="themeIcon"></i>Thay đổi giao diện
-                    </a>
                 </li>
                 <li>
                     <a class="dropdown-item text-danger d-flex align-items-center gap-2 py-2 small"
