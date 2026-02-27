@@ -77,7 +77,6 @@ const VTFilms_DEBUG = true;
 // Admin UIDs — thêm UID vào đây để cấp quyền admin. Mọi UID khác = "user".
 const VTFilms_ADMIN_UIDS = [
     'KU6FC2SAsmaE8qIu4EGU9J422On1', // admin
-	'dNkYpISZzgdpoJ4fVQUzWAFWgVw1', // truongdz2069
 ];
 
 // ── Storage Keys ──
