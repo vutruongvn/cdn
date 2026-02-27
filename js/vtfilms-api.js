@@ -1,7 +1,7 @@
 // ============================================================
 // vtfilms-api.js — VT Films · Logic lấy & hiển thị dữ liệu phim
 // Website   : films.vutruong.vn
-// Version   : 2.0
+// Version   : 2.2
 // ============================================================
 //
 // MỤC LỤC
@@ -58,6 +58,24 @@
 //         [OPT] Placeholder sections: không render skeleton DOM cho section chưa cần
 //               → skeleton chỉ render khi sắp load (tiết kiệm DOM nodes ban đầu)
 //         [OPT] window._homeObserver (thay let _lazyHomeObserver) → persist qua lần gọi
+//   v2.2  ── FIX DOUBLE-FETCH + RATE-LIMIT MODAL ──
+//         [BUG FIX] VTFilms_setupInfinitePage: double-fetch x2 requests đã được fix
+//               Nguyên nhân: IntersectionObserver.observe() fire callback NGAY LẬP TỨC
+//               nếu sentinel đã visible (rootMargin 500px + 10 items vừa load = always visible)
+//               → loadMoreMovies() bị gọi 2 lần: lần 1 trong await, lần 2 trong observer
+//               FIX: thêm flag _observerReady (200ms delay) + giảm rootMargin 500px → 150px
+//         [BUG FIX] VTFilms_fetch: 429/503 sau khi hết retry trước đây im lặng return null
+//               → user nhìn thấy skeleton loading vô hạn, không biết có lỗi hay không
+//               FIX: track wasRateLimited flag → gọi VTFilms_showRateLimitModal() sau retry
+//         [NEW]  VTFilms_showRateLimitModal(): modal glassmorphism thông báo bị rate-limit
+//               - Icon cảnh báo + tiêu đề + lý do cụ thể (429 vs 503 vs network)
+//               - Nút "Đóng" để tắt modal
+//               - Guard: không hiện duplicate modal
+//               - Auto-close sau 30s nếu user không đóng
+//         [FIX]  VTFilms_loadMoreMovies: data=null do lỗi vs data=[] không có kết quả
+//               Trước: cả hai đều hiện "Không tìm thấy phim nào." (sai ngữ nghĩa khi lỗi)
+//               Sau: data=null → "Không thể tải dữ liệu, vui lòng thử lại."
+//                    data=[] → giữ nguyên "Không tìm thấy phim nào."
 // ============================================================
 (function() {
     const allowed = ['films.vutruong.vn', 'localhost', '127.0.0.1'];
@@ -96,7 +114,7 @@ function VTFilms_initLazyLoading() {
                 observer.unobserve(img);
             });
         }, {
-            rootMargin: '200px 0px', // Bắt đầu load trước 200px
+            rootMargin: '50px 0px', // Bắt đầu load trước 200px
             threshold:  0.01
         });
     }
@@ -327,13 +345,18 @@ async function VTFilms_fetch(endpoint, page = null, useQueue = true) {
     const cached = VTFilms_ApiCache.get(url);
     if (cached) return cached;
 
-    // 2. Hàm fetch thực sự (có retry)
+    // 2. Hàm fetch thực sự (có retry + rate-limit tracking)
     const doFetch = async () => {
         const signal = VTFilms__currentAbortController.signal;
         let lastError;
 
+        // [v2.2] Track loại lỗi cuối cùng để hiển thị thông báo đúng ngữ nghĩa
+        // 'ratelimit' = 429 (too many requests), 'overload' = 503 (server overload)
+        // null = lỗi khác (network, timeout, ...) — không hiện modal rate-limit
+        let lastFailType = null;
+
         for (let attempt = 0; attempt <= VTFilms_CONFIG.MAX_RETRIES; attempt++) {
-            if (signal.aborted) return null; // Navigation mới → bỏ
+            if (signal.aborted) return null; // Navigation mới → bỏ yên lặng
 
             try {
                 if (attempt > 0) {
@@ -343,14 +366,26 @@ async function VTFilms_fetch(endpoint, page = null, useQueue = true) {
 
                 const res = await fetch(url, { signal });
 
-                // Rate limited hoặc server quá tải → retry
-                if (res.status === 429 || res.status === 503) {
-                    lastError = new Error(`HTTP ${res.status}`);
-                    continue; // Thử lại
+                // [v2.2] Rate limited (429) hoặc server quá tải (503) → retry + lưu loại lỗi
+                if (res.status === 429) {
+                    lastFailType = 'ratelimit';
+                    lastError    = new Error(`HTTP 429`);
+                    continue;
+                }
+                if (res.status === 503) {
+                    lastFailType = 'overload';
+                    lastError    = new Error(`HTTP 503`);
+                    continue;
                 }
 
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                // Lỗi khác (400, 404, 500,...) → không retry, không hiện rate-limit modal
+                if (!res.ok) {
+                    lastFailType = null;
+                    throw new Error(`HTTP ${res.status}`);
+                }
 
+                // Thành công → xóa trạng thái lỗi
+                lastFailType = null;
                 const data = await res.json();
                 VTFilms_ApiCache.set(url, data); // Lưu vào cache
                 return data;
@@ -361,12 +396,152 @@ async function VTFilms_fetch(endpoint, page = null, useQueue = true) {
             }
         }
 
+        // [v2.2] Hết retry: nếu do rate-limit/overload → hiện modal thông báo user
+        // Chỉ hiện khi: không bị abort (user vẫn ở trang này) + có loại lỗi cụ thể
+        if (lastFailType && !signal.aborted) {
+            VTFilms_showRateLimitModal(lastFailType);
+        }
+
         console.error('[VTFilms API] VTFilms_fetch thất bại sau retry:', url, lastError?.message);
         return null;
     };
 
     // 3. Chạy qua queue hoặc trực tiếp
     return useQueue ? VTFilms_FetchQueue.enqueue(doFetch) : doFetch();
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// 4b. RATE-LIMIT MODAL — Thông báo khi API từ chối request
+//
+//  Trigger: VTFilms_fetch() sau khi hết MAX_RETRIES với 429/503
+//  Guard:   Chỉ hiện 1 modal tại 1 thời điểm (không duplicate)
+//  Auto-close: sau 30s nếu user không đóng thủ công
+//  Design: glassmorphism nhất quán với overlay của vtfilms-module.js
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * VTFilms_showRateLimitModal(type) — Hiển thị modal thông báo bị rate-limit.
+ *
+ * @param {'ratelimit'|'overload'} type
+ *   'ratelimit' — HTTP 429: quá nhiều request từ thiết bị này
+ *   'overload'  — HTTP 503: server nguồn phim đang quá tải
+ *
+ * [v2.2] Không dùng Bootstrap Modal để tránh conflict z-index với overlay vtfilms-module.
+ * Tự render modal thuần CSS/HTML, inject vào body, auto-remove khi đóng.
+ */
+function VTFilms_showRateLimitModal(type) {
+    // Guard: không hiện modal khi còn modal cũ chưa đóng
+    if (document.getElementById('vtf-ratelimit-modal')) return;
+
+    // Nội dung theo loại lỗi
+    const configs = {
+        ratelimit: {
+            icon:    '<i class="fad fa-ban fa-2x text-warning"></i>',
+            title:   'Yêu cầu bị từ chối tạm thời',
+            reason:  'Tài khoản của bạn tạm thời bị hạn chế do <b>gửi quá nhiều yêu cầu</b> đến máy chủ trong thời gian ngắn. Vui lòng chờ vài giây rồi thử lại.',
+            hint:    'Hãy cuộn chậm hơn hoặc đợi 10–30 giây để hệ thống phục hồi.',
+        },
+        overload: {
+            icon:    '<i class="fad fa-server fa-2x text-danger"></i>',
+            title:   'Máy chủ đang quá tải',
+            reason:  'Tài khoản của bạn tạm thời bị hạn chế do <b>máy chủ nguồn phim đang quá tải</b> (503). Dịch vụ sẽ tự phục hồi trong giây lát.',
+            hint:    'Thử lại sau 1–2 phút. Nếu vấn đề kéo dài, máy chủ nguồn có thể đang bảo trì.',
+        },
+    };
+
+    const cfg = configs[type] || configs.ratelimit;
+
+    const modal = document.createElement('div');
+    modal.id = 'vtf-ratelimit-modal';
+    // Nằm trên overlay vtfilms-module (z-index 99998) nhưng dưới login overlay (99999)
+    modal.style.cssText = [
+        'position:fixed', 'inset:0', 'z-index:99997',
+        'display:flex', 'align-items:center', 'justify-content:center',
+        'background:rgba(0,0,0,.55)', 'backdrop-filter:blur(4px)',
+        'opacity:0', 'transition:opacity .25s ease',
+        'padding:16px',
+    ].join(';');
+
+    modal.innerHTML = `
+        <div role="dialog" aria-modal="true" aria-labelledby="vtf-rl-title"
+             style="width:min(440px,100%);
+                    background:rgba(30,30,30,.92);
+                    border:1px solid rgba(255,255,255,.12);
+                    border-radius:20px;
+                    box-shadow:0 20px 60px rgba(0,0,0,.6);
+                    padding:2rem 1.75rem 1.5rem;
+                    text-align:center;
+                    position:relative">
+
+            <!-- Icon trạng thái -->
+            <div style="margin-bottom:.9rem">${cfg.icon}</div>
+
+            <!-- Tiêu đề -->
+            <div id="vtf-rl-title"
+                 style="font-size:1.05rem;font-weight:700;color:#f8d470;margin-bottom:.65rem;line-height:1.4">
+                ${cfg.title}
+            </div>
+
+            <!-- Lý do chi tiết -->
+            <p style="font-size:.875rem;color:#aaa;line-height:1.6;margin-bottom:.5rem">
+                ${cfg.reason}
+            </p>
+
+            <!-- Gợi ý thêm -->
+            <p style="font-size:.8rem;color:#666;line-height:1.5;margin-bottom:1.4rem">
+                ${cfg.hint}
+            </p>
+
+            <!-- Nút đóng -->
+            <button id="vtf-rl-close"
+                    style="background:rgba(255,255,255,.08);
+                           border:1px solid rgba(255,255,255,.15);
+                           color:#ccc;
+                           border-radius:10px;
+                           padding:.55rem 2.2rem;
+                           font-size:.875rem;
+                           font-weight:600;
+                           cursor:pointer;
+                           transition:background .15s ease"
+                    onmouseover="this.style.background='rgba(255,255,255,.16)'"
+                    onmouseout="this.style.background='rgba(255,255,255,.08)'"
+                    onclick="VTFilms_closeRateLimitModal()">
+                Đóng
+            </button>
+        </div>`;
+
+    document.body.appendChild(modal);
+
+    // Fade in
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => { modal.style.opacity = '1'; });
+    });
+
+    // Click backdrop để đóng
+    modal.addEventListener('click', e => {
+        if (e.target === modal) VTFilms_closeRateLimitModal();
+    });
+
+    // Auto-close sau 30s
+    modal._autoClose = setTimeout(() => VTFilms_closeRateLimitModal(), 30000);
+
+    console.warn('[VTFilms API] Rate-limit modal shown. type:', type);
+}
+
+/**
+ * VTFilms_closeRateLimitModal() — Đóng và xóa modal rate-limit.
+ * Gọi từ nút Đóng, click backdrop, hoặc auto-close timer.
+ */
+function VTFilms_closeRateLimitModal() {
+    const modal = document.getElementById('vtf-ratelimit-modal');
+    if (!modal) return;
+    clearTimeout(modal._autoClose);
+    modal.style.opacity = '0';
+    setTimeout(() => {
+        modal.remove();
+        console.info('[VTFilms API] Rate-limit modal closed.');
+    }, 260);
 }
 
 
@@ -577,8 +752,21 @@ async function VTFilms_loadMoreMovies(isFirstLoad = false) {
             VTFilms_PAGING_STATE.currentPage++;
             VTFilms_PAGING_STATE.hasMore = VTFilms_PAGING_STATE.currentPage <= (data.paginate?.total_page || 1);
         } else {
+            // [v2.2] Phân biệt 2 trường hợp:
+            //   data === null  → fetch thất bại (lỗi mạng / rate-limit đã hết retry)
+            //                    Modal đã được hiện bởi VTFilms_fetch(), ở đây chỉ clear skeleton
+            //   data.items = [] → API trả về thành công nhưng không có kết quả
             if (isFirstLoad && grid) {
-                grid.innerHTML = '<div class="text-danger text-center py-5 w-100">Không tìm thấy phim nào.</div>';
+                if (data === null) {
+                    // Lỗi fetch — không phải "không có phim", là "không tải được"
+                    grid.innerHTML = '<div class="text-secondary text-center py-5 w-100 opacity-75">'
+                        + '<i class="fad fa-triangle-exclamation me-2 text-warning"></i>'
+                        + 'Không thể tải dữ liệu. Vui lòng thử lại sau.'
+                        + '</div>';
+                } else {
+                    // API trả về thành công, thực sự không có phim
+                    grid.innerHTML = '<div class="text-danger text-center py-5 w-100">Không tìm thấy phim nào.</div>';
+                }
             }
             VTFilms_PAGING_STATE.hasMore = false;
         }
@@ -715,12 +903,28 @@ async function VTFilms_setupInfinitePage(title, endpoint) {
     // Load trang đầu tiên
     await VTFilms_loadMoreMovies(true);
 
-    // Thiết lập sentinel observer cho auto-load khi cuộn
+    // [v2.2] FIX DOUBLE-FETCH: Thiết lập sentinel observer cho auto-load khi cuộn.
+    //
+    // BUG CŨ: rootMargin='500px' + observe() fire callback ngay khi target visible
+    //   → Sau loadMoreMovies(true) xong, isLoading=false, sentinel vẫn trong vùng 500px
+    //   → Observer callback fire lập tức → loadMoreMovies() bị gọi lần 2 → x2 requests
+    //
+    // FIX: _observerReady flag (false → true sau 200ms)
+    //   → 200ms đủ để DOM settle, nhưng không đủ để user cuộn
+    //   → Nếu trang ngắn (10 phim) → sentinel visible ngay → flag chặn lần kích hoạt đầu
+    //   → Sau 200ms → flag = true → user cuộn đến đáy → trigger bình thường
+    //   Thêm: giảm rootMargin 500px → 150px để giảm pre-trigger zone quá sớm
+
     if (window.movieObserver) window.movieObserver.disconnect();
     const sentinel = document.getElementById('infinite-sentinel');
     if (sentinel) {
+        // Flag chặn immediate-fire. Set true sau 200ms (sau khi DOM settle)
+        let _observerReady = false;
+        setTimeout(() => { _observerReady = true; }, 200);
+
         window.movieObserver = new IntersectionObserver(entries => {
             if (
+                _observerReady &&                          // [v2.2] Guard: không fire ngay
                 entries[0].isIntersecting &&
                 VTFilms_PAGING_STATE.isInfiniteMode &&
                 !VTFilms_PAGING_STATE.isLoading &&
@@ -728,7 +932,7 @@ async function VTFilms_setupInfinitePage(title, endpoint) {
             ) {
                 VTFilms_loadMoreMovies();
             }
-        }, { rootMargin: '500px' });
+        }, { rootMargin: '50px' }); // [v2.2] 500px → 150px: giảm pre-trigger zone
         window.movieObserver.observe(sentinel);
     }
 }
@@ -1335,4 +1539,3 @@ function VTFilms_refreshHome() {
 // ============================================================
 // End · VT Films · films.vutruong.vn
 // ============================================================
-
