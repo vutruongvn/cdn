@@ -498,24 +498,24 @@ function VTFilms_applyOverlayContent(state) {
 
     const configs = {
         pending: {
-            icon:    '<i class="fa-duotone fa-solid fa-hourglass-clock fa-2x text-warning fa-fade" style="--fa-animation-duration: 2s;"></i>',
+            icon:    '<i class="fad fa-spinner-third fa-2x text-warning fa-spin"></i>',
             title:   'Tài khoản đang chờ xác thực',
             titleCls:'fw-semibold h5 text-warning mb-2',
-            msg:     'Liên hệ <b>Vũ Trường</b> để được cấp quyền sử dụng',
-            spinner: '<i class="fad fa-spinner-third fa-spin me-1"></i>Đang chờ xác thực',
+            msg:     'Liên hệ admin để được cấp quyền sử dụng',
+            spinner: 'admin@vutruong.vn',
         },
         rejected: {
             icon:    '<i class="fad fa-ban fa-2x text-danger"></i>',
             title:   'Tài khoản bị từ chối',
             titleCls:'fw-semibold h5 text-danger mb-2',
-            msg:     'Liên hệ <b>Vũ Trường</b> để được hỗ trợ',
+            msg:     'Liên hệ admin để được hỗ trợ',
             spinner: 'admin@vutruong.vn',
         },
         revoked: {
-            icon:    '<i class="fad fa-lock fa-2x text-warning"></i>',
+            icon:    '<i class="fad fa-lock-keyhole fa-2x text-warning"></i>',
             title:   'Quyền truy cập bị thu hồi',
             titleCls:'fw-semibold h5 text-warning mb-2',
-            msg:     'Liên hệ <b>Vũ Trường</b> để được hỗ trợ',
+            msg:     'Liên hệ admin để được hỗ trợ',
             spinner: 'admin@vutruong.vn',
         },
     };
@@ -834,7 +834,7 @@ function VTFilms_adminUserItemHTML(u, tab) {
             <div class="d-flex gap-2">
                 <a class="btn btn-sm btn-outline-warning flex-fill rounded-pill small"
                    onclick="window.VTFilms_Auth._adminRevoke('${uid}', this)" role="button">
-                    <i class="fad fa-lock me-2"></i>Thu hồi
+                    <i class="fad fa-lock-keyhole me-2"></i>Thu hồi
                 </a>
             </div>`;
     } else if (tab === 'rejected') {
@@ -1066,7 +1066,7 @@ async function VTFilms_adminRevoke(uid, btn) {
         VTFilms_log.ok(`Revoke OK: users/${uid} → verifiedUser: "revoked"`);
     } catch (err) {
         VTFilms_log.error(`Revoke ${uid} thất bại:`, err.message);
-        if (btn) { btn.removeAttribute('disabled'); btn.innerHTML = '<i class="fad fa-lock me-2"></i>Thu hồi'; }
+        if (btn) { btn.removeAttribute('disabled'); btn.innerHTML = '<i class="fad fa-lock-keyhole me-2"></i>Thu hồi'; }
     }
 }
 
