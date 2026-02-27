@@ -1170,7 +1170,7 @@ function VTFilms_showDeleteConfirmModal(uid, name, email, btn) {
     modalEl.innerHTML = `
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border border-danger border-opacity-50 shadow-lg"
-                 style="background:#1a1a2e;">
+                 style="background:var(--body-bg)">
                 <div class="modal-header border-danger border-opacity-25 pb-2">
                     <div class="d-flex align-items-center gap-2">
                         <i class="fad fa-triangle-exclamation text-danger fa-lg"></i>
