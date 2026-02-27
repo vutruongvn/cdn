@@ -582,7 +582,7 @@ function VTFilms_onTransitionApproved() {
         } else {
             window.location.reload();
         }
-    }, 2500);
+    }, 0); // delay ở đây
 }
 
 /**
@@ -613,7 +613,7 @@ function VTFilms_onTransitionBlocked(state) {
     }
 
     // Sau 2.5s: reload để tải lại UI sạch từ HTML gốc
-    setTimeout(() => { window.location.reload(); }, 2500);
+    setTimeout(() => { window.location.reload(); }, 0); // thêm delay ở đây delay cũ 2500
 }
 
 // Alias shorthand để unified listener gọi gọn
