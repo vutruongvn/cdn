@@ -11,6 +11,17 @@
  *         Layer A (applyOverlayContent) / Layer B (onTransition*) tránh reload loop
  *  v6.3.1 Fix reload vô hạn: guard verifyStatus trong syncUserDoc;
  *         pure compare _lastStatus=initialStatus trong unified listener
+ *  v6.4.1 ── XÓA USER (TAB TỪ CHỐI) ──
+ *        [NEW] Nút "Xóa" trong tab Từ chối (bên cạnh "Phê duyệt lại")
+ *        [NEW] VTFilms_adminDeleteUser(uid): xóa document users/{uid} khỏi Firestore
+ *              → User bị đăng xuất ngay (unified listener nhận snapshot null → signOut)
+ *              → User đăng nhập lại: syncUserDoc tạo doc mới → verifiedUser:false (pending)
+ *              → Giống như user chưa từng đăng nhập
+ *        [NEW] Xác nhận trước khi xóa: confirm dialog tên + email
+ *        [UPD] deleteDoc thêm vào Firestore imports
+ *        [UPD] Firestore Rules: allow delete nếu requester là admin
+ *              (cần deploy rules mới đi kèm — xem vtfilms-rules-6.4.1.rules)
+ *        [UPD] window.VTFilms_Auth._adminDeleteUser export ra ngoài
  *  v6.4  ── CLEANUP & OPTIMIZE ──
  *        [REM] Dead code: aliases showVerifyRejected / showRevokedState / showVerifySuccess
  *        [REM] VTFilms_stopRevokeListener, VTFilms_adminUnsubscribe, VTFilms_reloadPage
@@ -40,13 +51,14 @@ import {
     orderBy,
     setDoc,
     updateDoc,
+    deleteDoc,
     onSnapshot,
     serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
 
 // ── 2. HẰNG SỐ & CẤU HÌNH ────────────────────────────────────────────────────
-const VTFilms_VERSION = '6.4';
+const VTFilms_VERSION = '6.4.1';
 
 // ── DEBUG FLAG ────────────────────────────────────────────────────────────────
 // true  → in log đầy đủ ra console (dùng khi development/debug)
@@ -848,6 +860,12 @@ function VTFilms_adminUserItemHTML(u, tab) {
                    onclick="window.VTFilms_Auth._adminReapprove('${uid}', this)" role="button">
                     <i class="fad fa-rotate-left me-2"></i>Phê duyệt lại
                 </a>
+                <a class="btn btn-sm btn-outline-danger rounded-pill small px-3"
+                   onclick="window.VTFilms_Auth._adminDeleteUser('${uid}', '${name.replace(/'/g,"\\'")}', '${email}', this)"
+                   role="button"
+                   title="Xóa hoàn toàn user khỏi hệ thống — không thể hoàn tác">
+                    <i class="fad fa-trash-can"></i>
+                </a>
             </div>`;
         return `
             <li>
@@ -1079,6 +1097,65 @@ async function VTFilms_adminReapprove(uid, btn) {
     } catch (err) {
         VTFilms_log.error(`Reapprove ${uid} thất bại:`, err.message);
         if (btn) { btn.removeAttribute('disabled'); btn.innerHTML = '<i class="fad fa-rotate-left me-2"></i>Phê duyệt lại'; }
+    }
+}
+
+/**
+ * VTFilms_adminDeleteUser(uid, name, email, btn) — Xóa hoàn toàn document user khỏi Firestore.
+ *
+ * [v6.4.1] Tính năng "Xóa" trong tab Từ chối.
+ *
+ * Luồng sau khi xóa:
+ *   1. Document users/{uid} bị xóa khỏi Firestore
+ *   2. Unified listener của user (nếu đang online) nhận snapshot error/empty
+ *      → Không còn permission → listener tự hủy (Firestore trả PERMISSION_DENIED)
+ *   3. Nếu user đang online: VTFilms_startListener onAuthStateChanged vẫn active,
+ *      nhưng không còn document → khi user reload/navigate → syncUserDoc tạo doc mới
+ *      → verifiedUser: false → về trạng thái pending (như lần đầu đăng nhập)
+ *   4. localStorage của user: verifyStatus bị mất (không còn document nguồn)
+ *      → Lần load tiếp: antiFlash không thấy cache → không flash UI → show overlay pending
+ *
+ * Lưu ý quan trọng:
+ *   - Chỉ xóa Firestore document, KHÔNG xóa Firebase Auth account của user
+ *   - User vẫn có thể đăng nhập lại → sẽ được coi là user mới (pending)
+ *   - Để xóa hoàn toàn Auth account cần Firebase Admin SDK (server-side)
+ *   - Firestore Rules phải cho phép admin delete (xem vtfilms-rules-6.4.1.rules)
+ *
+ * @param {string}      uid   - Firebase UID của user cần xóa
+ * @param {string}      name  - Tên hiển thị (để confirm dialog)
+ * @param {string}      email - Email (để confirm dialog)
+ * @param {HTMLElement} btn   - Nút trigger (để disable khi đang xử lý)
+ */
+async function VTFilms_adminDeleteUser(uid, name, email, btn) {
+    // Xác nhận trước khi xóa — không thể hoàn tác
+    const confirmed = window.confirm(
+        `⚠️ XÓA USER VĨNH VIỄN\n\n` +
+        `Tên:  ${name}\n` +
+        `Email: ${email}\n\n` +
+        `Thao tác này sẽ:\n` +
+        `• Xóa hoàn toàn dữ liệu user khỏi hệ thống\n` +
+        `• User bị coi như chưa từng đăng nhập\n` +
+        `• Nếu đang online: user sẽ bị ảnh hưởng ngay\n\n` +
+        `Không thể hoàn tác. Tiếp tục?`
+    );
+    if (!confirmed) return;
+
+    VTFilms_log.warn(`Admin xóa user uid: ${uid} (${email})...`);
+    if (btn) { btn.setAttribute('disabled', ''); btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+
+    try {
+        // Xóa document users/{uid} khỏi Firestore
+        // Firestore Rules v6.4.1: admin được phép delete
+        await deleteDoc(doc(VTFilms_db, 'users', uid));
+        VTFilms_log.ok(`Delete OK: users/${uid} (${email}) đã xóa khỏi Firestore.`);
+        // Panel sẽ tự cập nhật qua onSnapshot (document bị xóa → disappear từ query)
+
+    } catch (err) {
+        VTFilms_log.error(`Delete ${uid} thất bại:`, err.message);
+        if (btn) {
+            btn.removeAttribute('disabled');
+            btn.innerHTML = '<i class="fad fa-trash-can"></i>';
+        }
     }
 }
 
@@ -1510,8 +1587,9 @@ window.VTFilms_Auth = {
     // ── Admin actions ──
     _adminApprove:    VTFilms_adminApprove,
     _adminReject:     VTFilms_adminReject,
-    _adminRevoke:     VTFilms_adminRevoke,
-    _adminReapprove:  VTFilms_adminReapprove,
+    _adminRevoke:      VTFilms_adminRevoke,
+    _adminReapprove:   VTFilms_adminReapprove,
+    _adminDeleteUser:  VTFilms_adminDeleteUser,
     _adminSwitchTab:  VTFilms_adminSwitchTab,
     _adminLoadMore:   VTFilms_adminLoadMore,
     version:          VTFilms_VERSION,
