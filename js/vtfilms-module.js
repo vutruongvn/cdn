@@ -400,7 +400,7 @@ function VTFilms_showPendingOverlay(user) {
             <div class="card-body px-3 py-5">
 
                 <!-- Avatar user -->
-                <img loading="lazy" src="${avatar}" class="rounded-circle mb-3"
+                <img loading="lazy" src="${avatar}" class="rounded-circle mb-3 pe-none"
                      width="99" height="99" style="object-fit:cover"
                      onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=dc3545&color=fff&size=80'"
                      alt="${name}">
@@ -409,24 +409,24 @@ function VTFilms_showPendingOverlay(user) {
                 <div class="text-white opacity-75 fw-bold m-0 fs-5">${name}</div>
                 <div class="text-secondary mb-4 opacity-75">${email}</div>
 
-                <!-- Icon đồng hồ / chờ -->
-                <div id="VTFilms-pending-icon" class="mb-3"><i class="fa-duotone fa-solid fa-hourglass-clock fa-2x text-warning fa-fade" style="--fa-animation-duration: 2s;"></i></div>
+                <!-- Icon spinner -->
+                <div id="VTFilms-pending-icon" class="mb-3"><i class="fad fa-spinner-third fa-2x text-info fa-spin"></i></div>
 
                 <!-- Tiêu đề -->
-                <div id="VTFilms-pending-title" class="fw-semibold h5 text-warning mb-2">
+                <div id="VTFilms-pending-title" class="fw-semibold h5 text-info mb-2">
                     Tài khoản đang chờ xác thực
                 </div>
 
                 <!-- Mô tả -->
                 <p id="VTFilms-pending-msg" class="text-secondary mb-4">
-                    Liên hệ <b>Vũ Trường</b> để được cấp quyền sử dụng
+                    Liên hệ admin để được cấp quyền sử dụng
                 </p>
 
                 <!-- Spinner realtime -->
                 <div id="VTFilms-pending-spinner"
                      class="d-inline-flex align-items-center gap-2 text-secondary small rounded-pill px-4 py-2 mb-3"
                      style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)">
-                    <i class="fad fa-spinner-third fa-spin"></i>Đang chờ xác thực
+                    admin@vutruong.vn
                 </div>
 
                 <!-- Nút đăng xuất -->
