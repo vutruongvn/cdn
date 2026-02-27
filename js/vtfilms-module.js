@@ -883,9 +883,14 @@ function VTFilms_adminUserItemHTML(u, tab) {
     } else if (tab === 'approved') {
         actionHTML = `
             <div class="d-flex gap-2">
-                <a class="btn btn-sm btn-outline-warning flex-fill rounded-pill small"
+                <a class="btn btn-sm btn-warning flex-fill rounded-pill small w-50"
                    onclick="window.VTFilms_Auth._adminRevoke('${uid}', this)" role="button">
                     <i class="fad fa-lock-keyhole me-2"></i>Thu hồi
+                </a>
+                <a class="btn btn-sm btn-danger flex-fill rounded-pill small w-50"
+                   onclick="window.VTFilms_Auth._showDeleteConfirmModal('${uid}', '${name.replace(/'/g,"\\'")}', '${email}', this)"
+                   role="button">
+                    <i class="fad fa-trash-can me-2"></i>Xóa tài khoản
                 </a>
             </div>`;
     } else if (tab === 'rejected') {
@@ -895,15 +900,14 @@ function VTFilms_adminUserItemHTML(u, tab) {
             : `<span class="badge bg-danger ms-1" style="font-size:9px">Từ chối</span>`;
         actionHTML = `
             <div class="d-flex gap-2">
-                <a class="btn btn-sm btn-outline-success flex-fill rounded-pill small"
+                <a class="btn btn-sm btn-success flex-fill rounded-pill small w-50"
                    onclick="window.VTFilms_Auth._adminReapprove('${uid}', this)" role="button">
                     <i class="fad fa-rotate-left me-2"></i>Phê duyệt lại
                 </a>
-                <a class="btn btn-sm btn-outline-danger rounded-pill small px-3"
+                <a class="btn btn-sm btn-danger flex-fill rounded-pill small w-50"
                    onclick="window.VTFilms_Auth._showDeleteConfirmModal('${uid}', '${name.replace(/'/g,"\\'")}', '${email}', this)"
-                   role="button"
-                   title="Xóa hoàn toàn user khỏi hệ thống — không thể hoàn tác">
-                    <i class="fad fa-trash-can"></i>
+                   role="button">
+                    <i class="fad fa-trash-can me-2"></i>Xóa tài khoản
                 </a>
             </div>`;
         return `
@@ -1169,8 +1173,8 @@ function VTFilms_showDeleteConfirmModal(uid, name, email, btn) {
     modalEl.setAttribute('data-bs-keyboard', 'false');  // Không đóng khi nhấn Esc
     modalEl.innerHTML = `
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 rounded-4 bg-transparent shadow-lg"
-                 style="backdrop-filter:blur(3rem)">
+            <div class="modal-content border-0 rounded-4 shadow-lg"
+                 style="background:rgba(0,0,0,.3);backdrop-filter:blur(3rem)">
                 <div class="modal-header border-danger border-opacity-25 pb-2">
                     <div class="d-flex align-items-center gap-2">
                         <i class="fad fa-triangle-exclamation text-danger fa-lg"></i>
