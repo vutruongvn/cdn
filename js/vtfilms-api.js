@@ -126,7 +126,7 @@ const NGUONC_CONFIG = {
 
     // UX
     HOME_INITIAL_COUNT: 3,    // Số section hiển thị ngay khi load trang chủ
-    HOME_SECTION_DELAY: 300,  // Delay giữa mỗi section khi cuộn (ms)
+    HOME_SECTION_DELAY: 1000, // Delay trước khi load từng section khi cuộn (ms)
     SKELETON_DELAY_MS:  600,  // Delay skeleton cho trang category/country/search (ms)
 
     // Retry
@@ -874,8 +874,15 @@ async function loadHomePage() {
         html += `<div id="home-section-${i}" class="movie-section mb-3" data-loaded="0">${renderSectionSkeleton()}</div>`;
     }
     for (let i = initial; i < total; i++) {
-        // Placeholder: đã có class movie-section để nth-of-type đếm đúng thứ tự
-        html += `<div id="home-section-${i}" class="movie-section mb-3" data-loaded="0"></div>`;
+        // Placeholder ẩn hoàn toàn:
+        //   - Vẫn có class movie-section để nth-of-type đếm đúng vị trí gradient
+        //   - Inline style override background + xóa padding/gap của CSS @media ≥1200px
+        //     (CSS: background:rgba(255,255,255,.05) → làm ô rỗng hiện thành thanh tối)
+        //   - min-height:1px để IntersectionObserver vẫn detect được
+        //   - overflow:hidden + max-height:0 → không chiếm không gian thị giác
+        html += `<div id="home-section-${i}" class="movie-section mb-3"
+                      data-loaded="0"
+                      style="background:transparent!important;padding:0!important;gap:0!important;min-height:1px;max-height:0;overflow:hidden;margin:0!important;box-shadow:none!important"></div>`;
     }
     container.innerHTML = html;
 
@@ -917,13 +924,16 @@ async function loadHomePage() {
         window._homeObserver.unobserve(entry.target);
 
         if (el) {
-            // Hiện skeleton trước khi fetch (el đã là .movie-section → chỉ set innerHTML)
+            // 1. Xóa inline style "ẩn" → để CSS .movie-section styling hiện ra đúng
+            el.removeAttribute('style');
+
+            // 2. Hiện skeleton ngay lập tức (người dùng thấy có gì đó đang load)
             el.innerHTML = renderSectionSkeleton();
 
-            // Delay nhỏ để skeleton hiện ra trước (animation cảm giác mượt)
+            // 3. Delay 1.5s trước khi fetch → section show từng cái, không bị burst
             await new Promise(r => setTimeout(r, NGUONC_CONFIG.HOME_SECTION_DELAY));
 
-            // Load section thật (qua FetchQueue — có rate-limit, cache)
+            // 4. Load nội dung thật (qua FetchQueue — có rate-limit, cache)
             await loadHomeSection(currentIndex, el);
         }
 
@@ -940,7 +950,7 @@ async function loadHomePage() {
     }, {
         // rootMargin nhỏ hơn (200px) so với v1 (400px):
         // Chờ user cuộn gần tới section mới load, thay vì đón đầu quá sớm
-        rootMargin: '200px 0px',
+        rootMargin: '50px 0px',
         threshold:  0
     });
 
@@ -1310,7 +1320,7 @@ function refreshHome() {
     }
 
     // Clear cache nếu muốn force refresh dữ liệu
-    // ApiCache.clear(); // Bỏ comment dòng này nếu muốn luôn lấy data mới khi về home
+    ApiCache.clear(); // Bỏ comment dòng này nếu muốn luôn lấy data mới khi về home
 
     loadHomePage();
 }
