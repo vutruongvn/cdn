@@ -428,20 +428,82 @@
         // Kích hoạt module
         MovieHistoryManager.init();
 
-        // LIGHT MODE FUNCTION
-        function toggleTheme() {
-            const body = document.body;
-            const isLight = body.classList.toggle('light-mode');
+        // AUTO ĐỔI THEME THEO HỆ THỐNG USER
+(function () {
+  const STORAGE_KEY = 'theme';
+  const MODE_META = {
+    light:  { icon: 'fa-sun',                label: 'Sáng'     },
+    dark:   { icon: 'fa-moon',               label: 'Tối'      },
+    system: { icon: 'fa-circle-half-stroke', label: 'Hệ thống' },
+  };
 
-            // Lưu trạng thái vào localStorage
-            localStorage.setItem('theme-mode', isLight ? 'light' : 'dark');
+  function resolveTheme(mode) {
+    if (mode === 'system') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return mode;
+  }
 
-            // Cập nhật Icon (nếu có)
-            const icon = document.getElementById('themeIcon');
-            if (icon) {
-                icon.className = isLight ? 'fa-duotone fa-moon' : 'fa-duotone fa-sun';
-            }
-        }
+  function applyTheme(mode) {
+    const resolved = resolveTheme(mode);
+    // Ưu tiên document.body, nếu chưa load (trong <head>) thì tạm thời dùng documentElement
+    const target = document.body || document.documentElement;
+
+    target.setAttribute('data-bs-theme', resolved);
+
+    // Logic: 
+    // Nếu là light -> add class .light-mode
+    // Nếu là dark -> remove class .light-mode
+    if (resolved === 'light') {
+      target.classList.add('light-mode');
+    } else {
+      target.classList.remove('light-mode');
+    }
+  }
+
+  function updateUI(mode) {
+    const btn = document.getElementById('themeDropdownBtn');
+    if (!btn) return;
+    const meta = MODE_META[mode] || MODE_META.system;
+    
+    const iconEl = btn.querySelector('.theme-icon');
+    const labelEl = btn.querySelector('.theme-label');
+    
+    if (iconEl) iconEl.className = `theme-icon fa-solid ${meta.icon}`;
+    if (labelEl) labelEl.textContent = meta.label;
+
+    document.querySelectorAll('#themeMenu [data-theme]').forEach(item =>
+      item.classList.toggle('active', item.dataset.theme === mode));
+  }
+
+  function setMode(mode) {
+    localStorage.setItem(STORAGE_KEY, mode);
+    applyTheme(mode);
+    updateUI(mode);
+  }
+
+  // Khởi tạo: Mặc định là 'system' nếu chưa có trong localStorage
+  const savedMode = localStorage.getItem(STORAGE_KEY) || 'system';
+  
+  // Chạy ngay lập tức để tránh hiện tượng nháy trang (FOUC)
+  applyTheme(savedMode);
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Gọi lại lần nữa khi DOM sẵn sàng để đảm bảo tác động chính xác lên thẻ <body>
+    applyTheme(savedMode);
+    updateUI(savedMode);
+
+    document.querySelectorAll('#themeMenu [data-theme]').forEach(item =>
+      item.addEventListener('click', () => setMode(item.dataset.theme)));
+
+    // Theo dõi sự thay đổi của hệ thống khi đang ở chế độ 'system'
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if ((localStorage.getItem(STORAGE_KEY) || 'system') === 'system') {
+        applyTheme('system');
+      }
+    });
+  });
+})();
 
         // Kiểm tra khi vừa load trang
         (function initTheme() {
@@ -457,4 +519,5 @@
             var clean_uri = uri.substring(0, uri.indexOf("?m=1"));
             window.history.replaceState({}, document.title, clean_uri);
         }
+
 
