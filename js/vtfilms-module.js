@@ -12,6 +12,26 @@
  *  v6.3.1 Fix reload vô hạn: guard verifyStatus trong syncUserDoc;
  *         pure compare _lastStatus=initialStatus trong unified listener
  *  v6.5  ── FIX FORCE SIGNOUT + BOOTSTRAP MODAL ──
+ *
+ *  v7.0  ── SINGLE PERSISTENT OVERLAY — NO-FLICKER REALTIME ──
+ *        [REFACTOR] Gộp tất cả trạng thái (pending/rejected/revoked/approved)
+ *                   vào 1 overlay duy nhất. Overlay KHÔNG bao giờ bị
+ *                   destroy/recreate khi admin thay đổi trạng thái user.
+ *        [NEW]  #VTFilms-pending-status-area — wrapper bao 4 element động
+ *               (icon / title / msg / spinner). Các thành phần tĩnh (avatar,
+ *               tên, email, admin@vutruong.vn, nút đăng xuất) nằm ngoài
+ *               wrapper → không bị ảnh hưởng khi transition.
+ *        [UPD]  VTFilms_overlayTransition: chỉ fade #VTFilms-pending-status-area
+ *               thay vì fade cả .card → không còn nhấp nháy toàn màn hình
+ *        [UPD]  VTFilms_onTransitionBlocked (rejected/revoked): BỎ reload()
+ *               → cập nhật overlay in-place, mượt mà, tức thì, không reload
+ *        [UPD]  VTFilms_onTransitionPending: BỎ reload()
+ *               → cập nhật overlay in-place
+ *        [KEEP] VTFilms_onTransitionApproved: GIỮ NGUYÊN reload()
+ *               → bắt buộc vì lý do bảo mật SPA (v6.3): app phải được load
+ *                  sạch từ HTML gốc sau khi admin phê duyệt
+ *        [COMPAT] Toàn bộ tính năng khác giữ nguyên 100% — không thay đổi
+ *                 logic, localStorage, admin panel, unified listener, antiFlash
  *        [FIX] Unified listener: !snap.exists() → force signOut ngay lập tức
  *              Trước: khi document bị admin xóa → listener chỉ log "chưa tồn tại" → return
  *              Sau: xóa toàn bộ localStorage cache → VTFilms_fbSignOut() → reload
@@ -67,7 +87,7 @@ import {
 
 
 // ── 2. HẰNG SỐ & CẤU HÌNH ────────────────────────────────────────────────────
-const VTFilms_VERSION = '6.5';
+const VTFilms_VERSION = '7.0';
 
 // ── DEBUG FLAG ────────────────────────────────────────────────────────────────
 // true  → in log đầy đủ ra console (dùng khi development/debug)
@@ -411,25 +431,38 @@ function VTFilms_showPendingOverlay(user) {
                 <div class="text-white opacity-75 fw-bold m-0 fs-5">${name}</div>
                 <div class="text-secondary mb-4 opacity-75">${email}</div>
 
-                <!-- Icon spinner -->
-                <div id="VTFilms-pending-icon" class="mb-3"><i class="fad fa-spinner-third fa-2x text-info fa-spin"></i></div>
+                <!-- ═══════════════════════════════════════════════════════════
+                     [v7.0] #VTFilms-pending-status-area — vùng duy nhất thay đổi
+                     khi admin cập nhật trạng thái user realtime.
 
-                <!-- Tiêu đề -->
-                <div id="VTFilms-pending-title" class="fw-semibold h5 text-info mb-2">
-                    Tài khoản đang chờ xác thực
-                </div>
+                     Các thành phần NGOÀI wrapper này (avatar, tên, email user,
+                     admin@vutruong.vn, nút đăng xuất) KHÔNG bị fade hay thay đổi.
+                     VTFilms_overlayTransition() chỉ fade wrapper này → không còn
+                     nhấp nháy toàn overlay khi trạng thái thay đổi.
+                     ═══════════════════════════════════════════════════════════ -->
+                <div id="VTFilms-pending-status-area">
 
-                <!-- Mô tả -->
-                <p id="VTFilms-pending-msg" class="text-secondary mb-4">
-                    Liên hệ admin để được cấp quyền sử dụng
-                </p>
+                    <!-- Icon trạng thái: pending/rejected/revoked/approved -->
+                    <div id="VTFilms-pending-icon" class="mb-3"><i class="fad fa-spinner-third fa-2x text-info fa-spin"></i></div>
 
-                <!-- Spinner realtime -->
-                <div id="VTFilms-pending-spinner"
-                     class="d-inline-flex align-items-center gap-2 text-secondary small rounded-pill px-4 py-2 mb-3"
-                     style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)">
-                    admin@vutruong.vn
-                </div>
+                    <!-- Tiêu đề trạng thái -->
+                    <div id="VTFilms-pending-title" class="fw-semibold h5 text-info mb-2">
+                        Tài khoản đang chờ xác thực
+                    </div>
+
+                    <!-- Mô tả trạng thái -->
+                    <p id="VTFilms-pending-msg" class="text-secondary mb-4">
+                        Liên hệ admin để được cấp quyền sử dụng
+                    </p>
+                </div><!-- /#VTFilms-pending-status-area -->
+
+                    <!-- Thông tin liên hệ / spinner loading -->
+                    <div id="VTFilms-pending-spinner"
+                         class="d-inline-flex align-items-center gap-2 text-secondary small rounded-pill px-4 py-2 mb-3"
+                         style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)">
+                        admin@vutruong.vn
+                    </div>
+
 
                 <!-- Nút đăng xuất -->
                 <div class="mt-1">
@@ -451,29 +484,44 @@ function VTFilms_showPendingOverlay(user) {
     VTFilms_log.ok('Pending overlay đã chèn vào DOM (fade-in).');
 }
 
-/** [v6.2] Smooth overlay content transition: fadeOut card → update content → fadeIn card.
- *  @param {function(overlay: HTMLElement): void} updateFn — callback nhận overlay element để cập nhật nội dung
- *  @param {number} [fadeDuration=280] — thời gian fade ms
+/**
+ * [v7.0] Smooth overlay content transition — chỉ fade #VTFilms-pending-status-area.
+ *
+ * THAY ĐỔI SO VỚI v6.2:
+ *   v6.2 target: .card → toàn bộ overlay card biến mất khi transition
+ *                → avatar, tên, email, nút đăng xuất đều fade theo → nhấp nháy
+ *   v7.0 target: #VTFilms-pending-status-area → chỉ vùng động (icon/title/msg/spinner)
+ *                → avatar, tên, email, admin@vutruong.vn, nút đăng xuất đứng yên
+ *                → transition mượt, không nhấp nháy
+ *
+ * @param {function(overlay: HTMLElement): void} updateFn — callback cập nhật nội dung DOM
+ * @param {number} [fadeDuration=220] — thời gian fade ms (khớp với cảm giác mượt)
  */
-function VTFilms_overlayTransition(updateFn, fadeDuration = 280) {
+function VTFilms_overlayTransition(updateFn, fadeDuration = 220) {
     const overlay = document.getElementById('VTFilms-pending-overlay');
     if (!overlay) {
-        // Overlay chưa tồn tại — gọi updateFn với null để caller biết
+        // Overlay chưa tồn tại — trả null để caller biết và tự xử lý
         updateFn(null);
         return;
     }
-    const card = overlay.querySelector('.card');
-    if (!card) { updateFn(overlay); return; }
 
-    // Bước 1: fade out card
-    card.style.transition = `opacity ${fadeDuration}ms ease`;
-    card.style.opacity    = '0';
+    // [v7.0] Chỉ fade #VTFilms-pending-status-area (không fade .card)
+    const statusArea = overlay.querySelector('#VTFilms-pending-status-area');
+    if (!statusArea) {
+        // Fallback an toàn: status-area chưa có (overlay cũ format) → update thẳng
+        updateFn(overlay);
+        return;
+    }
 
-    // Bước 2: cập nhật nội dung sau khi fade out xong
+    // Bước 1: fade OUT chỉ vùng status-area
+    statusArea.style.transition = `opacity ${fadeDuration}ms ease`;
+    statusArea.style.opacity    = '0';
+
+    // Bước 2: sau khi vùng status-area mờ → cập nhật nội dung DOM
     setTimeout(() => {
         updateFn(overlay);
-        // Bước 3: fade in card với nội dung mới
-        card.style.opacity = '1';
+        // Bước 3: fade IN vùng status-area với nội dung mới
+        statusArea.style.opacity = '1';
     }, fadeDuration);
 }
 
@@ -592,7 +640,7 @@ function VTFilms_onTransitionApproved() {
         if (icon)    { icon.innerHTML = '<i class="fad fa-circle-check text-success fa-2x"></i>'; }
         if (title)   { title.textContent = 'Xác thực thành công!'; title.className = 'fw-semibold h5 text-success mb-2'; }
         if (msg)     { msg.innerHTML = 'Tài khoản của bạn đã được phê duyệt'; }
-        if (spinner) { spinner.innerHTML = '<i class="fad fa-spinner-third fa-spin me-2"></i>Đang tải...'; }
+        if (spinner) { spinner.innerHTML = '<i class="fad fa-spinner-third fa-spin me-2"></i>Đang tải dữ liệu'; }
     });
 
     // Sau 2.5s: fade out overlay → reload (để app load sạch từ HTML gốc)
@@ -609,34 +657,43 @@ function VTFilms_onTransitionApproved() {
 }
 
 /**
- * [v6.4] Layer B: Transition REJECTED hoặc REVOKED (triggered bởi admin realtime).
- * Gộp từ onTransitionRejected + onTransitionRevoked — logic hoàn toàn giống nhau,
- * chỉ khác state string truyền vào applyOverlayContent.
+ * [v7.0] Layer B: Transition REJECTED hoặc REVOKED (triggered bởi admin realtime).
  *
- * Luồng:
- *   1. remove() app khỏi DOM ngay (bảo mật SPA — không dùng d-none).
- *   2. Tạo overlay nếu chưa có → applyOverlayContent(state) cập nhật nội dung.
- *   3. Sau 2.5s → reload() để UI sạch, đồng bộ với Firestore.
+ * THAY ĐỔI SO VỚI v6.4:
+ *   v6.4: remove app → show overlay → reload(0ms)
+ *         → trang reload tức thì → overlay mất → tạo lại → NHẤP NHÁY
+ *   v7.0: remove app → đảm bảo overlay tồn tại → applyOverlayContent (in-place)
+ *         → KHÔNG reload → overlay ở nguyên trong DOM → chỉ status-area fade
+ *         → Mượt mà, tức thì, không gây cảm giác giật hay nhấp nháy
+ *
+ * Tại sao an toàn khi BỎ reload()?
+ *   - App đã bị remove() → không thể bypass qua DevTools (bảo mật SPA giữ nguyên)
+ *   - localStorage cache đã được unified listener ghi (VTFilms_saveVerifyStatus)
+ *     trước khi gọi hàm này → antiFlash đọc đúng nếu user tự reload sau
+ *   - Unified listener vẫn chạy liên tục → nhận trạng thái tiếp theo từ Firestore
  *
  * @param {'rejected'|'revoked'} state
  */
 function VTFilms_onTransitionBlocked(state) {
-    VTFilms_log.warn(`Transition → ${state.toUpperCase()}: remove app, hiện overlay, reload...`);
+    VTFilms_log.warn(`[v7.0] Transition → ${state.toUpperCase()}: remove app + update overlay in-place (no reload).`);
 
-    // Bảo mật: xóa app ngay lập tức khỏi DOM
+    // Bảo mật: xóa app ngay lập tức khỏi DOM (không dùng d-none — bảo mật SPA)
     VTFilms_removeApp();
 
-    // Đảm bảo có overlay — nếu chưa có thì tạo mới (pendingOverlay là base)
     if (!document.getElementById('VTFilms-pending-overlay')) {
+        // Overlay chưa tồn tại (ví dụ: user vừa được approved nhưng admin revoke
+        // ngay trước khi trang reload xong) → tạo mới, rồi apply content
         VTFilms_showPendingOverlay(VTFilms_getCache() || {});
-        // Chờ overlay fade-in (50ms) rồi cập nhật nội dung
+        // Chờ 50ms để overlay fade-in xong rồi mới update status-area
         setTimeout(() => VTFilms_applyOverlayContent(state), 50);
     } else {
+        // [v7.0] Overlay đang hiện → chỉ fade vùng status-area, cập nhật nội dung
         VTFilms_applyOverlayContent(state);
     }
 
-    // Sau 2.5s: reload để tải lại UI sạch từ HTML gốc
-    setTimeout(() => { window.location.reload(); }, 0); // thêm delay ở đây delay cũ 2500
+    // [v7.0] ĐÃ XÓA: setTimeout(reload) — không cần reload nữa
+    // Cache localStorage đã được ghi bởi VTFilms_startUnifiedListener
+    // trước khi gọi hàm này → đúng trạng thái nếu user tự reload sau
 }
 
 // Alias shorthand để unified listener gọi gọn
@@ -644,23 +701,31 @@ function VTFilms_onTransitionRejected() { VTFilms_onTransitionBlocked('rejected'
 function VTFilms_onTransitionRevoked()  { VTFilms_onTransitionBlocked('revoked');  }
 
 /**
- * [v6.3] Layer B: Transition PENDING (triggered bởi admin realtime — hiếm gặp).
+ * [v7.0] Layer B: Transition PENDING (triggered bởi admin realtime — hiếm gặp).
  *
- * Luồng:
- *   1. remove() app.
- *   2. Hiện pending overlay.
- *   3. Reload sau 1s (không cần chờ lâu).
+ * THAY ĐỔI SO VỚI v6.3:
+ *   v6.3: reload() sau 1200ms
+ *   v7.0: KHÔNG reload — update overlay in-place qua applyOverlayContent('pending')
+ *
+ * Luồng v7.0:
+ *   1. remove() app (bảo mật SPA giữ nguyên).
+ *   2. Nếu overlay chưa có: tạo mới (default content đã là pending — không cần apply).
+ *   3. Nếu overlay đã có: applyOverlayContent('pending') để reset về pending state.
  */
 function VTFilms_onTransitionPending() {
-    VTFilms_log.info('Transition → PENDING: remove app, reload...');
+    VTFilms_log.info('[v7.0] Transition → PENDING: remove app + update overlay in-place (no reload).');
     VTFilms_removeApp();
 
     if (!document.getElementById('VTFilms-pending-overlay')) {
+        // Tạo mới — default content của showPendingOverlay đã là pending state
         const cache = VTFilms_getCache();
         VTFilms_showPendingOverlay(cache || {});
+    } else {
+        // [v7.0] Overlay đã có (ví dụ: đang ở rejected/revoked) → reset về pending
+        VTFilms_applyOverlayContent('pending');
     }
 
-    setTimeout(() => { window.location.reload(); }, 1200);
+    // [v7.0] ĐÃ XÓA: setTimeout(reload, 1200) — không cần reload
 }
 
 
@@ -965,9 +1030,9 @@ function VTFilms_computePanelParts() {
     const hasMore = users.length > visible;
 
     const emptyMsg = {
-        pending:  '<i class="fad fa-circle-check me-1 text-success"></i>Không có user nào đang chờ',
-        approved: '<i class="fad fa-users me-1 text-secondary"></i>Chưa có user nào được duyệt',
-        rejected: '<i class="fad fa-circle-xmark me-1 text-secondary"></i>Chưa có user nào bị từ chối',
+        pending:  '<i class="fad fa-circle-check me-2 text-secondary"></i>Không có user nào đang chờ',
+        approved: '<i class="fad fa-users me-2 text-secondary"></i>Chưa có user nào được duyệt',
+        rejected: '<i class="fad fa-circle-xmark me-2 text-secondary"></i>Chưa có user nào bị từ chối',
     };
 
     const itemsHTML = shown.length === 0
