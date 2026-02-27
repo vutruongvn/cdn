@@ -11,6 +11,15 @@
  *         Layer A (applyOverlayContent) / Layer B (onTransition*) tránh reload loop
  *  v6.3.1 Fix reload vô hạn: guard verifyStatus trong syncUserDoc;
  *         pure compare _lastStatus=initialStatus trong unified listener
+ *  v6.5  ── FIX FORCE SIGNOUT + BOOTSTRAP MODAL ──
+ *        [FIX] Unified listener: !snap.exists() → force signOut ngay lập tức
+ *              Trước: khi document bị admin xóa → listener chỉ log "chưa tồn tại" → return
+ *              Sau: xóa toàn bộ localStorage cache → VTFilms_fbSignOut() → reload
+ *              → User bị đăng xuất ngay, dù đang ở bất kỳ trang nào
+ *        [FIX] adminDeleteUser: thay window.confirm() → Bootstrap Modal đẹp, chuyên nghiệp
+ *              Modal inject vào document.body (không nằm trong dropdown để tránh z-index)
+ *              Auto cleanup modal sau khi đóng (remove khỏi DOM)
+ *        [OPT] VTFilms_showDeleteConfirmModal(uid, name, email, btn) — helper riêng
  *  v6.4.1 ── XÓA USER (TAB TỪ CHỐI) ──
  *        [NEW] Nút "Xóa" trong tab Từ chối (bên cạnh "Phê duyệt lại")
  *        [NEW] VTFilms_adminDeleteUser(uid): xóa document users/{uid} khỏi Firestore
@@ -58,7 +67,7 @@ import {
 
 
 // ── 2. HẰNG SỐ & CẤU HÌNH ────────────────────────────────────────────────────
-const VTFilms_VERSION = '6.4.1';
+const VTFilms_VERSION = '6.5';
 
 // ── DEBUG FLAG ────────────────────────────────────────────────────────────────
 // true  → in log đầy đủ ra console (dùng khi development/debug)
@@ -716,7 +725,37 @@ function VTFilms_startUnifiedListener(fbUser, initialStatus) {
 
     VTFilms_verifyUnsubscribe = onSnapshot(ref, (snap) => {
         if (!snap.exists()) {
-            VTFilms_log.warn(`Unified listener: users/${fbUser.uid} chưa tồn tại.`);
+            // [v6.5] Document không tồn tại — có 2 trường hợp:
+            //   1. Lần đầu listener khởi động, syncUserDoc chưa kịp tạo doc → bỏ qua (hiếm)
+            //   2. Admin đã XÓA document → force signOut user ngay lập tức
+            //
+            // Phân biệt 2 trường hợp bằng _lastStatus:
+            //   null    → user vừa login, doc chưa tồn tại → bỏ qua (sẽ được tạo bởi syncUserDoc)
+            //   có giá  → user đang dùng app, doc bị xóa → admin đã xóa → force signOut
+            if (_lastStatus === null) {
+                VTFilms_log.warn(`Unified listener: users/${fbUser.uid} chưa tồn tại (init) → chờ syncUserDoc tạo.`);
+                return;
+            }
+            VTFilms_log.warn(`Unified listener: users/${fbUser.uid} bị XÓA bởi admin → force signOut...`);
+            // Xóa toàn bộ localStorage trước để antiFlash không giữ UI cũ
+            VTFilms_clearCache();
+            VTFilms_clearProfileFlag();
+            VTFilms_clearVerifyStatus();
+            VTFilms_clearTabGuard();
+            // Dừng listener ngay (document không còn → tiếp tục lắng nghe sẽ báo lỗi permission)
+            if (VTFilms_verifyUnsubscribe) {
+                VTFilms_verifyUnsubscribe();
+                VTFilms_verifyUnsubscribe = null;
+            }
+            // Force signOut Firebase Auth → onAuthStateChanged sẽ dọn dẹp phần còn lại
+            VTFilms_fbSignOut(VTFilms_auth).then(() => {
+                VTFilms_log.ok('Force signOut sau khi document bị xóa → reload...');
+                window.location.href = window.location.pathname;
+            }).catch(err => {
+                VTFilms_log.error('Force signOut thất bại:', err.message);
+                // Fallback: reload cứng để đảm bảo user bị đăng xuất
+                window.location.reload();
+            });
             return;
         }
 
@@ -861,7 +900,7 @@ function VTFilms_adminUserItemHTML(u, tab) {
                     <i class="fad fa-rotate-left me-2"></i>Phê duyệt lại
                 </a>
                 <a class="btn btn-sm btn-outline-danger rounded-pill small px-3"
-                   onclick="window.VTFilms_Auth._adminDeleteUser('${uid}', '${name.replace(/'/g,"\\'")}', '${email}', this)"
+                   onclick="window.VTFilms_Auth._showDeleteConfirmModal('${uid}', '${name.replace(/'/g,"\\'")}', '${email}', this)"
                    role="button"
                    title="Xóa hoàn toàn user khỏi hệ thống — không thể hoàn tác">
                     <i class="fad fa-trash-can"></i>
@@ -1101,54 +1140,122 @@ async function VTFilms_adminReapprove(uid, btn) {
 }
 
 /**
- * VTFilms_adminDeleteUser(uid, name, email, btn) — Xóa hoàn toàn document user khỏi Firestore.
+ * VTFilms_showDeleteConfirmModal(uid, name, email, btn)
+ * [v6.5] Bootstrap Modal xác nhận xóa user — thay thế window.confirm().
  *
- * [v6.4.1] Tính năng "Xóa" trong tab Từ chối.
+ * Tại sao inject vào document.body thay vì nằm trong dropdown:
+ *   - Dropdown có overflow:hidden + z-index thấp → modal bị cắt hoặc bị che
+ *   - Body-level modal đảm bảo hiển thị đúng ở mọi ngữ cảnh
  *
- * Luồng sau khi xóa:
- *   1. Document users/{uid} bị xóa khỏi Firestore
- *   2. Unified listener của user (nếu đang online) nhận snapshot error/empty
- *      → Không còn permission → listener tự hủy (Firestore trả PERMISSION_DENIED)
- *   3. Nếu user đang online: VTFilms_startListener onAuthStateChanged vẫn active,
- *      nhưng không còn document → khi user reload/navigate → syncUserDoc tạo doc mới
- *      → verifiedUser: false → về trạng thái pending (như lần đầu đăng nhập)
- *   4. localStorage của user: verifyStatus bị mất (không còn document nguồn)
- *      → Lần load tiếp: antiFlash không thấy cache → không flash UI → show overlay pending
+ * Auto-cleanup: xóa DOM node sau khi modal đóng (không để rác).
  *
- * Lưu ý quan trọng:
- *   - Chỉ xóa Firestore document, KHÔNG xóa Firebase Auth account của user
- *   - User vẫn có thể đăng nhập lại → sẽ được coi là user mới (pending)
- *   - Để xóa hoàn toàn Auth account cần Firebase Admin SDK (server-side)
- *   - Firestore Rules phải cho phép admin delete (xem vtfilms-rules-6.4.1.rules)
- *
- * @param {string}      uid   - Firebase UID của user cần xóa
- * @param {string}      name  - Tên hiển thị (để confirm dialog)
- * @param {string}      email - Email (để confirm dialog)
- * @param {HTMLElement} btn   - Nút trigger (để disable khi đang xử lý)
+ * @param {string}      uid   - Firebase UID cần xóa
+ * @param {string}      name  - Tên hiển thị (hiển thị trong modal)
+ * @param {string}      email - Email (hiển thị trong modal)
+ * @param {HTMLElement} btn   - Nút icon thùng rác (restore nếu huỷ)
  */
-async function VTFilms_adminDeleteUser(uid, name, email, btn) {
-    // Xác nhận trước khi xóa — không thể hoàn tác
-    const confirmed = window.confirm(
-        `⚠️ XÓA USER VĨNH VIỄN\n\n` +
-        `Tên:  ${name}\n` +
-        `Email: ${email}\n\n` +
-        `Thao tác này sẽ:\n` +
-        `• Xóa hoàn toàn dữ liệu user khỏi hệ thống\n` +
-        `• User bị coi như chưa từng đăng nhập\n` +
-        `• Nếu đang online: user sẽ bị ảnh hưởng ngay\n\n` +
-        `Không thể hoàn tác. Tiếp tục?`
-    );
-    if (!confirmed) return;
+function VTFilms_showDeleteConfirmModal(uid, name, email, btn) {
+    // Xóa modal cũ nếu còn sót (tránh trùng id)
+    const existing = document.getElementById('vtfilms-delete-modal');
+    if (existing) existing.remove();
 
-    VTFilms_log.warn(`Admin xóa user uid: ${uid} (${email})...`);
+    // Tạo và inject modal vào body
+    const modalEl = document.createElement('div');
+    modalEl.id        = 'vtfilms-delete-modal';
+    modalEl.className = 'modal fade';
+    modalEl.setAttribute('tabindex', '-1');
+    modalEl.setAttribute('aria-hidden', 'true');
+    modalEl.setAttribute('data-bs-backdrop', 'static'); // Không đóng khi click ngoài
+    modalEl.setAttribute('data-bs-keyboard', 'false');  // Không đóng khi nhấn Esc
+    modalEl.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border border-danger border-opacity-50 shadow-lg"
+                 style="background:#1a1a2e;">
+                <div class="modal-header border-danger border-opacity-25 pb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fad fa-triangle-exclamation text-danger fa-lg"></i>
+                        <h5 class="modal-title fw-bold text-danger mb-0">Xác nhận xóa user</h5>
+                    </div>
+                </div>
+                <div class="modal-body py-3">
+                    <p class="text-secondary small mb-3">Bạn sắp xóa hoàn toàn user sau khỏi hệ thống:</p>
+                    <div class="rounded-3 p-3 mb-3"
+                         style="background:rgba(220,53,69,.08);border:1px solid rgba(220,53,69,.25)">
+                        <div class="fw-semibold text-light">${name}</div>
+                        <div class="text-secondary small">${email}</div>
+                    </div>
+                    <ul class="small text-secondary mb-0 ps-3">
+                        <li>Xóa toàn bộ dữ liệu user khỏi Firestore</li>
+                        <li>Nếu đang online: bị đăng xuất <span class="text-warning fw-semibold">ngay lập tức</span></li>
+                        <li>Đăng nhập lại phải chờ phê duyệt từ đầu</li>
+                        <li class="text-danger fw-semibold mt-1">Không thể hoàn tác!</li>
+                    </ul>
+                </div>
+                <div class="modal-footer border-danger border-opacity-25 pt-2 gap-2">
+                    <button type="button" id="vtf-del-cancel"
+                            class="btn btn-sm btn-secondary rounded-pill px-4">
+                        Hủy bỏ
+                    </button>
+                    <button type="button" id="vtf-del-confirm"
+                            class="btn btn-sm btn-danger rounded-pill px-4 fw-semibold">
+                        <i class="fad fa-trash-can me-2"></i>Xóa vĩnh viễn
+                    </button>
+                </div>
+            </div>
+        </div>`;
+
+    document.body.appendChild(modalEl);
+    const bsModal = new bootstrap.Modal(modalEl);
+
+    // Nút Hủy
+    modalEl.querySelector('#vtf-del-cancel').onclick = () => bsModal.hide();
+
+    // Nút Xác nhận → thực hiện xóa
+    modalEl.querySelector('#vtf-del-confirm').onclick = async () => {
+        const confirmBtn = modalEl.querySelector('#vtf-del-confirm');
+        const cancelBtn  = modalEl.querySelector('#vtf-del-cancel');
+        confirmBtn.setAttribute('disabled', '');
+        cancelBtn.setAttribute('disabled', '');
+        confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang xóa...';
+
+        await VTFilms_adminDeleteUser(uid, email, btn);
+        bsModal.hide();
+    };
+
+    // Cleanup DOM sau khi modal đóng hoàn toàn
+    modalEl.addEventListener('hidden.bs.modal', () => modalEl.remove());
+
+    bsModal.show();
+}
+
+/**
+ * VTFilms_adminDeleteUser(uid, email, btn) — Thực hiện xóa Firestore document.
+ * [v6.5] Tách khỏi UI confirm. Được gọi bởi VTFilms_showDeleteConfirmModal.
+ *
+ * Luồng sau khi xóa thành công:
+ *   1. Document users/{uid} bị xóa khỏi Firestore
+ *   2. Unified listener phía user nhận !snap.exists() với _lastStatus != null
+ *      → Nhận diện "admin đã xóa" → xóa localStorage → fbSignOut → reload
+ *      → User bị đăng xuất ngay lập tức (xem VTFilms_startUnifiedListener)
+ *   3. Admin panel tự cập nhật qua onSnapshot (document biến mất khỏi query)
+ *
+ * Lưu ý:
+ *   - Chỉ xóa Firestore document, không xóa Firebase Auth account
+ *   - User đăng nhập lại → syncUserDoc tạo doc mới → verifiedUser: false → pending
+ *   - Firestore Rules v6.5: admin được delete users (trừ chính mình)
+ *
+ * @param {string}      uid   - Firebase UID cần xóa
+ * @param {string}      email - Email (chỉ để log)
+ * @param {HTMLElement} btn   - Nút icon thùng rác (restore nếu lỗi)
+ */
+async function VTFilms_adminDeleteUser(uid, email, btn) {
+    VTFilms_log.warn(`Admin xóa user: uid=${uid} (${email})...`);
     if (btn) { btn.setAttribute('disabled', ''); btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
 
     try {
-        // Xóa document users/{uid} khỏi Firestore
-        // Firestore Rules v6.4.1: admin được phép delete
         await deleteDoc(doc(VTFilms_db, 'users', uid));
         VTFilms_log.ok(`Delete OK: users/${uid} (${email}) đã xóa khỏi Firestore.`);
-        // Panel sẽ tự cập nhật qua onSnapshot (document bị xóa → disappear từ query)
+        // Panel tự cập nhật qua onSnapshot — không cần gọi render thêm
 
     } catch (err) {
         VTFilms_log.error(`Delete ${uid} thất bại:`, err.message);
@@ -1589,7 +1696,8 @@ window.VTFilms_Auth = {
     _adminReject:     VTFilms_adminReject,
     _adminRevoke:      VTFilms_adminRevoke,
     _adminReapprove:   VTFilms_adminReapprove,
-    _adminDeleteUser:  VTFilms_adminDeleteUser,
+    _adminDeleteUser:       VTFilms_adminDeleteUser,       // Hàm xóa thực (gọi từ modal)
+    _showDeleteConfirmModal: VTFilms_showDeleteConfirmModal, // Hiển thị modal xác nhận
     _adminSwitchTab:  VTFilms_adminSwitchTab,
     _adminLoadMore:   VTFilms_adminLoadMore,
     version:          VTFilms_VERSION,
