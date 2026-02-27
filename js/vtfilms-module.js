@@ -603,7 +603,7 @@ function VTFilms_onTransitionApproved() {
         } else {
             window.location.reload();
         }
-    }, 0); // delay ở đây
+    }, 2500); // delay ở đây
 }
 
 /**
