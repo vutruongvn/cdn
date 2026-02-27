@@ -60,8 +60,15 @@
 //               → skeleton chỉ render khi sắp load (tiết kiệm DOM nodes ban đầu)
 //         [OPT] window._homeObserver (thay let _lazyHomeObserver) → persist qua lần gọi
 // ============================================================
-
-
+(function() {
+    const allowed = ['films.vutruong.vn', 'localhost', '127.0.0.1'];
+    const host    = location.hostname;
+    if (!allowed.includes(host)) {
+        console.error('[VTFilms] Unauthorized domain:', host);
+        document.body.innerHTML = '';
+        throw new Error('Unauthorized');
+    }
+})();
 // ─────────────────────────────────────────────────────────────
 // 0. LAZY LOAD ẢNH
 //    Dùng 1 IntersectionObserver dùng chung toàn app (không tạo mới mỗi lần).
