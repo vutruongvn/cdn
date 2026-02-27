@@ -872,11 +872,11 @@ function VTFilms_adminUserItemHTML(u, tab) {
     if (tab === 'pending') {
         actionHTML = `
             <div class="d-flex gap-2">
-                <a class="btn btn-sm btn-success flex-fill rounded small"
+                <a class="btn btn-sm btn-success flex-fill rounded small w-50"
                    onclick="window.VTFilms_Auth._adminApprove('${uid}', this)" role="button">
-                    <i class="fad fa-check me-2"></i>Chấp nhận
+                    <i class="fad fa-check me-2"></i>Phê duyệt
                 </a>
-                <a class="btn btn-sm btn-outline-danger flex-fill rounded small"
+                <a class="btn btn-sm btn-danger flex-fill rounded small w-50"
                    onclick="window.VTFilms_Auth._adminReject('${uid}', this)" role="button">
                     <i class="fad fa-xmark me-2"></i>Từ chối
                 </a>
