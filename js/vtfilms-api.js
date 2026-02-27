@@ -601,7 +601,7 @@ function VTFilms_updateBottomLoader(show, msg = '') {
     if (!loader) return;
     if (show) {
         loader.innerHTML = `
-      <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-6 g-2 mt-1 text-start">
+      <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-5 g-2 mt-1 text-start">
           ${VTFilms_renderGridSkeleton(12)}
       </div>`;
     } else {
@@ -694,7 +694,7 @@ async function VTFilms_setupInfinitePage(title, endpoint) {
     container.innerHTML = `
     <div class="infinite-wrapper">
       <h2 class="section-title mb-3 text-danger">${title}</h2>
-      <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-6 g-2 movie-grid-row">
+      <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-5 g-2 movie-grid-row">
           ${VTFilms_renderGridSkeleton(12)}
       </div>
       <div id="pagination-area" class="text-center py-3">
@@ -1335,3 +1335,4 @@ function VTFilms_refreshHome() {
 // ============================================================
 // End · VT Films · films.vutruong.vn
 // ============================================================
+
