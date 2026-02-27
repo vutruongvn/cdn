@@ -1,6 +1,5 @@
 // ============================================================
 // vtfilms-api.js — VT Films · Logic lấy & hiển thị dữ liệu phim
-// Nguồn API : phim.nguonc.com
 // Website   : films.vutruong.vn
 // Version   : 2.0
 // ============================================================
@@ -10,23 +9,23 @@
 //   1.  Hằng số & cấu hình toàn cục
 //   2.  Fetch Queue (rate limiting — chống bị block API)
 //   3.  API Cache (sessionStorage, TTL 5 phút)
-//   4.  fetchNguonC — fetch với cache + retry + abort
-//   5.  Tiện ích (slugify, getDisplayName, updateURL, updatePageTitle)
+//   4.  VTFilms_fetch — fetch với cache + retry + abort
+//   5.  Tiện ích (VTFilms_slugify, VTFilms_getDisplayName, VTFilms_updateURL, VTFilms_updatePageTitle)
 //   6.  Render card phim & skeleton
-//   7.  Điều hướng SPA (triggerSearch, navigateToMovie, navigateToCategory)
-//   8.  Infinite Scroll (loadMoreMovies, updateBottomLoader)
-//   9.  Router (checkRoute, setupInfinitePage)
-//  10.  Trang chủ — lazy section loading (loadHomePage, loadHomeSection)
-//  11.  Phim liên quan (loadRelatedMovies)
-//  12.  handleViewAll
-//  13.  Chi tiết phim (showMovieDetail, changeServer, playVideo)
-//  14.  Khởi chạy (initDynamicMenu, DOMContentLoaded, refreshHome)
+//   7.  Điều hướng SPA (VTFilms_triggerSearch, VTFilms_navigateToMovie, VTFilms_navigateToCategory)
+//   8.  Infinite Scroll (VTFilms_loadMoreMovies, VTFilms_updateBottomLoader)
+//   9.  Router (VTFilms_checkRoute, VTFilms_setupInfinitePage)
+//  10.  Trang chủ — lazy section loading (VTFilms_loadHomePage, VTFilms_loadHomeSection)
+//  11.  Phim liên quan (VTFilms_loadRelatedMovies)
+//  12.  VTFilms_handleViewAll
+//  13.  Chi tiết phim (VTFilms_showMovieDetail, VTFilms_changeServer, VTFilms_playVideo)
+//  14.  Khởi chạy (VTFilms_initDynamicMenu, DOMContentLoaded, VTFilms_refreshHome)
 // ============================================================
 //
 // CHANGELOG
 //   v1.x  Logic gốc: Promise.all song song toàn bộ section → server block
 //   v2.0  ── TỔNG TỐI ƯU ──
-//         [FIX] Rate limiting: FetchQueue (tối đa 3 concurrent, 220ms/request)
+//         [FIX] Rate limiting: VTFilms_FetchQueue (tối đa 3 concurrent, 220ms/request)
 //               → Ngăn bị block API do burst request đồng loạt
 //         [NEW] API Cache: sessionStorage TTL 5 phút
 //               → Không re-fetch khi navigate back/forward
@@ -38,22 +37,22 @@
 //         [NEW] Trang chủ lazy sections: hiện 3 section đầu ngay lập tức
 //               → IntersectionObserver tự động load thêm từng section khi scroll
 //               → Delay 300ms giữa mỗi section: không burst, có hiệu ứng mượt
-//         [NEW] setupInfinitePage: skeleton delay 600ms trước khi render
+//         [NEW] VTFilms_setupInfinitePage: skeleton delay 600ms trước khi render
 //               → Trải nghiệm thị giác tốt hơn, giảm flash trắng
 //         [NEW] Search debounce 400ms → không fire request mỗi lần gõ phím
 //         [FIX] renderHomeSkeleton: chỉ render 3 skeleton (khớp với lazy load)
-//         [OPT] getDisplayName: cache allItems vào biến module (không tạo mới mỗi lần)
-//         [OPT] Xóa hằng số không dùng: prefix parameter trong updatePageTitle
-//         [OPT] initLazyLoading: single shared IntersectionObserver thay vì
+//         [OPT] VTFilms_getDisplayName: cache allItems vào biến module (không tạo mới mỗi lần)
+//         [OPT] Xóa hằng số không dùng: prefix parameter trong VTFilms_updatePageTitle
+//         [OPT] VTFilms_initLazyLoading: single shared IntersectionObserver thay vì
 //               tạo mới mỗi lần gọi
 //   v2.1  ── CHAIN LAZY LOADING ──
-//         [FIX] loadHomePage: CHAIN PATTERN thay vì observe tất cả sentinel cùng lúc
+//         [FIX] VTFilms_loadHomePage: CHAIN PATTERN thay vì observe tất cả sentinel cùng lúc
 //               Trước (v2.0): observe 15 sentinel → scroll nhanh → trigger nhiều section
 //               Sau  (v2.1): chỉ observe đúng 1 sentinel tại 1 thời điểm
 //               → Load xong section i → chuyển observe sang section i+1
 //               → Tuyệt đối không bao giờ load >1 section cùng lúc
 //               → Scroll đến đáy trang: vẫn tuần tự từng section +1
-//         [FIX] loadHomeSection: outerHTML → innerHTML để giữ element reference
+//         [FIX] VTFilms_loadHomeSection: outerHTML → innerHTML để giữ element reference
 //               outerHTML destroy element → _homeObserver mất tham chiếu → chain đứt
 //         [OPT] rootMargin 400px → 200px: không đón đầu quá sớm
 //         [OPT] Placeholder sections: không render skeleton DOM cho section chưa cần
@@ -76,12 +75,12 @@
 //    Sau load: thêm class "loaded", xóa "lazy-img".
 // ─────────────────────────────────────────────────────────────
 
-let _lazyObserver = null;
+let VTFilms__lazyObserver = null;
 
-function initLazyLoading() {
+function VTFilms_initLazyLoading() {
     // Khởi tạo observer một lần duy nhất, tái sử dụng cho các lần gọi sau
-    if (!_lazyObserver) {
-        _lazyObserver = new IntersectionObserver((entries, observer) => {
+    if (!VTFilms__lazyObserver) {
+        VTFilms__lazyObserver = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (!entry.isIntersecting) return;
                 const img     = entry.target;
@@ -103,7 +102,7 @@ function initLazyLoading() {
     }
 
     // Chỉ observe các ảnh chưa được load (còn class lazy-img)
-    document.querySelectorAll('.lazy-img').forEach(img => _lazyObserver.observe(img));
+    document.querySelectorAll('.lazy-img').forEach(img => VTFilms__lazyObserver.observe(img));
 }
 
 
@@ -111,7 +110,7 @@ function initLazyLoading() {
 // 1. HẰNG SỐ & CẤU HÌNH TOÀN CỤC
 // ─────────────────────────────────────────────────────────────
 
-const NGUONC_CONFIG = {
+const VTFilms_CONFIG = {
     BASE_API:     'https://phim.nguonc.com/api/films',
     DETAIL_API:   'https://phim.nguonc.com/api/film/',
     ENDPOINTS: {
@@ -141,7 +140,7 @@ const NGUONC_CONFIG = {
     RETRY_BACKOFF_MS:   1000, // 1s → 2s (exponential)
 };
 
-const MOVIE_MENU_DATA = {
+const VTFilms_MOVIE_MENU_DATA = {
     genres: [
         'Hành Động', 'Phiêu Lưu', 'Hoạt Hình', 'Hài', 'Hình Sự',
         'Tài Liệu', 'Chính Kịch', 'Gia Đình', 'Giả Tưởng', 'Lịch Sử',
@@ -156,15 +155,15 @@ const MOVIE_MENU_DATA = {
     ]
 };
 
-// Cache nội bộ cho getDisplayName (tính 1 lần, tái sử dụng)
-const _ALL_MENU_ITEMS = [
-    ...MOVIE_MENU_DATA.genres,
-    ...MOVIE_MENU_DATA.countries,
+// Cache nội bộ cho VTFilms_getDisplayName (tính 1 lần, tái sử dụng)
+const VTFilms__ALL_MENU_ITEMS = [
+    ...VTFilms_MOVIE_MENU_DATA.genres,
+    ...VTFilms_MOVIE_MENU_DATA.countries,
     'Phim Lẻ', 'Phim Bộ', 'Phim Mới'
 ];
 
 // Trạng thái phân trang cho infinite scroll
-const PAGING_STATE = {
+const VTFilms_PAGING_STATE = {
     currentPage:      1,
     isLoading:        false,
     hasMore:          true,
@@ -185,13 +184,13 @@ const PAGING_STATE = {
 //      Sau mỗi job: delay MIN_DELAY_MS → giải phóng slot → chạy tiếp
 // ─────────────────────────────────────────────────────────────
 
-const FetchQueue = (() => {
+const VTFilms_FetchQueue = (() => {
     const queue   = [];        // Hàng đợi job chờ
     let   running = 0;         // Số job đang chạy hiện tại
 
     function _processQueue() {
         // Không làm gì nếu hết chỗ hoặc hàng đợi rỗng
-        if (running >= NGUONC_CONFIG.MAX_CONCURRENT || queue.length === 0) return;
+        if (running >= VTFilms_CONFIG.MAX_CONCURRENT || queue.length === 0) return;
 
         running++;
         const { fn, resolve, reject } = queue.shift();
@@ -204,7 +203,7 @@ const FetchQueue = (() => {
                 setTimeout(() => {
                     running--;
                     _processQueue(); // Gọi job tiếp theo
-                }, NGUONC_CONFIG.MIN_DELAY_MS);
+                }, VTFilms_CONFIG.MIN_DELAY_MS);
             });
 
         // Tiếp tục khai thác các slot còn trống (nếu có)
@@ -240,7 +239,7 @@ const FetchQueue = (() => {
 //    TTL: CACHE_TTL_MS (default 5 phút)
 // ─────────────────────────────────────────────────────────────
 
-const ApiCache = (() => {
+const VTFilms_ApiCache = (() => {
     const PREFIX = 'vtf_cache_';
 
     return {
@@ -253,7 +252,7 @@ const ApiCache = (() => {
                 const raw = sessionStorage.getItem(PREFIX + url);
                 if (!raw) return null;
                 const { data, ts } = JSON.parse(raw);
-                if (Date.now() - ts > NGUONC_CONFIG.CACHE_TTL_MS) {
+                if (Date.now() - ts > VTFilms_CONFIG.CACHE_TTL_MS) {
                     sessionStorage.removeItem(PREFIX + url); // Xóa expired
                     return null;
                 }
@@ -286,60 +285,60 @@ const ApiCache = (() => {
 
 
 // ─────────────────────────────────────────────────────────────
-// 4. fetchNguonC — Fetch với Cache + Rate Limiting + Retry
+// 4. VTFilms_fetch — Fetch với Cache + Rate Limiting + Retry
 //    Thứ tự xử lý:
 //      1. Kiểm tra cache → trả về ngay nếu còn hiệu lực
-//      2. Đưa vào FetchQueue (chống burst)
+//      2. Đưa vào VTFilms_FetchQueue (chống burst)
 //      3. Bên trong queue: fetch với AbortController
 //      4. Nếu 429/503: exponential backoff retry (tối đa MAX_RETRIES)
 //      5. Lưu kết quả vào cache
 //      6. Trả về null nếu lỗi (không throw)
 //
-//    AbortController: _currentAbortController được reset mỗi khi checkRoute()
-//    gọi _resetAbortController() → hủy mọi fetch cũ khi user navigate đi.
+//    AbortController: VTFilms__currentAbortController được reset mỗi khi VTFilms_checkRoute()
+//    gọi VTFilms__resetAbortController() → hủy mọi fetch cũ khi user navigate đi.
 // ─────────────────────────────────────────────────────────────
 
-let _currentAbortController = new AbortController();
+let VTFilms__currentAbortController = new AbortController();
 
 /** Reset abort controller — gọi trước mỗi navigation mới */
-function _resetAbortController() {
-    _currentAbortController.abort(); // Hủy tất cả request đang chạy
-    _currentAbortController = new AbortController();
+function VTFilms__resetAbortController() {
+    VTFilms__currentAbortController.abort(); // Hủy tất cả request đang chạy
+    VTFilms__currentAbortController = new AbortController();
 }
 
 /**
- * fetchNguonC(endpoint, page) — Fetch dữ liệu từ API với đầy đủ bảo vệ.
+ * VTFilms_fetch(endpoint, page) — Fetch dữ liệu từ API với đầy đủ bảo vệ.
  *
  * @param {string}      endpoint  - Path API hoặc URL đầy đủ
  * @param {number|null} page      - Số trang (null = không thêm ?page=N)
  * @param {boolean}     useQueue  - false = bypass queue (dùng cho fetch quan trọng, vd: chi tiết phim)
  * @returns {Promise<object|null>}
  */
-async function fetchNguonC(endpoint, page = null, useQueue = true) {
+async function VTFilms_fetch(endpoint, page = null, useQueue = true) {
     // Xây dựng URL đầy đủ
     let url = endpoint.startsWith('http')
         ? endpoint
-        : `${NGUONC_CONFIG.BASE_API}${endpoint}`;
+        : `${VTFilms_CONFIG.BASE_API}${endpoint}`;
     if (page !== null) {
         url += (url.includes('?') ? '&' : '?') + `page=${page}`;
     }
 
     // 1. Cache hit → trả về ngay, không tốn request
-    const cached = ApiCache.get(url);
+    const cached = VTFilms_ApiCache.get(url);
     if (cached) return cached;
 
     // 2. Hàm fetch thực sự (có retry)
     const doFetch = async () => {
-        const signal = _currentAbortController.signal;
+        const signal = VTFilms__currentAbortController.signal;
         let lastError;
 
-        for (let attempt = 0; attempt <= NGUONC_CONFIG.MAX_RETRIES; attempt++) {
+        for (let attempt = 0; attempt <= VTFilms_CONFIG.MAX_RETRIES; attempt++) {
             if (signal.aborted) return null; // Navigation mới → bỏ
 
             try {
                 if (attempt > 0) {
                     // Exponential backoff: 1s, 2s
-                    await new Promise(r => setTimeout(r, NGUONC_CONFIG.RETRY_BACKOFF_MS * attempt));
+                    await new Promise(r => setTimeout(r, VTFilms_CONFIG.RETRY_BACKOFF_MS * attempt));
                 }
 
                 const res = await fetch(url, { signal });
@@ -353,7 +352,7 @@ async function fetchNguonC(endpoint, page = null, useQueue = true) {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
                 const data = await res.json();
-                ApiCache.set(url, data); // Lưu vào cache
+                VTFilms_ApiCache.set(url, data); // Lưu vào cache
                 return data;
 
             } catch (err) {
@@ -362,12 +361,12 @@ async function fetchNguonC(endpoint, page = null, useQueue = true) {
             }
         }
 
-        console.error('[VTFilms API] fetchNguonC thất bại sau retry:', url, lastError?.message);
+        console.error('[VTFilms API] VTFilms_fetch thất bại sau retry:', url, lastError?.message);
         return null;
     };
 
     // 3. Chạy qua queue hoặc trực tiếp
-    return useQueue ? FetchQueue.enqueue(doFetch) : doFetch();
+    return useQueue ? VTFilms_FetchQueue.enqueue(doFetch) : doFetch();
 }
 
 
@@ -376,20 +375,20 @@ async function fetchNguonC(endpoint, page = null, useQueue = true) {
 // ─────────────────────────────────────────────────────────────
 
 /**
- * getDisplayName(slug) — slug → tên hiển thị có dấu.
- * Dùng _ALL_MENU_ITEMS đã cache thay vì tạo mảng mới mỗi lần.
+ * VTFilms_getDisplayName(slug) — slug → tên hiển thị có dấu.
+ * Dùng VTFilms__ALL_MENU_ITEMS đã cache thay vì tạo mảng mới mỗi lần.
  */
-function getDisplayName(slug) {
-    const found = _ALL_MENU_ITEMS.find(item => slugify(item) === slug);
+function VTFilms_getDisplayName(slug) {
+    const found = VTFilms__ALL_MENU_ITEMS.find(item => VTFilms_slugify(item) === slug);
     if (found) return found;
     return slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
 
 /**
- * slugify(text) — Tiếng Việt → slug URL-safe.
+ * VTFilms_slugify(text) — Tiếng Việt → slug URL-safe.
  * Ví dụ: "Hành Động" → "hanh-dong"
  */
-function slugify(text) {
+function VTFilms_slugify(text) {
     if (!text) return '';
     return text.toString()
         .toLowerCase()
@@ -403,19 +402,19 @@ function slugify(text) {
 }
 
 /**
- * updatePageTitle(content, isRaw) — Cập nhật <title> tab.
+ * VTFilms_updatePageTitle(content, isRaw) — Cập nhật <title> tab.
  * @param {string}  content - Slug hoặc tên thô từ API
- * @param {boolean} isRaw   - true: giữ nguyên (tên phim); false: tra cứu getDisplayName
+ * @param {boolean} isRaw   - true: giữ nguyên (tên phim); false: tra cứu VTFilms_getDisplayName
  */
-function updatePageTitle(content = '', isRaw = false) {
-    if (!content) { document.title = NGUONC_CONFIG.DEFAULT_TITLE; return; }
-    document.title = isRaw ? content : getDisplayName(content);
+function VTFilms_updatePageTitle(content = '', isRaw = false) {
+    if (!content) { document.title = VTFilms_CONFIG.DEFAULT_TITLE; return; }
+    document.title = isRaw ? content : VTFilms_getDisplayName(content);
 }
 
 /**
- * updateURL(params) — Cập nhật query string không reload (SPA).
+ * VTFilms_updateURL(params) — Cập nhật query string không reload (SPA).
  */
-function updateURL(params = {}) {
+function VTFilms_updateURL(params = {}) {
     const url = new URL(window.location.href);
     url.search = '';
     Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
@@ -423,10 +422,10 @@ function updateURL(params = {}) {
 }
 
 // Back/Forward trình duyệt → re-render đúng route
-window.onpopstate = () => checkRoute();
+window.onpopstate = () => VTFilms_checkRoute();
 
 // Debounce helper — tránh fire event liên tục (vd: search mỗi keystroke)
-function _debounce(fn, delay) {
+function VTFilms__debounce(fn, delay) {
     let timer;
     return (...args) => {
         clearTimeout(timer);
@@ -440,22 +439,22 @@ function _debounce(fn, delay) {
 // ─────────────────────────────────────────────────────────────
 
 /** Placeholder GIF 1×1 trong suốt (dùng cho lazy-img) */
-const BLANK_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+const VTFilms_BLANK_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 /**
- * renderMovieCard(movie, mode) — HTML card cho 1 phim.
+ * VTFilms_renderMovieCard(movie, mode) — HTML card cho 1 phim.
  * @param {object} movie
  * @param {'grid'|'card'} mode
  */
-function renderMovieCard(movie, mode = 'grid') {
+function VTFilms_renderMovieCard(movie, mode = 'grid') {
     const colClass = mode === 'grid' ? 'col' : 'movie-card-item';
     return `
     <div class="${colClass}">
       <div class="movie-item" title="${movie.name}"
-           onclick="navigateToMovie('${movie.slug}')" style="cursor:pointer">
+           onclick="VTFilms_navigateToMovie('${movie.slug}')" style="cursor:pointer">
         <div class="poster-wrapper">
           <i class="fa-duotone fa-play play-overlay"></i>
-          <img data-src="${movie.thumb_url}" src="${BLANK_GIF}"
+          <img data-src="${movie.thumb_url}" src="${VTFilms_BLANK_GIF}"
                class="poster-img lazy-img" alt="${movie.name}">
           <div class="movie-badge position-absolute d-none d-md-block">
             <span class="text-warning fw-bold">${movie.quality || 'HD'}</span>
@@ -474,10 +473,10 @@ function renderMovieCard(movie, mode = 'grid') {
 }
 
 /**
- * renderGridSkeleton(count) — N ô skeleton cho lưới phim.
+ * VTFilms_renderGridSkeleton(count) — N ô skeleton cho lưới phim.
  * @param {number} count
  */
-function renderGridSkeleton(count = 12) {
+function VTFilms_renderGridSkeleton(count = 12) {
     return Array(count).fill(0).map(() => `
     <div class="col mb-4">
       <div class="skeleton-item skeleton-poster mb-2"
@@ -490,9 +489,9 @@ function renderGridSkeleton(count = 12) {
 }
 
 /**
- * renderSectionSkeleton() — Skeleton placeholder cho 1 section trang chủ.
+ * VTFilms_renderSectionSkeleton() — Skeleton placeholder cho 1 section trang chủ.
  */
-function renderSectionSkeleton() {
+function VTFilms_renderSectionSkeleton() {
     // Trả về INNER content (không có outer .movie-section wrapper).
     // Wrapper là chính element home-section-{i} với class movie-section.
     return `
@@ -514,28 +513,28 @@ function renderSectionSkeleton() {
 // 7. ĐIỀU HƯỚNG SPA
 // ─────────────────────────────────────────────────────────────
 
-function triggerSearch() {
+function VTFilms_triggerSearch() {
     const sInput  = document.getElementById('searchInput');
     const keyword = sInput ? sInput.value.trim() : '';
     if (keyword.length > 1) {
-        updateURL({ search: keyword });
-        checkRoute();
+        VTFilms_updateURL({ search: keyword });
+        VTFilms_checkRoute();
         sInput.blur();
     }
 }
 
-function navigateToMovie(slug) {
-    updateURL({ watch: slug });
-    showMovieDetail(slug);
+function VTFilms_navigateToMovie(slug) {
+    VTFilms_updateURL({ watch: slug });
+    VTFilms_showMovieDetail(slug);
 }
 
-function navigateToCategory(type, slug) {
+function VTFilms_navigateToCategory(type, slug) {
     let params = {};
     if (type === 'quoc-gia')      params.country = slug;
     else if (type === 'the-loai') params.type    = slug;
     else                           params.cat     = slug || type;
-    updateURL(params);
-    checkRoute();
+    VTFilms_updateURL(params);
+    VTFilms_checkRoute();
 
     const navbarCollapse = document.getElementById('movieNavbar');
     if (navbarCollapse?.classList.contains('show')) {
@@ -549,61 +548,61 @@ function navigateToCategory(type, slug) {
 // ─────────────────────────────────────────────────────────────
 
 /**
- * loadMoreMovies(isFirstLoad) — Tải 1 trang phim, append vào lưới.
- * Dùng FetchQueue nên tự động được rate-limit.
+ * VTFilms_loadMoreMovies(isFirstLoad) — Tải 1 trang phim, append vào lưới.
+ * Dùng VTFilms_FetchQueue nên tự động được rate-limit.
  */
-async function loadMoreMovies(isFirstLoad = false) {
-    if (PAGING_STATE.isLoading || !PAGING_STATE.hasMore) return;
-    PAGING_STATE.isLoading = true;
+async function VTFilms_loadMoreMovies(isFirstLoad = false) {
+    if (VTFilms_PAGING_STATE.isLoading || !VTFilms_PAGING_STATE.hasMore) return;
+    VTFilms_PAGING_STATE.isLoading = true;
 
     const btnLoadMore = document.getElementById('btnLoadMore');
     if (btnLoadMore) btnLoadMore.style.display = 'none';
 
-    updateBottomLoader(true);
+    VTFilms_updateBottomLoader(true);
 
     try {
         // Chạy song song: fetch (qua queue) + delay tối thiểu 500ms
         const [data] = await Promise.all([
-            fetchNguonC(PAGING_STATE.currentEndpoint, PAGING_STATE.currentPage),
+            VTFilms_fetch(VTFilms_PAGING_STATE.currentEndpoint, VTFilms_PAGING_STATE.currentPage),
             new Promise(r => setTimeout(r, 500))
         ]);
 
         const grid = document.querySelector('.movie-grid-row');
 
         if (grid && data?.items?.length > 0) {
-            const html = data.items.map(m => renderMovieCard(m, 'grid')).join('');
+            const html = data.items.map(m => VTFilms_renderMovieCard(m, 'grid')).join('');
             if (isFirstLoad) grid.innerHTML = html;
             else             grid.insertAdjacentHTML('beforeend', html);
 
-            PAGING_STATE.currentPage++;
-            PAGING_STATE.hasMore = PAGING_STATE.currentPage <= (data.paginate?.total_page || 1);
+            VTFilms_PAGING_STATE.currentPage++;
+            VTFilms_PAGING_STATE.hasMore = VTFilms_PAGING_STATE.currentPage <= (data.paginate?.total_page || 1);
         } else {
             if (isFirstLoad && grid) {
                 grid.innerHTML = '<div class="text-danger text-center py-5 w-100">Không tìm thấy phim nào.</div>';
             }
-            PAGING_STATE.hasMore = false;
+            VTFilms_PAGING_STATE.hasMore = false;
         }
 
     } catch (err) {
-        console.error('[VTFilms API] Lỗi loadMoreMovies:', err);
+        console.error('[VTFilms API] Lỗi VTFilms_loadMoreMovies:', err);
     } finally {
-        PAGING_STATE.isLoading = false;
-        updateBottomLoader(false, PAGING_STATE.hasMore ? '' : 'Không còn kết quả nào khác.');
-        initLazyLoading();
-        if (btnLoadMore && PAGING_STATE.hasMore) btnLoadMore.style.display = 'inline-block';
+        VTFilms_PAGING_STATE.isLoading = false;
+        VTFilms_updateBottomLoader(false, VTFilms_PAGING_STATE.hasMore ? '' : 'Không còn kết quả nào khác.');
+        VTFilms_initLazyLoading();
+        if (btnLoadMore && VTFilms_PAGING_STATE.hasMore) btnLoadMore.style.display = 'inline-block';
     }
 }
 
 /**
- * updateBottomLoader(show, msg) — Điều khiển skeleton / thông báo cuối trang.
+ * VTFilms_updateBottomLoader(show, msg) — Điều khiển skeleton / thông báo cuối trang.
  */
-function updateBottomLoader(show, msg = '') {
+function VTFilms_updateBottomLoader(show, msg = '') {
     const loader = document.getElementById('bottom-loader');
     if (!loader) return;
     if (show) {
         loader.innerHTML = `
       <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-6 g-2 mt-1 text-start">
-          ${renderGridSkeleton(12)}
+          ${VTFilms_renderGridSkeleton(12)}
       </div>`;
     } else {
         loader.innerHTML = msg
@@ -618,85 +617,85 @@ function updateBottomLoader(show, msg = '') {
 // ─────────────────────────────────────────────────────────────
 
 /**
- * checkRoute() — Router SPA trung tâm.
+ * VTFilms_checkRoute() — Router SPA trung tâm.
  * Ưu tiên: ?watch → ?search → ?type → ?country → ?cat → home
  */
-async function checkRoute() {
-    const container = document.getElementById(NGUONC_CONFIG.CONTAINER_ID);
+async function VTFilms_checkRoute() {
+    const container = document.getElementById(VTFilms_CONFIG.CONTAINER_ID);
     if (!container) return;
 
     // Hủy tất cả fetch đang chạy từ route cũ
-    _resetAbortController();
+    VTFilms__resetAbortController();
 
     const urlParams = new URLSearchParams(window.location.search);
     container.innerHTML = '';
-    PAGING_STATE.isInfiniteMode = false;
+    VTFilms_PAGING_STATE.isInfiniteMode = false;
     window.scrollTo(0, 0);
 
     if (urlParams.has('watch')) {
-        showMovieDetail(urlParams.get('watch'));
+        VTFilms_showMovieDetail(urlParams.get('watch'));
 
     } else if (urlParams.has('search')) {
         const key = urlParams.get('search');
-        updatePageTitle(key, true);
-        setupInfinitePage(
+        VTFilms_updatePageTitle(key, true);
+        VTFilms_setupInfinitePage(
             `<i class="fa-duotone fa-search me-2"></i>Tìm kiếm: ${key}`,
-            `${NGUONC_CONFIG.ENDPOINTS.search}${key}`
+            `${VTFilms_CONFIG.ENDPOINTS.search}${key}`
         );
 
     } else if (urlParams.has('type')) {
         const slug = urlParams.get('type');
-        updatePageTitle(slug);
-        setupInfinitePage(
-            `<i class="fa-duotone fa-tags me-2"></i>Thể loại: ${getDisplayName(slug)}`,
-            `${NGUONC_CONFIG.ENDPOINTS.category}${slug}`
+        VTFilms_updatePageTitle(slug);
+        VTFilms_setupInfinitePage(
+            `<i class="fa-duotone fa-tags me-2"></i>Thể loại: ${VTFilms_getDisplayName(slug)}`,
+            `${VTFilms_CONFIG.ENDPOINTS.category}${slug}`
         );
 
     } else if (urlParams.has('country')) {
         const slug = urlParams.get('country');
-        updatePageTitle(slug);
-        setupInfinitePage(
-            `<i class="fa-duotone fa-earth-asia me-2"></i>Quốc gia: ${getDisplayName(slug)}`,
-            `${NGUONC_CONFIG.ENDPOINTS.country}${slug}`
+        VTFilms_updatePageTitle(slug);
+        VTFilms_setupInfinitePage(
+            `<i class="fa-duotone fa-earth-asia me-2"></i>Quốc gia: ${VTFilms_getDisplayName(slug)}`,
+            `${VTFilms_CONFIG.ENDPOINTS.country}${slug}`
         );
 
     } else if (urlParams.has('cat')) {
         const slug     = urlParams.get('cat');
         const endpoint = (slug === 'new')
-            ? NGUONC_CONFIG.ENDPOINTS.new
-            : `${NGUONC_CONFIG.ENDPOINTS.list}${slug}`;
-        updatePageTitle(slug);
-        setupInfinitePage(
-            `<i class="fa-duotone fa-tags me-2"></i>${getDisplayName(slug)}`,
+            ? VTFilms_CONFIG.ENDPOINTS.new
+            : `${VTFilms_CONFIG.ENDPOINTS.list}${slug}`;
+        VTFilms_updatePageTitle(slug);
+        VTFilms_setupInfinitePage(
+            `<i class="fa-duotone fa-tags me-2"></i>${VTFilms_getDisplayName(slug)}`,
             endpoint
         );
 
     } else {
-        updatePageTitle('');
-        loadHomePage();
+        VTFilms_updatePageTitle('');
+        VTFilms_loadHomePage();
     }
 }
 
 /**
- * setupInfinitePage(title, endpoint) — Chuẩn bị trang infinite scroll.
+ * VTFilms_setupInfinitePage(title, endpoint) — Chuẩn bị trang infinite scroll.
  *
  * [v2.0] Thêm skeleton delay SKELETON_DELAY_MS trước khi fetch,
  *        tạo trải nghiệm thị giác mượt mà hơn.
  */
-async function setupInfinitePage(title, endpoint) {
-    const container = document.getElementById(NGUONC_CONFIG.CONTAINER_ID);
+async function VTFilms_setupInfinitePage(title, endpoint) {
+    const container = document.getElementById(VTFilms_CONFIG.CONTAINER_ID);
 
-    PAGING_STATE.isInfiniteMode  = true;
-    PAGING_STATE.currentPage     = 1;
-    PAGING_STATE.hasMore         = true;
-    PAGING_STATE.currentEndpoint = endpoint;
+    VTFilms_PAGING_STATE.isInfiniteMode  = true;
+    VTFilms_PAGING_STATE.currentPage     = 1;
+    VTFilms_PAGING_STATE.hasMore         = true;
+    VTFilms_PAGING_STATE.currentEndpoint = endpoint;
 
     // Render skeleton ngay lập tức (không flash trắng)
     container.innerHTML = `
     <div class="infinite-wrapper">
       <h2 class="section-title mb-3 text-danger">${title}</h2>
       <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-6 g-2 movie-grid-row">
-          ${renderGridSkeleton(12)}
+          ${VTFilms_renderGridSkeleton(12)}
       </div>
       <div id="pagination-area" class="text-center py-3">
         <div id="bottom-loader"></div>
@@ -704,17 +703,17 @@ async function setupInfinitePage(title, endpoint) {
         <button id="btnLoadMore"
                 class="btn btn-outline-danger px-5 py-2 fw-bold mt-3"
                 style="display:none;"
-                onclick="loadMoreMovies()">
+                onclick="VTFilms_loadMoreMovies()">
           TẢI THÊM
         </button>
       </div>
     </div>`;
 
     // Delay skeleton (hiệu ứng thị giác + giảm flash nội dung)
-    await new Promise(r => setTimeout(r, NGUONC_CONFIG.SKELETON_DELAY_MS));
+    await new Promise(r => setTimeout(r, VTFilms_CONFIG.SKELETON_DELAY_MS));
 
     // Load trang đầu tiên
-    await loadMoreMovies(true);
+    await VTFilms_loadMoreMovies(true);
 
     // Thiết lập sentinel observer cho auto-load khi cuộn
     if (window.movieObserver) window.movieObserver.disconnect();
@@ -723,11 +722,11 @@ async function setupInfinitePage(title, endpoint) {
         window.movieObserver = new IntersectionObserver(entries => {
             if (
                 entries[0].isIntersecting &&
-                PAGING_STATE.isInfiniteMode &&
-                !PAGING_STATE.isLoading &&
-                PAGING_STATE.hasMore
+                VTFilms_PAGING_STATE.isInfiniteMode &&
+                !VTFilms_PAGING_STATE.isLoading &&
+                VTFilms_PAGING_STATE.hasMore
             ) {
-                loadMoreMovies();
+                VTFilms_loadMoreMovies();
             }
         }, { rootMargin: '500px' });
         window.movieObserver.observe(sentinel);
@@ -745,20 +744,20 @@ async function setupInfinitePage(title, endpoint) {
 //
 //    SAU (v2.0):
 //      1. Render 3 skeleton ngay lập tức (HOME_INITIAL_COUNT)
-//      2. Load 3 section đầu qua FetchQueue (có rate-limit, cache)
+//      2. Load 3 section đầu qua VTFilms_FetchQueue (có rate-limit, cache)
 //      3. Render sentinel placeholder cho 15 section còn lại
 //      4. IntersectionObserver: khi sentinel sắp vào viewport
 //         → load section đó + delay HOME_SECTION_DELAY ms
 //      5. Mỗi section lazy: hiện skeleton → fetch → replace bằng nội dung thật
 //
 //  Lợi ích:
-//    - Không bao giờ gửi >3 request đồng thời (FetchQueue)
+//    - Không bao giờ gửi >3 request đồng thời (VTFilms_FetchQueue)
 //    - 15 section cuối không request nếu user không cuộn → tiết kiệm tài nguyên
 //    - Delay 300ms giữa sections: không burst, có hiệu ứng stagger đẹp
 //    - Cache: navigate back → không re-fetch
 // ─────────────────────────────────────────────────────────────
 
-const HOME_SECTIONS_LIST = [
+const VTFilms_HOME_SECTIONS_LIST = [
     { title: 'Phim mới cập nhật',          slug: 'new',                  type: 'new'     },
     { title: 'Phim đang chiếu',            slug: 'phim-dang-chieu',      type: 'list'    },
     { title: 'Việt Nam',                   slug: 'viet-nam',             type: 'country' },
@@ -780,58 +779,58 @@ const HOME_SECTIONS_LIST = [
 ];
 
 /**
- * _buildSectionJob(item) — Chuyển section config → { title, endpoint, navType, slug }.
+ * VTFilms__buildSectionJob(item) — Chuyển section config → { title, endpoint, navType, slug }.
  */
-function _buildSectionJob(item) {
+function VTFilms__buildSectionJob(item) {
     let endpoint, navType = 'cat';
     if (item.type === 'new') {
-        endpoint = NGUONC_CONFIG.ENDPOINTS.new;
+        endpoint = VTFilms_CONFIG.ENDPOINTS.new;
     } else if (item.type === 'search') {
-        endpoint = `${NGUONC_CONFIG.ENDPOINTS.search}${item.slug}`;
+        endpoint = `${VTFilms_CONFIG.ENDPOINTS.search}${item.slug}`;
         navType  = 'search';
     } else if (item.type === 'country') {
-        endpoint = `${NGUONC_CONFIG.ENDPOINTS.country}${item.slug}`;
+        endpoint = `${VTFilms_CONFIG.ENDPOINTS.country}${item.slug}`;
         navType  = 'quoc-gia';
     } else {
-        endpoint = `${NGUONC_CONFIG.ENDPOINTS.list}${item.slug}`;
+        endpoint = `${VTFilms_CONFIG.ENDPOINTS.list}${item.slug}`;
     }
     return { title: item.title, endpoint, navType, slug: item.slug };
 }
 
 /**
- * _renderSectionHTML(job, data) — Render HTML hoàn chỉnh cho 1 section.
+ * VTFilms__renderSectionHTML(job, data) — Render HTML hoàn chỉnh cho 1 section.
  */
-function _renderSectionHTML(job, data) {
+function VTFilms__renderSectionHTML(job, data) {
     // Trả về INNER content (không có outer .movie-section wrapper).
     // Wrapper là chính element home-section-{i} với class movie-section.
     const top10 = data.items.slice(0, 10);
     return `
       <div class="section-title-wrapper d-flex justify-content-between align-items-center mb-3">
         <h2 class="section-title bungee h4 mb-0 py-2">${job.title}</h2>
-        <button onclick="handleViewAll('${job.navType}', '${job.slug}')"
+        <button onclick="VTFilms_handleViewAll('${job.navType}', '${job.slug}')"
                 class="btn-view-all btn btn-sm btn-dark d-flex align-items-center border-0 shadow-none">
           Xem thêm <i class="ms-1 fa-duotone fa-plus fa-sm"></i>
         </button>
       </div>
       <div class="movie-slider d-flex flex-nowrap overflow-x-auto gap-2 p-0">
-        ${top10.map(m => renderMovieCard(m, 'card')).join('')}
+        ${top10.map(m => VTFilms_renderMovieCard(m, 'card')).join('')}
       </div>`;
 }
 
 /**
- * loadHomeSection(index, containerEl) — Load và render 1 section trang chủ.
+ * VTFilms_loadHomeSection(index, containerEl) — Load và render 1 section trang chủ.
  * Thay thế skeleton placeholder bằng nội dung thật.
  *
- * @param {number}      index       - Index trong HOME_SECTIONS_LIST
+ * @param {number}      index       - Index trong VTFilms_HOME_SECTIONS_LIST
  * @param {HTMLElement} containerEl - Element placeholder (id="home-section-{index}")
  */
-async function loadHomeSection(index, containerEl) {
-    const item = HOME_SECTIONS_LIST[index];
+async function VTFilms_loadHomeSection(index, containerEl) {
+    const item = VTFilms_HOME_SECTIONS_LIST[index];
     if (!item || containerEl.dataset.loaded === '1') return;
     containerEl.dataset.loaded = '1'; // Guard: không load lại
 
-    const job  = _buildSectionJob(item);
-    const data = await fetchNguonC(job.endpoint, 1);
+    const job  = VTFilms__buildSectionJob(item);
+    const data = await VTFilms_fetch(job.endpoint, 1);
 
     if (!data?.items?.length) {
         containerEl.innerHTML = ''; // Không có phim → ẩn section
@@ -846,28 +845,28 @@ async function loadHomeSection(index, containerEl) {
 
     await new Promise(r => setTimeout(r, 260)); // Chờ fade out
 
-    containerEl.innerHTML = _renderSectionHTML(job, data);
+    containerEl.innerHTML = VTFilms__renderSectionHTML(job, data);
     containerEl.style.opacity = '1'; // Fade in
 
-    initLazyLoading();
+    VTFilms_initLazyLoading();
     if (typeof initDragToScroll === 'function') initDragToScroll();
 }
 
 /**
- * loadHomePage() — Tải trang chủ với lazy section loading theo chuỗi.
+ * VTFilms_loadHomePage() — Tải trang chủ với lazy section loading theo chuỗi.
  *
  * Luồng:
  *   1. Render khung: 3 skeleton trực tiếp + 1 sentinel placeholder (section kế tiếp)
- *   2. Load 3 section đầu ngay lập tức (qua FetchQueue)
+ *   2. Load 3 section đầu ngay lập tức (qua VTFilms_FetchQueue)
  *   3. CHAIN PATTERN: chỉ observe đúng 1 sentinel tại một thời điểm
  *      → Khi user cuộn tới → load section đó → đổi sentinel sang section tiếp theo
  *      → Không bao giờ load nhiều section cùng lúc
  *      → Scroll nhanh đến đáy: vẫn chỉ load tuần tự từng section
  */
-async function loadHomePage() {
-    const container = document.getElementById(NGUONC_CONFIG.CONTAINER_ID);
-    const initial   = NGUONC_CONFIG.HOME_INITIAL_COUNT;
-    const total     = HOME_SECTIONS_LIST.length;
+async function VTFilms_loadHomePage() {
+    const container = document.getElementById(VTFilms_CONFIG.CONTAINER_ID);
+    const initial   = VTFilms_CONFIG.HOME_INITIAL_COUNT;
+    const total     = VTFilms_HOME_SECTIONS_LIST.length;
 
     // Render khung HTML:
     //   - 3 section đầu: skeleton đầy đủ (sẽ thay bằng nội dung thật ngay)
@@ -878,7 +877,7 @@ async function loadHomePage() {
     // CSS dùng #movieList > .movie-section (direct child) và nth-of-type để apply gradient.
     // Nếu thêm wrapper div bọc ngoài → .movie-section không còn là direct child → CSS hỏng.
     for (let i = 0; i < initial; i++) {
-        html += `<div id="home-section-${i}" class="movie-section mb-3" data-loaded="0">${renderSectionSkeleton()}</div>`;
+        html += `<div id="home-section-${i}" class="movie-section mb-3" data-loaded="0">${VTFilms_renderSectionSkeleton()}</div>`;
     }
     for (let i = initial; i < total; i++) {
         // Placeholder ẩn hoàn toàn:
@@ -893,11 +892,11 @@ async function loadHomePage() {
     }
     container.innerHTML = html;
 
-    // Load 3 section đầu song song (FetchQueue tự rate-limit)
+    // Load 3 section đầu song song (VTFilms_FetchQueue tự rate-limit)
     const initialLoads = [];
     for (let i = 0; i < initial; i++) {
         const el = document.getElementById(`home-section-${i}`);
-        if (el) initialLoads.push(loadHomeSection(i, el));
+        if (el) initialLoads.push(VTFilms_loadHomeSection(i, el));
     }
     await Promise.all(initialLoads);
 
@@ -935,13 +934,13 @@ async function loadHomePage() {
             el.removeAttribute('style');
 
             // 2. Hiện skeleton ngay lập tức (người dùng thấy có gì đó đang load)
-            el.innerHTML = renderSectionSkeleton();
+            el.innerHTML = VTFilms_renderSectionSkeleton();
 
             // 3. Delay 1.5s trước khi fetch → section show từng cái, không bị burst
-            await new Promise(r => setTimeout(r, NGUONC_CONFIG.HOME_SECTION_DELAY));
+            await new Promise(r => setTimeout(r, VTFilms_CONFIG.HOME_SECTION_DELAY));
 
-            // 4. Load nội dung thật (qua FetchQueue — có rate-limit, cache)
-            await loadHomeSection(currentIndex, el);
+            // 4. Load nội dung thật (qua VTFilms_FetchQueue — có rate-limit, cache)
+            await VTFilms_loadHomeSection(currentIndex, el);
         }
 
         nextIndex++;
@@ -974,18 +973,18 @@ async function loadHomePage() {
 // ─────────────────────────────────────────────────────────────
 
 /**
- * loadRelatedMovies(currentMovie) — Slider phim cùng thể loại.
+ * VTFilms_loadRelatedMovies(currentMovie) — Slider phim cùng thể loại.
  * Loại bỏ phim đang xem, hiển thị tối đa 10 phim.
  */
-async function loadRelatedMovies(currentMovie) {
+async function VTFilms_loadRelatedMovies(currentMovie) {
     const genres = currentMovie.category?.['2']?.list;
     if (!genres?.length) return;
 
-    const genreSlug = slugify(genres[0].name);
+    const genreSlug = VTFilms_slugify(genres[0].name);
     const container = document.getElementById('relatedMoviesContainer');
     if (!container) return;
 
-    const data = await fetchNguonC(`${NGUONC_CONFIG.ENDPOINTS.category}${genreSlug}`);
+    const data = await VTFilms_fetch(`${VTFilms_CONFIG.ENDPOINTS.category}${genreSlug}`);
     if (!data?.items?.length) { container.innerHTML = ''; return; }
 
     const related = data.items.filter(m => m.slug !== currentMovie.slug).slice(0, 10);
@@ -995,26 +994,26 @@ async function loadRelatedMovies(currentMovie) {
     <div class="related-films-widget bg-dark-custom p-3 rounded-4">
       <div class="section-title-wrapper d-flex justify-content-between align-items-center m-0 p-0">
         <h2 class="section-title m-0 p-0 text-danger fs-6 fw-bold text-uppercase">Có thể bạn quan tâm</h2>
-        <a onclick="navigateToCategory('the-loai', '${genreSlug}')"
+        <a onclick="VTFilms_navigateToCategory('the-loai', '${genreSlug}')"
            class="text-secondary small text-decoration-none cursor-pointer">
           Xem thêm<i class="fa-duotone fa-angle-right ms-1"></i>
         </a>
       </div>
       <div class="movie-slider d-flex flex-nowrap overflow-x-auto gap-2 p-0 mt-3 scrollbar-hide">
-        ${related.map(m => renderMovieCard(m, 'card')).join('')}
+        ${related.map(m => VTFilms_renderMovieCard(m, 'card')).join('')}
       </div>
     </div>`;
 
-    initLazyLoading();
+    VTFilms_initLazyLoading();
     if (typeof initDragToScroll === 'function') initDragToScroll();
 }
 
 
 // ─────────────────────────────────────────────────────────────
-// 12. handleViewAll — NÚT "XEM THÊM"
+// 12. VTFilms_handleViewAll — NÚT "XEM THÊM"
 // ─────────────────────────────────────────────────────────────
 
-window.handleViewAll = function(type, slug) {
+window.VTFilms_handleViewAll = function(type, slug) {
     if (type === 'search') {
         window.location.href = `?search=${encodeURIComponent(slug)}`;
         return;
@@ -1024,10 +1023,10 @@ window.handleViewAll = function(type, slug) {
     window.history.pushState({ type, slug }, '', `?${paramKey}=${slug}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    const container = document.getElementById(NGUONC_CONFIG.CONTAINER_ID);
+    const container = document.getElementById(VTFilms_CONFIG.CONTAINER_ID);
     if (container) container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border text-danger"></div></div>';
 
-    checkRoute();
+    VTFilms_checkRoute();
 };
 
 
@@ -1035,15 +1034,15 @@ window.handleViewAll = function(type, slug) {
 // 13. CHI TIẾT PHIM
 // ─────────────────────────────────────────────────────────────
 
-let currentMovieData = null;
+let VTFilms_currentMovieData = null;
 
 /**
- * showMovieDetail(slug) — Render trang chi tiết phim.
+ * VTFilms_showMovieDetail(slug) — Render trang chi tiết phim.
  * Fetch không qua queue (useQueue=false) để ưu tiên tốc độ.
  */
-async function showMovieDetail(slug) {
+async function VTFilms_showMovieDetail(slug) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    const container = document.getElementById(NGUONC_CONFIG.CONTAINER_ID);
+    const container = document.getElementById(VTFilms_CONFIG.CONTAINER_ID);
 
     // Skeleton
     container.innerHTML = `
@@ -1083,15 +1082,15 @@ async function showMovieDetail(slug) {
     </div>`;
 
     // Fetch không qua queue (ưu tiên cao — user đang chờ)
-    const res   = await fetchNguonC(`${NGUONC_CONFIG.DETAIL_API}${slug}`, null, false);
+    const res   = await VTFilms_fetch(`${VTFilms_CONFIG.DETAIL_API}${slug}`, null, false);
     const movie = res?.movie;
     if (!movie) {
         container.innerHTML = '<div class="text-center py-5 text-danger">Không thể tải phim, vui lòng thử lại.</div>';
         return;
     }
 
-    currentMovieData = movie;
-    updatePageTitle(movie.name, true);
+    VTFilms_currentMovieData = movie;
+    VTFilms_updatePageTitle(movie.name, true);
 
     const getCat = id => movie.category?.[id]?.list.map(i => i.name).join(', ') || 'N/A';
 
@@ -1131,7 +1130,7 @@ async function showMovieDetail(slug) {
         <div class="rightSidebar_movieDetail col-xl-3 col-lg-4 col-md-5 col-12">
           <div class="film-thumb mb-3">
             <img class="w-100 rounded-4 shadow lazy-img"
-                 src="${BLANK_GIF}" data-src="${movie.thumb_url}" />
+                 src="${VTFilms_BLANK_GIF}" data-src="${movie.thumb_url}" />
           </div>
 
           <div class="movie-full-info p-3 bg-dark-custom rounded-4">
@@ -1166,9 +1165,9 @@ async function showMovieDetail(slug) {
             <div class="d-flex gap-2 mt-3" id="serverList">
               ${movie.episodes.map((server, i) => `
                 <button class="outline-0 border-0 bg-transparent btn-change-server rounded-4 ${i === 0 ? 'active' : ''}"
-                        onclick="changeServer(${i}, this)">
+                        onclick="VTFilms_changeServer(${i}, this)">
                   <img class="w-100 h-100 object-fit-cover lazy-img"
-                       src="${BLANK_GIF}" data-src="${movie.poster_url}" />
+                       src="${VTFilms_BLANK_GIF}" data-src="${movie.poster_url}" />
                   <span class="server_name">${server.server_name}</span>
                 </button>`).join('')}
             </div>
@@ -1181,7 +1180,7 @@ async function showMovieDetail(slug) {
 
           <div class="film-poster mt-3">
             <img class="w-100 rounded-4 shadow lazy-img"
-                 src="${BLANK_GIF}" data-src="${movie.poster_url}" />
+                 src="${VTFilms_BLANK_GIF}" data-src="${movie.poster_url}" />
           </div>
         </div>
       </div>
@@ -1189,23 +1188,23 @@ async function showMovieDetail(slug) {
       <div id="relatedMoviesContainer" class="mt-3"></div>
     </div>`;
 
-    changeServer(0);
-    initLazyLoading();
-    loadRelatedMovies(movie);
+    VTFilms_changeServer(0);
+    VTFilms_initLazyLoading();
+    VTFilms_loadRelatedMovies(movie);
 }
 
 /**
- * changeServer(serverIndex, el) — Đổi phiên bản (Vietsub / Thuyết minh / ...).
+ * VTFilms_changeServer(serverIndex, el) — Đổi phiên bản (Vietsub / Thuyết minh / ...).
  */
-function changeServer(serverIndex, el) {
-    if (!currentMovieData?.episodes[serverIndex]) return;
+function VTFilms_changeServer(serverIndex, el) {
+    if (!VTFilms_currentMovieData?.episodes[serverIndex]) return;
 
     if (el) {
         document.querySelectorAll('#serverList button').forEach(b => b.classList.remove('active'));
         el.classList.add('active');
     }
 
-    const episodes  = currentMovieData.episodes[serverIndex].items;
+    const episodes  = VTFilms_currentMovieData.episodes[serverIndex].items;
     const epCont    = document.getElementById('episodeList');
     const isSingle  = episodes.length <= 1;
 
@@ -1222,7 +1221,7 @@ function changeServer(serverIndex, el) {
         const extra = isSingle ? 'px-4 py-2 w-auto' : '';
         return `
       <button class="btn btn-outline-danger btn-episode ${extra}" id="ep-${i}"
-              onclick="window.scrollTo({top:0, behavior:'smooth'}); playVideo('${ep.embed}', this)">
+              onclick="window.scrollTo({top:0, behavior:'smooth'}); VTFilms_playVideo('${ep.embed}', this)">
           ${ep.name}
       </button>`;
     }).join('');
@@ -1232,14 +1231,14 @@ function changeServer(serverIndex, el) {
         const allBtns   = epCont.querySelectorAll('.btn-episode');
         let   target    = Array.from(allBtns).find(b => b.innerText.trim() === targetTap);
         if (!target) target = document.getElementById('ep-0');
-        if (target) playVideo(episodes[target.id.replace('ep-', '')].embed, target);
+        if (target) VTFilms_playVideo(episodes[target.id.replace('ep-', '')].embed, target);
     }
 }
 
 /**
- * playVideo(url, el) — Load iframe vào #playerBox, cập nhật ?tap= trên URL.
+ * VTFilms_playVideo(url, el) — Load iframe vào #playerBox, cập nhật ?tap= trên URL.
  */
-function playVideo(url, el) {
+function VTFilms_playVideo(url, el) {
     const box = document.getElementById('playerBox');
     if (box) box.innerHTML = `<iframe src="${url}" allowfullscreen></iframe>`;
 
@@ -1261,37 +1260,37 @@ function playVideo(url, el) {
 // 14. KHỞI CHẠY
 // ─────────────────────────────────────────────────────────────
 
-function initDynamicMenu() {
+function VTFilms_initDynamicMenu() {
     const genreMenu   = document.getElementById('menu-the-loai');
     const countryMenu = document.getElementById('menu-quoc-gia');
 
     if (genreMenu) {
-        genreMenu.innerHTML = MOVIE_MENU_DATA.genres.map(name =>
+        genreMenu.innerHTML = VTFilms_MOVIE_MENU_DATA.genres.map(name =>
             `<li><a class="dropdown-item rounded" href="javascript:void(0)"
-                    onclick="navigateToCategory('the-loai', '${slugify(name)}')">${name}</a></li>`
+                    onclick="VTFilms_navigateToCategory('the-loai', '${VTFilms_slugify(name)}')">${name}</a></li>`
         ).join('');
     }
 
     if (countryMenu) {
-        countryMenu.innerHTML = MOVIE_MENU_DATA.countries.map(name =>
+        countryMenu.innerHTML = VTFilms_MOVIE_MENU_DATA.countries.map(name =>
             `<li><a class="dropdown-item rounded" href="javascript:void(0)"
-                    onclick="navigateToCategory('quoc-gia', '${slugify(name)}')">${name}</a></li>`
+                    onclick="VTFilms_navigateToCategory('quoc-gia', '${VTFilms_slugify(name)}')">${name}</a></li>`
         ).join('');
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    initDynamicMenu();
-    checkRoute();
+    VTFilms_initDynamicMenu();
+    VTFilms_checkRoute();
 
     // Search: debounce 400ms để không fire request mỗi keystroke
     const sInput  = document.getElementById('searchInput');
     const sBtn    = document.getElementById('searchBtn');
-    const _search = _debounce(triggerSearch, 400);
+    const _search = VTFilms__debounce(VTFilms_triggerSearch, 400);
 
     if (sInput && sBtn) {
-        sBtn.onclick   = triggerSearch; // Nút bấm → không cần debounce
-        sInput.onkeyup = e => { if (e.key === 'Enter') triggerSearch(); else _search(); };
+        sBtn.onclick   = VTFilms_triggerSearch; // Nút bấm → không cần debounce
+        sInput.onkeyup = e => { if (e.key === 'Enter') VTFilms_triggerSearch(); else _search(); };
     }
 
     // Đóng menu mobile khi click ra ngoài
@@ -1309,9 +1308,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * refreshHome() — Reset về trang chủ (click logo).
+ * VTFilms_refreshHome() — Reset về trang chủ (click logo).
  */
-function refreshHome() {
+function VTFilms_refreshHome() {
     window.history.pushState({}, '', window.location.pathname);
     document.title = 'VT Films';
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1327,9 +1326,9 @@ function refreshHome() {
     }
 
     // Clear cache nếu muốn force refresh dữ liệu
-    ApiCache.clear(); // Bỏ comment dòng này nếu muốn luôn lấy data mới khi về home
+    VTFilms_ApiCache.clear(); // Bỏ comment dòng này nếu muốn luôn lấy data mới khi về home
 
-    loadHomePage();
+    VTFilms_loadHomePage();
 }
 
 
