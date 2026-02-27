@@ -1169,8 +1169,8 @@ function VTFilms_showDeleteConfirmModal(uid, name, email, btn) {
     modalEl.setAttribute('data-bs-keyboard', 'false');  // Không đóng khi nhấn Esc
     modalEl.innerHTML = `
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border border-danger border-opacity-50 shadow-lg"
-                 style="background:var(--body-bg)">
+            <div class="modal-content border-0 rounded-4 bg-transparent shadow-lg"
+                 style="backdrop-filter:blur(3rem)">
                 <div class="modal-header border-danger border-opacity-25 pb-2">
                     <div class="d-flex align-items-center gap-2">
                         <i class="fad fa-triangle-exclamation text-danger fa-lg"></i>
@@ -1197,7 +1197,7 @@ function VTFilms_showDeleteConfirmModal(uid, name, email, btn) {
                     </button>
                     <button type="button" id="vtf-del-confirm"
                             class="btn btn-sm btn-danger rounded-pill px-4 d-flex align-items-center gap-2">
-                        <i class="fad fa-trash-can me-2"></i>Xóa vĩnh viễn
+                        <i class="fad fa-trash-can me-2"></i>Xóa
                     </button>
                 </div>
             </div>
