@@ -1185,19 +1185,18 @@ function VTFilms_showDeleteConfirmModal(uid, name, email, btn) {
                         <div class="text-secondary small">${email}</div>
                     </div>
                     <ul class="small text-secondary mb-0 ps-3">
-                        <li>Xóa toàn bộ dữ liệu user khỏi Firestore</li>
-                        <li>Nếu đang online: bị đăng xuất <span class="text-warning fw-semibold">ngay lập tức</span></li>
+                        <li>Xóa toàn bộ dữ liệu user khỏi hệ thống</li>
+                        <li>User bị đăng xuất ngay lập tức</li>
                         <li>Đăng nhập lại phải chờ phê duyệt từ đầu</li>
-                        <li class="text-danger fw-semibold mt-1">Không thể hoàn tác!</li>
                     </ul>
                 </div>
-                <div class="modal-footer border-danger border-opacity-25 pt-2 gap-2">
+                <div class="modal-footer border-danger border-opacity-25 p-2">
                     <button type="button" id="vtf-del-cancel"
-                            class="btn btn-sm btn-secondary rounded-pill px-4">
+                            class="btn btn-sm btn-outline-secondary border-0 rounded-pill px-4">
                         Hủy bỏ
                     </button>
                     <button type="button" id="vtf-del-confirm"
-                            class="btn btn-sm btn-danger rounded-pill px-4 fw-semibold">
+                            class="btn btn-sm btn-danger rounded-pill px-4 d-flex align-items-center gap-2">
                         <i class="fad fa-trash-can me-2"></i>Xóa vĩnh viễn
                     </button>
                 </div>
