@@ -432,7 +432,7 @@ function VTFilms_showPendingOverlay(user) {
 
                 <!-- Nút đăng xuất -->
                 <div class="mt-1">
-                    <a class="btn btn-sm btn-outline-secondary rounded-pill px-3 border-0 fw-semibold opacity-75"
+                    <a class="btn btn-sm btn-outline-secondary rounded px-3 border-0 fw-semibold opacity-75"
                             onclick="window.VTFilms_Auth.signOut()">
                         <i class="fad fa-right-from-bracket me-1"></i>
                         Đăng xuất
@@ -872,11 +872,11 @@ function VTFilms_adminUserItemHTML(u, tab) {
     if (tab === 'pending') {
         actionHTML = `
             <div class="d-flex gap-2">
-                <a class="btn btn-sm btn-success flex-fill rounded-pill small"
+                <a class="btn btn-sm btn-success flex-fill rounded small"
                    onclick="window.VTFilms_Auth._adminApprove('${uid}', this)" role="button">
                     <i class="fad fa-check me-2"></i>Chấp nhận
                 </a>
-                <a class="btn btn-sm btn-outline-danger flex-fill rounded-pill small"
+                <a class="btn btn-sm btn-outline-danger flex-fill rounded small"
                    onclick="window.VTFilms_Auth._adminReject('${uid}', this)" role="button">
                     <i class="fad fa-xmark me-2"></i>Từ chối
                 </a>
@@ -884,11 +884,11 @@ function VTFilms_adminUserItemHTML(u, tab) {
     } else if (tab === 'approved') {
         actionHTML = `
             <div class="d-flex gap-2">
-                <a class="btn btn-sm btn-warning flex-fill rounded-pill small w-50"
+                <a class="btn btn-sm btn-warning flex-fill rounded small w-50"
                    onclick="window.VTFilms_Auth._adminRevoke('${uid}', this)" role="button">
                     <i class="fad fa-lock-keyhole me-2"></i>Thu hồi
                 </a>
-                <a class="btn btn-sm btn-danger flex-fill rounded-pill small w-50"
+                <a class="btn btn-sm btn-danger flex-fill rounded small w-50"
                    onclick="window.VTFilms_Auth._showDeleteConfirmModal('${uid}', '${name.replace(/'/g,"\\'")}', '${email}', this)"
                    role="button">
                     <i class="fad fa-trash-can me-2"></i>Xóa tài khoản
@@ -901,11 +901,11 @@ function VTFilms_adminUserItemHTML(u, tab) {
             : `<span class="badge bg-danger ms-1" style="font-size:9px">Từ chối</span>`;
         actionHTML = `
             <div class="d-flex gap-2">
-                <a class="btn btn-sm btn-success flex-fill rounded-pill small w-50"
+                <a class="btn btn-sm btn-success flex-fill rounded small w-50"
                    onclick="window.VTFilms_Auth._adminReapprove('${uid}', this)" role="button">
                     <i class="fad fa-rotate-left me-2"></i>Phê duyệt lại
                 </a>
-                <a class="btn btn-sm btn-danger flex-fill rounded-pill small w-50"
+                <a class="btn btn-sm btn-danger flex-fill rounded small w-50"
                    onclick="window.VTFilms_Auth._showDeleteConfirmModal('${uid}', '${name.replace(/'/g,"\\'")}', '${email}', this)"
                    role="button">
                     <i class="fad fa-trash-can me-2"></i>Xóa tài khoản
@@ -1197,11 +1197,11 @@ function VTFilms_showDeleteConfirmModal(uid, name, email, btn) {
                 </div>
                 <div class="modal-footer border-danger border-opacity-25 p-2">
                     <button type="button" id="vtf-del-cancel"
-                            class="btn btn-sm btn-outline-secondary border-0 rounded-pill px-4">
+                            class="btn btn-sm btn-outline-secondary border-0 rounded px-4">
                         Hủy bỏ
                     </button>
                     <button type="button" id="vtf-del-confirm"
-                            class="btn btn-sm btn-danger rounded-pill px-4 d-flex align-items-center gap-2">
+                            class="btn btn-sm btn-danger rounded px-4 d-flex align-items-center gap-2">
                         <i class="fad fa-trash-can me-2"></i>Xóa
                     </button>
                 </div>
