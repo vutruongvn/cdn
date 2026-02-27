@@ -428,14 +428,16 @@
         // Kích hoạt module
         MovieHistoryManager.init();
 
-        // AUTO ĐỔI THEME THEO HỆ THỐNG USER
+        // Xóa ?m=1
+        var uri = window.location.toString();
+        if (uri.indexOf("?m=1", "?m=1") > 0) {
+            var clean_uri = uri.substring(0, uri.indexOf("?m=1"));
+            window.history.replaceState({}, document.title, clean_uri);
+        }
+
+// Auto đổi Theme theo hệ thống
 (function () {
   const STORAGE_KEY = 'theme';
-  const MODE_META = {
-    light:  { icon: 'fa-sun',                label: 'Sáng'     },
-    dark:   { icon: 'fa-moon',               label: 'Tối'      },
-    system: { icon: 'fa-circle-half-stroke', label: 'Hệ thống' },
-  };
 
   function resolveTheme(mode) {
     if (mode === 'system') {
@@ -446,14 +448,9 @@
 
   function applyTheme(mode) {
     const resolved = resolveTheme(mode);
-    // Ưu tiên document.body, nếu chưa load (trong <head>) thì tạm thời dùng documentElement
     const target = document.body || document.documentElement;
-
     target.setAttribute('data-bs-theme', resolved);
-
-    // Logic: 
-    // Nếu là light -> add class .light-mode
-    // Nếu là dark -> remove class .light-mode
+    
     if (resolved === 'light') {
       target.classList.add('light-mode');
     } else {
@@ -462,18 +459,9 @@
   }
 
   function updateUI(mode) {
-    const btn = document.getElementById('themeDropdownBtn');
-    if (!btn) return;
-    const meta = MODE_META[mode] || MODE_META.system;
-    
-    const iconEl = btn.querySelector('.theme-icon');
-    const labelEl = btn.querySelector('.theme-label');
-    
-    if (iconEl) iconEl.className = `theme-icon fa-solid ${meta.icon}`;
-    if (labelEl) labelEl.textContent = meta.label;
-
-    document.querySelectorAll('#themeMenu [data-theme]').forEach(item =>
-      item.classList.toggle('active', item.dataset.theme === mode));
+    // Tìm radio input tương ứng với mode và check nó
+    const radio = document.querySelector(`#themeRadioGroup input[value="${mode}"]`);
+    if (radio) radio.checked = true;
   }
 
   function setMode(mode) {
@@ -482,21 +470,19 @@
     updateUI(mode);
   }
 
-  // Khởi tạo: Mặc định là 'system' nếu chưa có trong localStorage
   const savedMode = localStorage.getItem(STORAGE_KEY) || 'system';
-  
-  // Chạy ngay lập tức để tránh hiện tượng nháy trang (FOUC)
   applyTheme(savedMode);
 
   document.addEventListener('DOMContentLoaded', () => {
-    // Gọi lại lần nữa khi DOM sẵn sàng để đảm bảo tác động chính xác lên thẻ <body>
     applyTheme(savedMode);
     updateUI(savedMode);
 
-    document.querySelectorAll('#themeMenu [data-theme]').forEach(item =>
-      item.addEventListener('click', () => setMode(item.dataset.theme)));
+    // Lắng nghe sự kiện click/change trên các radio buttons
+    const radios = document.querySelectorAll('#themeRadioGroup input[name="theme-toggle"]');
+    radios.forEach(radio => {
+      radio.addEventListener('change', (e) => setMode(e.target.value));
+    });
 
-    // Theo dõi sự thay đổi của hệ thống khi đang ở chế độ 'system'
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
       if ((localStorage.getItem(STORAGE_KEY) || 'system') === 'system') {
         applyTheme('system');
@@ -504,20 +490,4 @@
     });
   });
 })();
-
-        // Kiểm tra khi vừa load trang
-        (function initTheme() {
-            const savedTheme = localStorage.getItem('theme-mode');
-            if (savedTheme === 'light') {
-                document.body.classList.add('light-mode');
-            }
-        })();
-
-        // Xóa ?m=1
-        var uri = window.location.toString();
-        if (uri.indexOf("?m=1", "?m=1") > 0) {
-            var clean_uri = uri.substring(0, uri.indexOf("?m=1"));
-            window.history.replaceState({}, document.title, clean_uri);
-        }
-
 
