@@ -239,11 +239,11 @@ function _showAccessDenied(u) {
     title:'<i class="fad fa-shield-xmark me-2" style="color:var(--VTA-red);"></i>Truy cập bị từ chối',
     static:true, noClose:true,
     body:`<div class="text-center py-2">
-      <div class="VTAdmin_DeniedIcon mb-3"><i class="fad fa-circle-xmark"></i></div>
+      <div class="VTAdmin_DeniedIcon mb-3"><i class="fad fa-ban"></i></div>
       <p class="VTAdmin_DeniedDesc">Tài khoản <strong>${_esc(u.email||u.uid)}</strong> không có quyền Admin.</p>
-      <div class="VTAdmin_DeniedUid">UID: ${_esc(u.uid)}</div>
+      <div class="VTAdmin_DeniedUid">${_esc(u.uid)}</div>
     </div>`,
-    footer:`<button type="button" class="btn btn-danger" onclick="VTA_forceSignOut()"><i class="fad fa-right-from-bracket me-2"></i>Đăng xuất</button>`,
+    footer:`<button type="button" class="btn btn-danger btn-sm" onclick="VTA_forceSignOut()"><i class="fad fa-right-from-bracket me-2"></i>Đăng xuất</button>`,
   });
 }
 async function _ensureFilmsAdminDoc(user) {
