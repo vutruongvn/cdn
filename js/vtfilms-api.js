@@ -651,7 +651,7 @@ function VTFilms_renderMovieCard(movie, mode = 'grid') {
  * VTFilms_renderGridSkeleton(count) — N ô skeleton cho lưới phim.
  * @param {number} count
  */
-function VTFilms_renderGridSkeleton(count = 12) {
+function VTFilms_renderGridSkeleton(count = 10) {
     return Array(count).fill(0).map(() => `
     <div class="col mb-4">
       <div class="skeleton-item skeleton-poster mb-2"
@@ -790,7 +790,7 @@ function VTFilms_updateBottomLoader(show, msg = '') {
     if (show) {
         loader.innerHTML = `
       <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-5 g-2 mt-1 text-start">
-          ${VTFilms_renderGridSkeleton(12)}
+          ${VTFilms_renderGridSkeleton(10)}
       </div>`;
     } else {
         loader.innerHTML = msg
@@ -883,7 +883,7 @@ async function VTFilms_setupInfinitePage(title, endpoint) {
     <div class="infinite-wrapper">
       <h2 class="section-title mb-3 text-danger">${title}</h2>
       <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 row-cols-xl-5 g-2 movie-grid-row">
-          ${VTFilms_renderGridSkeleton(12)}
+          ${VTFilms_renderGridSkeleton(10)}
       </div>
       <div id="pagination-area" class="text-center py-3">
         <div id="bottom-loader"></div>
@@ -1539,3 +1539,4 @@ function VTFilms_refreshHome() {
 // ============================================================
 // End · VT Films · films.vutruong.vn
 // ============================================================
+
