@@ -298,6 +298,16 @@ body.light-mode .btn-view-all {
     #movieList>.movie-section>.section-title-wrapper>.section-title {
         font-size: 2em
     }
+
+    /* [FIX] .movie-slider phải chiếm đúng phần còn lại sau title wrapper.
+       Không có flex:1 → browser tự co giãn theo nội dung → width khác nhau
+       mỗi section → calc(15.8% - 10px) ra pixel khác nhau → poster không đồng đều.
+       flex: 1 1 auto  = luôn lấp đầy không gian còn lại.
+       min-width: 0    = cho phép shrink dưới content-size (tránh overflow). */
+    #movieList .movie-section .movie-slider {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
 }
 
 
@@ -1204,6 +1214,3 @@ body.light-mode {
 /* ==============================
 ALL CSS for VT Films - films.vutruong.vn
 ============================== */
-
-
-
