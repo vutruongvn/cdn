@@ -83,7 +83,7 @@ const _ser = u => {
 
 // ── THEME ─────────────────────────────────────────────────────
 function _applyTheme(t) {
-  const th=t||localStorage.getItem(LS.THEME)||'dark';
+  const th=t||localStorage.getItem(LS.THEME)||'light';
   document.documentElement.setAttribute('data-vta-theme',th);
   localStorage.setItem(LS.THEME,th);
   const ic=th==='dark'?'fa-sun':'fa-moon';
