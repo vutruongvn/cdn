@@ -104,13 +104,10 @@ body {
   width: max-content; max-width: 100%; box-shadow: var(--VTA-shadow-md);
 }
 .VTAdmin_AuthLogo {
-  width: 52px; height: 52px; border-radius: 14px;
-  background: linear-gradient(140deg, var(--VTA-gold) 0%, #5a3500 100%);
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 1.2rem; color: #fff; flex-shrink: 0;
+  display: block
 }
-.VTAdmin_AuthBrand { font-size: 1.125rem; font-weight: 800; letter-spacing: -.4px; }
-.VTAdmin_AuthVersion { font-size: .75rem; color: var(--VTA-text-muted); letter-spacing: .7px; text-transform: uppercase; margin-top: 1px; }
+.VTAdmin_AuthBrand { }
+.VTAdmin_AuthVersion { }
 .VTAdmin_AuthDesc { font-size: .9375rem; color: var(--VTA-text-sub); line-height: 1.65; margin-bottom: 1.75rem; }
 .VTAdmin_AuthLoading { color: var(--VTA-text-muted); font-size: .9rem; }
 
