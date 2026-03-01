@@ -1,5 +1,5 @@
 /* ============================================================
-   VT ADMIN PANEL — SKIN v2.5.1
+   VT ADMIN PANEL — SKIN v2.6
    @author  vutruong.vn · admin.vutruong.vn
    ============================================================ */
 
@@ -169,6 +169,58 @@ body {
 
 /* ── SIDEBAR FOOTER ──────────────────────────────────────── */
 .VTAdmin_SideFooter { padding: .75rem; border-top: 1px solid var(--VTA-border); flex-shrink: 0; margin-top: auto }
+
+/* ── THEME DROPDOWN (Topbar) ─────────────────────────────── */
+/* Chiều cao nút Topbar = SearchWrap (36px) */
+.VTAdmin_Topbar .VTAdmin_IconBtn { height: 36px; width: 36px; }
+/* Ẩn caret mặc định Bootstrap */
+.VTAdmin_Topbar .dropdown-toggle::after { display: none; }
+/* Menu container */
+.VTA_ThemeMenu {
+  min-width: 160px;
+  background: var(--VTA-bg-surface);
+  border: 1px solid var(--VTA-border);
+  border-radius: var(--VTA-radius);
+  box-shadow: var(--VTA-shadow-md);
+  padding: .3rem;
+  overflow: hidden;
+}
+/* Item */
+.VTA_ThemeItem {
+  display: flex; align-items: center; gap: .625rem;
+  padding: .5rem .75rem;
+  border-radius: var(--VTA-radius-sm);
+  border: none; width: 100%; text-align: left;
+  font-size: .875rem; font-weight: 500;
+  color: var(--VTA-text-sub);
+  background: transparent;
+  cursor: pointer; transition: background .1s, color .1s;
+}
+.VTA_ThemeItem:hover { background: var(--VTA-bg-hover); color: var(--VTA-text); }
+.VTA_ThemeItem i { font-size: .875rem; width: 16px; text-align: center; opacity: .7; flex-shrink: 0; }
+/* Active/selected state */
+.VTA_ThemeItem.VTA_ThemeActive {
+  background: var(--VTA-blue-bg);
+  color: var(--VTA-blue);
+  font-weight: 600;
+  pointer-events: none;
+}
+.VTA_ThemeItem.VTA_ThemeActive i { opacity: 1; }
+/* Label + checkmark layout */
+.VTA_ThemeItem .VTA_ThemeLabel { flex: 1; }
+.VTA_ThemeItem .VTA_ThemeCheck {
+  font-size: .7rem; opacity: 0; transition: opacity .1s;
+}
+.VTA_ThemeItem.VTA_ThemeActive .VTA_ThemeCheck { opacity: 1; }
+/* Dark mode overrides for the dropdown itself */
+html[data-vta-theme="dark"] .VTA_ThemeMenu {
+  --bs-dropdown-bg: var(--VTA-bg-surface);
+  --bs-dropdown-border-color: var(--VTA-border);
+}
+html[data-vta-theme="dark"] .VTA_ThemeItem.VTA_ThemeActive {
+  background: rgba(77,142,245,.13);
+  color: var(--VTA-blue);
+}
 .VTAdmin_IconBtn {
   width: 30px; height: 30px; border-radius: var(--VTA-radius-sm);
   border: 1px solid var(--VTA-border); background: transparent;
