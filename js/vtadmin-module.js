@@ -1,5 +1,5 @@
 /* ============================================================
-   VT ADMIN PANEL — SCRIPT v2.5.1
+   VT ADMIN PANEL — SCRIPT v2.6
    @domain  admin.vutruong.vn
    ============================================================ */
 
@@ -15,7 +15,7 @@ import {
   signInWithCredential, signOut, onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js';
 
-const V = '2.5.1';
+const V = '2.6.0';
 const L = {
   i:(m,...a)=>console.log(`%c[VTAdmin ${V}]`,'color:#8a5c00;font-weight:700',m,...a),
   ok:(m,...a)=>console.log(`%c[VTAdmin ${V}] ✓`,'color:#15803d;font-weight:700',m,...a),
@@ -23,7 +23,8 @@ const L = {
   e:(m,...a)=>console.error(`[VTAdmin ${V}] ✗`,m,...a),
 };
 console.groupCollapsed(`%c[VTAdmin v${V}] CHANGELOG`,'color:#8a5c00;font-weight:700;font-size:12px;');
-console.log('v2.5.1  [CHG] _fd: datetime format HH:MM, DD/MM/YYYY | [REM] Bootstrap tooltip đã xóa | [REM] VTAdmin_SideProject đã xóa | [NEW] AdminCard: avatar to + tên + email thay thế vị trí SideProject | [CHG] SideFooter: 2 nút full-width cùng hàng');
+console.log('v2.6.0  [FIX] PageTitle/PageSub default đồng bộ với tab "Tất cả" | [NEW] Theme 3 chế độ: Hệ thống/Sáng/Tối, dropdown ở Topbar, mặc định theo hệ thống | [REM] Nút Giao diện khỏi SideFooter | [FIX] displayName sync mỗi session via user.reload() → cập nhật DOM + localStorage + Firestore');
+console.log('v2.5.1  [CHG] datetime HH:MM DD/MM/YYYY | [REM] Bootstrap tooltip | [REM] SideProject | [NEW] AdminCard avatar + tên + email | [CHG] SideFooter 2 nút');
 console.log('v2.5.0  [FIX] Dropdown hoạt động ở tất cả tab (unique did per tabCtx) | [NEW] Icon badge-check cạnh tên Admin | [CHG] Tab Tất cả: Admin ghim đầu, pending mới nhất lên trước');
 console.log('v2.4.0  Tab Tất cả · Nav color sync · Load more · No extra fetch');
 console.log('v2.3.1  Action dropdown · FedCM · Balanced grid · Tab color sync');
@@ -51,7 +52,7 @@ const fAuth    = getAuth(filmsApp);
 const fDb      = getFirestore(filmsApp);
 L.ok('Firebase init: vf (Films)');
 
-const LS = { AUTH:'VTAdmin_auth', FD:'VTAdmin_fd', THEME:'VTAdmin_theme' };
+const LS = { AUTH:'VTAdmin_auth', FD:'VTAdmin_fd', THEME:'VTAdmin_theme', THEME_MODE:'VTAdmin_themeMode' };
 
 // ── STATE ─────────────────────────────────────────────────────
 let _user=null, _fTab='all';
@@ -81,19 +82,37 @@ const _ser = u => {
   return o;
 };
 
-// ── THEME ─────────────────────────────────────────────────────
-function _applyTheme(t) {
-  const th=t||localStorage.getItem(LS.THEME)||'light';
-  document.documentElement.setAttribute('data-vta-theme',th);
-  localStorage.setItem(LS.THEME,th);
-  const ic=th==='dark'?'fa-sun':'fa-moon';
-  ['VTA_ThemeIconAuth','VTA_ThemeIconSide'].forEach(id=>{
-    const e=document.getElementById(id); if(e) e.className=`fad ${ic}`;
+// ── THEME (3 chế độ: system / light / dark) ───────────────────
+function _resolveTheme(mode) {
+  return mode === 'dark' ? 'dark'
+       : mode === 'light' ? 'light'
+       : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+function _applyTheme(mode) {
+  // mode = 'system' | 'light' | 'dark'  (undefined → đọc từ LS, mặc định 'system')
+  if(!mode) mode = localStorage.getItem(LS.THEME_MODE) || 'system';
+  localStorage.setItem(LS.THEME_MODE, mode);
+  const actual = _resolveTheme(mode);
+  document.documentElement.setAttribute('data-vta-theme', actual);
+  localStorage.setItem(LS.THEME, actual); // tương thích các phần đọc LS.THEME
+  _syncThemeUI(mode);
+}
+function _syncThemeUI(mode) {
+  // Icon trên nút dropdown Topbar
+  const icons = { system:'fa-circle-half-stroke', light:'fa-sun', dark:'fa-moon' };
+  const btn = document.getElementById('VTA_ThemeDropIcon');
+  if(btn) btn.className = `fad ${icons[mode] || 'fa-circle-half-stroke'}`;
+  // Active state cho từng item
+  document.querySelectorAll('.VTA_ThemeItem').forEach(el => {
+    el.classList.toggle('VTA_ThemeActive', el.dataset.vtaMode === mode);
   });
 }
-window.VTA_toggleTheme = () => _applyTheme(
-  document.documentElement.getAttribute('data-vta-theme')==='dark' ? 'light' : 'dark'
-);
+// Public API — gọi từ dropdown item onclick
+window.VTA_setTheme = function(mode) { _applyTheme(mode); };
+// Lắng nghe hệ thống đổi chế độ (chỉ áp dụng khi mode === 'system')
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if((localStorage.getItem(LS.THEME_MODE) || 'system') === 'system') _applyTheme('system');
+});
 _applyTheme();
 
 // ── TOAST ─────────────────────────────────────────────────────
@@ -125,6 +144,10 @@ window.VTA_closeToast = function(tid) {
 
 // ── NO-FLASH CACHE ────────────────────────────────────────────
 (function(){
+  // Sync theme UI icons/active state sau khi DOM sẵn sàng
+  document.addEventListener('DOMContentLoaded', () => {
+    _syncThemeUI(localStorage.getItem(LS.THEME_MODE) || 'system');
+  });
   const c=_sp(localStorage.getItem(LS.AUTH));
   const ok=c&&isAdmin(c.uid)&&Date.now()-c.ts<7*86400000;
   if(ok){
@@ -222,6 +245,9 @@ onAuthStateChanged(fAuth, async user => {
   _showApp({uid:user.uid,name:user.displayName,email:user.email,photo:user.photoURL});
   await _ensureFilmsAdminDoc(user);
   _listenFilms();
+  // displayName sync: gọi user.reload() để lấy profile mới nhất từ Google (1 request/session)
+  // Tối ưu hơn realtime vì Google profile không push event — chỉ cần fetch 1 lần khi load
+  _syncDisplayName(user);
 });
 
 function _showApp(c) {
@@ -245,6 +271,42 @@ function _showAccessDenied(u) {
     </div>`,
     footer:`<button type="button" class="btn btn-danger btn-sm" onclick="VTA_forceSignOut()"><i class="fad fa-right-from-bracket me-2"></i>Đăng xuất</button>`,
   });
+}
+// ── DISPLAY NAME SYNC ─────────────────────────────────────────
+// Chiến lược: user.reload() — 1 network request/session
+// → lấy profile mới nhất từ Google nếu user đã đổi tên
+// Không dùng realtime vì Google không push sự kiện profile change qua Firebase
+async function _syncDisplayName(user) {
+  try {
+    await user.reload();
+    const u = fAuth.currentUser; if(!u) return;
+    const changed = u.displayName !== (localStorage.getItem(LS.AUTH) && JSON.parse(localStorage.getItem(LS.AUTH)||'{}').name);
+    // Luôn cập nhật DOM và cache dù có đổi hay không (đảm bảo chính xác)
+    const nm = document.getElementById('VTA_AdminName');
+    const av = document.getElementById('VTA_AdminAvatar');
+    const em = document.getElementById('VTA_AdminEmail');
+    if(nm && u.displayName) nm.textContent = u.displayName;
+    if(av && u.photoURL) av.src = u.photoURL;
+    if(em && u.email) em.textContent = u.email;
+    // Cập nhật localStorage cache
+    try {
+      const raw = localStorage.getItem(LS.AUTH);
+      if(raw) {
+        const c = JSON.parse(raw);
+        c.name = u.displayName || c.name;
+        c.photo = u.photoURL || c.photo;
+        c.email = u.email || c.email;
+        localStorage.setItem(LS.AUTH, JSON.stringify(c));
+      }
+    } catch{}
+    // Cập nhật Firestore nếu displayName đã thay đổi (1 write/session)
+    if(changed && u.displayName) {
+      try {
+        await updateDoc(doc(fDb,'users',u.uid),{displayName:u.displayName, photoURL:u.photoURL||''});
+        L.ok('displayName synced →', u.displayName);
+      } catch(e){ L.w('displayName Firestore sync:', e.message); }
+    }
+  } catch(e){ L.w('user.reload:', e.message); }
 }
 async function _ensureFilmsAdminDoc(user) {
   try {
