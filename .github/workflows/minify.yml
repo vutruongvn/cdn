@@ -1,14 +1,14 @@
-name: Auto Minify CSS and JS
+name: Auto Minify All CSS and JS
 
-# Chỉ chạy khi có file JS hoặc CSS mới được push vào các thư mục chỉ định
-# Bỏ qua các file đã có đuôi .min.js hoặc .min.css để tránh vòng lặp vô tận
 on:
   push:
     paths:
-      - 'vtfilms/js/**.js'
-      - 'vtfilms/css/**.css'
-      - '!vtfilms/js/**.min.js'
-      - '!vtfilms/css/**.min.css'
+      # Quét mọi file .js và .css ở bất kỳ thư mục nào trong repo
+      - '**.js'
+      - '**.css'
+      # Bỏ qua các file đã có đuôi .min để tránh vòng lặp vô tận
+      - '!**.min.js'
+      - '!**.min.css'
 
 permissions:
   contents: write
@@ -31,16 +31,18 @@ jobs:
 
       - name: Minify CSS files
         run: |
-          # Tìm tất cả file .css (bỏ qua file .min.css) và nén thành .min.css
-          find vtfilms/css -type f -name "*.css" ! -name "*.min.css" -exec sh -c 'cleancss -o "${0%.css}.min.css" "$0"' {} \;
+          # Dấu chấm (.) báo hiệu quét từ thư mục gốc của repo
+          # Bỏ qua thư mục node_modules (nếu có) để tăng tốc độ và tránh lỗi
+          find . -type f -name "*.css" ! -name "*.min.css" ! -path "*/node_modules/*" -exec sh -c 'cleancss -o "${0%.css}.min.css" "$0"' {} \;
 
       - name: Minify JS files
         run: |
-          # Tìm tất cả file .js (bỏ qua file .min.js) và nén thành .min.js
-          find vtfilms/js -type f -name "*.js" ! -name "*.min.js" -exec sh -c 'terser "$0" -o "${0%.js}.min.js" -c -m' {} \;
+          # Tương tự với JS
+          find . -type f -name "*.js" ! -name "*.min.js" ! -path "*/node_modules/*" -exec sh -c 'terser "$0" -o "${0%.js}.min.js" -c -m' {} \;
 
       - name: Commit and Push minified files
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: auto-minify CSS and JS"
-          file_pattern: 'vtfilms/js/*.min.js vtfilms/css/*.min.css'
+          commit_message: "chore: auto-minify all CSS and JS"
+          # Lấy tất cả các file .min.js và .min.css ở bất kỳ đâu để commit
+          file_pattern: '**/*.min.js **/*.min.css'
