@@ -1,43 +1,46 @@
-name: Minify JS và CSS cho VT Zone
+name: Auto Minify CSS and JS
 
+# Chỉ chạy khi có file JS hoặc CSS mới được push vào các thư mục chỉ định
+# Bỏ qua các file đã có đuôi .min.js hoặc .min.css để tránh vòng lặp vô tận
 on:
   push:
-    branches: [ main ]
-    paths: ['js/*.js', 'css/*.css']
-  workflow_dispatch: # Cho phép bạn bấm nút chạy thủ công
+    paths:
+      - 'vtfilms/js/**.js'
+      - 'vtfilms/css/**.css'
+      - '!vtfilms/js/**.min.js'
+      - '!vtfilms/css/**.min.css'
 
 permissions:
-  contents: write # Cấp quyền ghi để Action tự commit file .min
+  contents: write
 
 jobs:
   minify:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Cài đặt công cụ nén hiện đại (Terser & Clean-CSS)
-        run: |
-          npm install -g terser clean-css-cli
-
-      - name: Tiến hành nén file
-        run: |
-          # Nén JS: Bỏ qua các file đã có đuôi .min.js
-          for f in js/*.js; do
-            if [[ ! $f == *.min.js ]]; then
-              terser "$f" --compress --mangle -o "${f%.js}.min.js"
-            fi
-          done
-          
-          # Nén CSS: Bỏ qua các file đã có đuôi .min.css
-          for f in css/*.css; do
-            if [[ ! $f == *.min.css ]]; then
-              cleancss "$f" -o "${f%.css}.min.css"
-            fi
-          done
-
-      - name: Commit và đẩy file nén lên Repo
-        uses: stefanzweifel/git-auto-commit-action@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          commit_message: "⚡ Tối ưu: Tự động nén file JS/CSS [skip ci]"
-          file_pattern: 'js/*.min.js css/*.min.css'
+          node-version: '20'
+
+      - name: Install Minifier Tools
+        run: npm install -g clean-css-cli terser
+
+      - name: Minify CSS files
+        run: |
+          # Tìm tất cả file .css (bỏ qua file .min.css) và nén thành .min.css
+          find vtfilms/css -type f -name "*.css" ! -name "*.min.css" -exec sh -c 'cleancss -o "${0%.css}.min.css" "$0"' {} \;
+
+      - name: Minify JS files
+        run: |
+          # Tìm tất cả file .js (bỏ qua file .min.js) và nén thành .min.js
+          find vtfilms/js -type f -name "*.js" ! -name "*.min.js" -exec sh -c 'terser "$0" -o "${0%.js}.min.js" -c -m' {} \;
+
+      - name: Commit and Push minified files
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: auto-minify CSS and JS"
+          file_pattern: 'vtfilms/js/*.min.js vtfilms/css/*.min.css'
