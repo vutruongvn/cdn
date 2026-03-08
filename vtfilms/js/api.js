@@ -5,7 +5,7 @@
    Language : Vanilla JavaScript (ES2020+)
    Auth     : Firebase Auth v9.0 (new-user fix, no debounce, no getDoc race)
    Changes  : Auth v9.0 new-user setDoc fix (xóa getDoc race + debounce),
-              href=/ → nav(home) SPA fix
+              href=/ → nav(home) SPA fix.
    ============================================================ */
 
 /* ── CONFIG ─────────────────────────────────── */
