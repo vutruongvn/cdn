@@ -635,7 +635,7 @@ async function renderHome() {
         fetchJson(`${CONFIG.API}/home`)
     ]);
 
-    const newestItems = home?.data?.items?.slice(0, 16) || [];
+    const newestItems = home?.data?.items?.slice(0, 10) || []; // số lượng phim mới hiển thị ở slider Newest
     const cdn = (home?.data?.APP_DOMAIN_CDN_IMAGE || 'https://img.ophim.live') + '/uploads/movies/';
 
     /* ── Batch-fetch individual film details to get landscape poster_url ──
@@ -767,7 +767,7 @@ async function renderHome() {
        [v5.2.0] FIX: setInterval orphan + configurable timing + progress sync
        ─────────────────────────────────────────────────────────────────────
        THAY ĐỔI THỜI GIAN CHUYỂN SLIDE TẠI ĐÂY (milliseconds):         */
-    const HN_SLIDE_MS = 8000; /* ◄── 8 giây, đổi số này để điều chỉnh  */
+    const HN_SLIDE_MS = 4000; /* ◄── 8 giây, đổi số này để điều chỉnh  */
     /* ───────────────────────────────────────────────────────────────────── */
 
     // [v5.2.0] Dọn dẹp interval/timer của lần renderHome() trước (SPA re-enter)
