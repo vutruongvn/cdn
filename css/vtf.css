@@ -1612,7 +1612,7 @@ img { display: block; max-width: 100%; }
   .VTFilms_Grids-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   .VTFilms_Detail-hero { margin-top: -3rem; }
   .VTFilms_Detail-body { padding: 0 3% 32px; }
-  .VTFilms_Detail-poster-col { }
+  .VTFilms_Detail-poster-col ..VTFilms_Detail-poster { width: 250px; max-width: 100%; margin: auto }
 }
 
 
