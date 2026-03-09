@@ -767,7 +767,7 @@ async function renderHome() {
        [v5.2.0] FIX: setInterval orphan + configurable timing + progress sync
        ─────────────────────────────────────────────────────────────────────
        THAY ĐỔI THỜI GIAN CHUYỂN SLIDE TẠI ĐÂY (milliseconds):         */
-    const HN_SLIDE_MS = 4000; /* ◄── 8 giây, đổi số này để điều chỉnh  */
+    const HN_SLIDE_MS = 6000; /* ◄── 6 giây, đổi số này để điều chỉnh  */
     /* ───────────────────────────────────────────────────────────────────── */
 
     // [v5.2.0] Dọn dẹp interval/timer của lần renderHome() trước (SPA re-enter)
