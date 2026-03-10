@@ -799,14 +799,150 @@ img { display: block; max-width: 100%; }
   justify-content: space-between;
 }
 .VTFilms_Slider-title {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 400;
   color: var(--vtf-text);
   display: flex;
   align-items: center;
   gap: 5px;
 }
-.VTFilms_Slider-title-hi { color: var(--vtf-primary); font-weight: 800 }
+/* --- Cấu trúc chung để Gradient hiển thị trên Chữ --- */
+.VTFilms_Slider-title-hi {
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: inline-block;
+    font-weight: 800;
+	padding:.25rem 0;
+	color: var(--vtf-primary)
+}
+
+/* --- Tùy biến màu riêng cho từng Slider --- */
+
+/* Slider 1: Hoàng hôn rực rỡ */
+.VTFilms_Slider:nth-of-type(1) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(45deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+}
+
+/* Slider 2: Biển xanh */
+.VTFilms_Slider:nth-of-type(2) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+}
+
+/* Slider 3: Rừng nhiệt đới */
+.VTFilms_Slider:nth-of-type(3) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #43e97b 0%, #38f9d7 100%);
+}
+
+/* Slider 4: Tím mộng mơ */
+.VTFilms_Slider:nth-of-type(4) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #6a11cb 0%, #2575fc 100%);
+}
+
+/* Slider 5: Cam cháy */
+.VTFilms_Slider:nth-of-type(5) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #f83600 0%, #f9d423 100%);
+}
+
+/* Slider 6: Kẹo ngọt */
+.VTFilms_Slider:nth-of-type(6) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #fa709a 0%, #fee140 100%);
+}
+
+/* Slider 7: Sâu thẳm */
+.VTFilms_Slider:nth-of-type(7) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #30cfd0 0%, #330867 100%);
+}
+
+/* Slider 8: Băng giá */
+.VTFilms_Slider:nth-of-type(8) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #a1c4fd 0%, #c2e9fb 100%);
+}
+
+/* Slider 9: Hoa anh đào */
+.VTFilms_Slider:nth-of-type(9) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #fccb90 0%, #d57eeb 100%);
+}
+
+/* Slider 10: Neon */
+.VTFilms_Slider:nth-of-type(10) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #00dbde 0%, #fc00ff 100%);
+}
+
+/* Slider 11: Sang trọng */
+.VTFilms_Slider:nth-of-type(11) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #c31432 0%, #240b36 100%);
+}
+
+/* Slider 12: Thanh khiết */
+.VTFilms_Slider:nth-of-type(12) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #5ee7df 0%, #b490ca 100%);
+}
+
+/* Slider 13: Đất nung */
+.VTFilms_Slider:nth-of-type(13) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #fbab7e 0%, #f7ce68 100%);
+}
+
+/* Slider 14: Vũ trụ */
+.VTFilms_Slider:nth-of-type(14) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #667eea 0%, #764ba2 100%);
+}
+
+/* Slider 15: Chanh sả */
+.VTFilms_Slider:nth-of-type(15) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #d4fc79 0%, #96e6a1 100%);
+}
+
+/* Slider 16: Kim loại */
+.VTFilms_Slider:nth-of-type(16) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #88d3ce 0%, #6e45e2 100%);
+}
+
+/* Slider 17: Mận chín */
+.VTFilms_Slider:nth-of-type(17) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #ff0844 0%, #ffb199 100%);
+}
+
+/* Slider 18: Đại dương đêm */
+.VTFilms_Slider:nth-of-type(18) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #1e3c72 0%, #2a5298 100%);
+}
+
+/* Slider 19: Nắng sớm */
+.VTFilms_Slider:nth-of-type(19) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #f6d365 0%, #fda085 100%);
+}
+
+/* Slider 20: Tinh thể */
+.VTFilms_Slider:nth-of-type(20) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #e14fad 0%, #f9d423 100%);
+}
+
+/* Slider 21: Bạc hà */
+.VTFilms_Slider:nth-of-type(21) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #00cdac 0%, #8ddad5 100%);
+}
+
+/* Slider 22: Rượu vang */
+.VTFilms_Slider:nth-of-type(22) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #6b0f1a 0%, #b91372 100%);
+}
+
+/* Slider 23: Bình minh trên núi */
+.VTFilms_Slider:nth-of-type(23) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #ff5f6d 0%, #ffc371 100%);
+}
+
+/* Slider 24: Công nghệ */
+.VTFilms_Slider:nth-of-type(24) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #203a43 0%, #2c5364 100%);
+}
+
+/* Slider 25: Cầu vồng nhạt */
+.VTFilms_Slider:nth-of-type(25) .VTFilms_Slider-title-hi {
+    background-image: linear-gradient(to right, #ee9ca7 0%, #ffdde1 100%);
+}
 .VTFilms_Slider-viewall {
   font-size: 0.8125rem;
   color: var(--vtf-text-muted);
@@ -1567,6 +1703,8 @@ img { display: block; max-width: 100%; }
   .VTFilms_HN-btn-play { padding: 10px 1.5rem }
   .VTFilms_HN-desc { display: none; }
 
+   .VTFilms_Slider-title { font-size: 1.25rem }
+   
   /* Detail page mobile — full stack layout */
   .VTFilms_Detail-layout {
     flex-direction: column;
