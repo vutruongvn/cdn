@@ -1,7 +1,7 @@
 // =========================================================================================
 /**
- * VUTRUONG.VN - ALL PAGE SCRIPTS
- * Chạy trên toàn hệ thống - vutruong.vn
+ * BLOG.VUTRUONG.VN - ALL PAGE SCRIPTS
+ * Chạy trên toàn hệ thống VT Zone - blog.vutruong.vn
  * Phiên bản: 5.0.1
  * Cập nhật: 20/2/2026
  */
@@ -200,7 +200,7 @@ document.addEventListener('click', function(e) {
         title: btn.getAttribute('data-post-title'),
         url:   btn.getAttribute('data-post-url')
     }));
-    window.location.href = '//vutruong.vn/report';
+    window.location.href = '//blog.vutruong.vn/report';
 });
 
 // =====================
@@ -680,7 +680,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
 (function() {
     const CONFIG = {
-        blogUrl:     "https://www.vutruong.vn",
+        blogUrl:     "https://blog.vutruong.vn",
         maxResults:  9,
         labelName:   "photo",
         defaultThumb: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
@@ -926,5 +926,6 @@ document.addEventListener("DOMContentLoaded", () => {
 // =========================================================================================
 // VT Zone Body Scripts v5.0.1 - Ready
 // =========================================================================================
+
 
 
