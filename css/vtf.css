@@ -1309,7 +1309,7 @@ img { display: block; max-width: 100%; }
   width: 100%;
 }
 .VTFilms_Player-inner {
-  padding: 7rem 0 0;
+  padding: 5rem 0 0;
 }
 .VTFilms_Player-ratio {
   /* Bootstrap .ratio.ratio-21x9 handles aspect ratio */
